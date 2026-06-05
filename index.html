@@ -55,7 +55,6 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);transition:background .3s,color .3s;}
 
-/* Animated background */
 body::before{
   content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background:
@@ -68,14 +67,19 @@ body::before{
 /* ═══════════════════════════════════
    SCREENS
 ═══════════════════════════════════ */
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;overflow-y:auto;z-index:10;transition:opacity .22s,transform .22s;}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;overflow-y:auto;z-index:10;transition:opacity .22s,transform .22s;padding-bottom:calc(var(--nav-h) + 10px);}
 .screen.hidden{opacity:0;pointer-events:none;transform:translateY(14px);}
 .screen>*{position:relative;z-index:1;}
+
+#settings-screen {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* ═══════════════════════════════════
    PIN SCREEN
 ═══════════════════════════════════ */
-#pin-screen{justify-content:center;align-items:center;padding:28px 24px;gap:28px;background:var(--bg);}
+#pin-screen{justify-content:center;align-items:center;padding:28px 24px;gap:28px;background:var(--bg);padding-bottom:0;}
 
 .vault-brand{text-align:center;}
 .brand-icon{
@@ -173,17 +177,18 @@ body::before{
 
 .stats-row{display:flex;gap:10px;padding:16px 20px;}
 .stat-card{
-  flex:1;padding:14px 16px;border-radius:var(--radius-sm);
+  flex:1;padding:14px 12px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  box-shadow:var(--shadow-sm);
+  box-shadow:var(--shadow-sm);cursor:pointer;transition:transform 0.1s ease;
 }
+.stat-card:active{transform:scale(0.96);}
 .stat-num{font-size:22px;font-weight:800;color:var(--accent);}
 .stat-label{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500;}
 
-.search-wrap{padding:0 20px 12px;position:relative;}
+.search-wrap{padding:0 20px 12px;position:relative;display:flex;align-items:center;}
 .search-wrap input{
-  width:100%;padding:13px 16px 13px 44px;border-radius:var(--radius-sm);
+  width:100%;padding:13px 40px 13px 44px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);color:var(--text);
   font-family:var(--font);font-size:14px;outline:none;transition:border .2s;
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
@@ -193,7 +198,13 @@ body::before{
 .search-wrap input::placeholder{color:var(--muted);}
 .search-icon{position:absolute;left:34px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--muted);}
 
-.filter-row{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none;}
+.search-cancel{
+  position:absolute;right:34px;top:50%;transform:translateY(-50%);
+  font-size:16px;color:var(--muted);cursor:pointer;display:none;
+  padding:4px;user-select:none;
+}
+
+.filter-row{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none;width:100%;}
 .filter-row::-webkit-scrollbar{display:none;}
 .pill{
   padding:7px 15px;border-radius:20px;border:1.5px solid var(--border);
@@ -210,7 +221,7 @@ body::before{
   background:transparent;border:none;outline:none;cursor:pointer;
 }
 
-.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);}
+.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:20px;}
 
 /* Glass entry card */
 .entry-card{
@@ -223,7 +234,6 @@ body::before{
 .entry-card::after{content:'';position:absolute;inset:0;border-radius:var(--radius);background:linear-gradient(135deg,rgba(255,255,255,.06),transparent);pointer-events:none;}
 .entry-card:active{transform:scale(.975);box-shadow:none;}
 
-/* category accent strip */
 .entry-card::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;}
 .cat-social::before{background:var(--accent);}
 .cat-banking::before{background:var(--green);}
@@ -255,11 +265,22 @@ body::before{
 .empty-icon{font-size:52px;display:block;margin-bottom:14px;opacity:.35;}
 .empty-state p{font-size:14px;font-weight:500;line-height:1.6;}
 
+/* Reminder Banner style */
+.backup-nudge{
+  margin:12px 20px 4px;padding:12px 16px;border-radius:var(--radius-sm);
+  background:rgba(245,158,11,0.15);border:1.5px solid rgba(245,158,11,0.3);
+  display:flex;align-items:center;justify-content:between;gap:12px;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  animation:fadeUp .3s ease;
+}
+.backup-nudge-text{font-size:12px;font-weight:600;color:var(--yellow);flex:1;line-height:1.4;}
+.backup-nudge-close{font-size:14px;color:var(--muted);cursor:pointer;padding:2px 6px;font-weight:700;}
+
 /* ═══════════════════════════════════
    FORM SCREEN
 ═══════════════════════════════════ */
 #form-screen{background:var(--bg);}
-.form-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;}
+.form-body{padding:0 20px;display:flex;flex-direction:column;gap:14px;}
 
 .field-group{display:flex;flex-direction:column;gap:6px;}
 .field-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;}
@@ -276,7 +297,7 @@ select.field-input{cursor:pointer;}
 select.field-input option{background:var(--bg2);color:var(--text);}
 
 .pw-wrapper{position:relative;}
-.pw-wrapper .field-input{padding-right:90px;}
+.pw-wrapper .field-input{padding-right:50px;}
 .pw-actions{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;gap:4px;}
 .pw-icon-btn{background:transparent;border:none;color:var(--muted);font-size:17px;cursor:pointer;padding:4px;transition:color .15s;}
 .pw-icon-btn:active{color:var(--accent);}
@@ -337,7 +358,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 .detail-updated{font-size:11px;color:var(--muted);margin-top:8px;}
 
-.detail-fields{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);}
+.detail-fields{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:20px;}
 .detail-field{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
   padding:14px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -368,13 +389,13 @@ select.field-input option{background:var(--bg2);color:var(--text);}
    FAVOURITES SCREEN
 ═══════════════════════════════════ */
 #fav-screen{background:var(--bg);}
-#fav-screen .entries-list{padding-bottom:calc(var(--nav-h)+20px);}
+#fav-screen .entries-list{padding-bottom:20px;}
 
 /* ═══════════════════════════════════
    SETTINGS SCREEN
 ═══════════════════════════════════ */
 #settings-screen{background:var(--bg);}
-.settings-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:8px;}
+.settings-body{padding:0 20px;display:flex;flex-direction:column;gap:8px;}
 .settings-section-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;margin:10px 0 4px;}
 .settings-item{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
@@ -399,6 +420,37 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   box-shadow:0 1px 4px rgba(0,0,0,.2);
 }
 .theme-toggle.on::after{transform:translateX(20px);}
+
+/* ═══════════════════════════════════
+   CUSTOM BREAKDOWN MODAL UI
+═══════════════════════════════════ */
+.v-modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;
+  display:flex;align-items:center;justify-content:center;padding:24px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+}
+.v-modal-overlay.show{opacity:1;pointer-events:all;}
+.v-modal-card{
+  width:100%;max-width:320px;border-radius:var(--radius);
+  background:var(--surface2);border:1.5px solid var(--border);
+  padding:20px;box-shadow:var(--shadow);
+  backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);
+  transform:scale(0.92);transition:transform .2s ease;
+}
+.v-modal-overlay.show .v-modal-card{transform:scale(1);}
+.v-modal-title{font-size:18px;font-weight:800;letter-spacing:-0.3px;margin-bottom:14px;color:var(--text);}
+.v-modal-list{display:flex;flex-direction:column;gap:10px;}
+.v-modal-item{
+  display:flex;align-items:center;justify-content:between;
+  padding:10px 14px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--border);
+}
+.v-modal-item-label{font-size:14px;font-weight:600;color:var(--text);}
+.v-modal-item-count{font-size:14px;font-weight:800;color:var(--accent);background:rgba(91,95,245,0.1);padding:2px 8px;border-radius:10px;}
+.v-modal-btn{
+  margin-top:16px;width:100%;padding:12px;border-radius:var(--radius-sm);
+  background:var(--accent-g);color:#fff;font-weight:700;border:none;cursor:pointer;
+}
 
 /* ═══════════════════════════════════
    TOAST
@@ -439,7 +491,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 </head>
 <body>
 
-<!-- ══════════ PIN SCREEN ══════════ -->
 <div class="screen" id="pin-screen">
   <div class="vault-brand">
     <div class="brand-icon">🔐</div>
@@ -461,20 +512,23 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
 </div>
 
-<!-- ══════════ HOME SCREEN ══════════ -->
 <div class="screen hidden" id="home-screen">
   <div class="home-header">
     <div class="home-greeting">Welcome back 👋</div>
     <div class="home-title">My Vault</div>
   </div>
+  
+  <div id="backup-reminder-zone"></div>
+
   <div class="stats-row">
-    <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
-    <div class="stat-card"><div class="stat-num" id="stat-fav">0</div><div class="stat-label">Favourites</div></div>
-    <div class="stat-card"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Categories</div></div>
+    <div class="stat-card" id="card-stat-total"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
+    <div class="stat-card" id="card-stat-fav"><div class="stat-num" id="stat-fav">0</div><div class="stat-label">Favourites</div></div>
+    <div class="stat-card" id="card-stat-cats"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Categories</div></div>
   </div>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
     <input type="text" id="search-input" placeholder="Search entries..."/>
+    <span class="search-cancel" id="search-cancel-btn">✕</span>
   </div>
   <div class="filter-row" id="cat-pills">
     <div class="pill active" data-cat="all">All</div>
@@ -496,7 +550,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
   <div class="entries-list" id="entries-list"></div>
 
-  <!-- Bottom Nav -->
   <div class="bottom-nav">
     <div class="nav-item active" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
@@ -506,7 +559,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
 </div>
 
-<!-- ══════════ FAVOURITES SCREEN ══════════ -->
 <div class="screen hidden" id="fav-screen">
   <div class="topbar"><h2>⭐ Starred</h2><div style="width:40px"></div></div>
   <div class="entries-list" id="fav-list"></div>
@@ -519,7 +571,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
 </div>
 
-<!-- ══════════ FORM SCREEN ══════════ -->
 <div class="screen hidden" id="form-screen">
   <div class="topbar">
     <div class="icon-btn" id="form-back">←</div>
@@ -551,7 +602,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
         <input class="field-input" id="f-pass" type="password" placeholder="Enter password" autocomplete="new-password"/>
         <div class="pw-actions">
           <button class="pw-icon-btn" id="pw-eye" title="Show/Hide">👁</button>
-          <button class="pw-icon-btn" id="pw-gen" title="Generate">🎲</button>
         </div>
       </div>
       <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
@@ -561,20 +611,16 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <div class="field-label">Notes (optional)</div>
       <input class="field-input" id="f-notes" placeholder="Any extra info..." autocomplete="off"/>
     </div>
-
-    <!-- Custom Fields -->
     <div class="field-group">
       <div class="field-label">Custom Fields</div>
       <div class="custom-fields-list" id="custom-fields-list"></div>
       <button class="add-field-btn" id="add-cf-btn">＋ Add Custom Field</button>
     </div>
-
     <button class="btn-primary" id="form-save">Save Entry</button>
     <button class="btn-danger hidden" id="form-delete">Delete Entry</button>
   </div>
 </div>
 
-<!-- ══════════ DETAIL SCREEN ══════════ -->
 <div class="screen hidden" id="detail-screen">
   <div class="topbar">
     <div class="icon-btn" id="detail-back">←</div>
@@ -591,74 +637,50 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <span class="detail-cat-badge" id="d-cat"></span>
     <div class="detail-updated" id="d-updated"></div>
   </div>
-
-  <div class="detail-fields" id="detail-fields-container">
-    <div class="detail-field">
-      <div class="detail-field-label">Username / Email</div>
-      <div class="detail-field-row">
-        <div class="detail-field-value" id="d-user"></div>
-        <button class="copy-btn" data-copy="user">Copy</button>
-      </div>
-    </div>
-    <div class="detail-field">
-      <div class="detail-field-label">Password</div>
-      <div class="detail-field-row">
-        <div class="detail-field-value masked" id="d-pass">••••••••</div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="copy-btn" id="reveal-btn">Show</button>
-          <button class="copy-btn" data-copy="pass">Copy</button>
-        </div>
-      </div>
-    </div>
-    <div class="detail-field" id="d-notes-field">
-      <div class="detail-field-label">Notes</div>
-      <div class="detail-field-value" id="d-notes"></div>
-    </div>
-    <!-- custom fields rendered here -->
-    <div id="d-custom-fields"></div>
+  <div class="detail-fields" id="detail-fields-container"></div>
+  <div class="detail-actions">
+    <button class="btn-secondary" id="detail-close">Close</button>
   </div>
 </div>
 
-<!-- ══════════ SETTINGS SCREEN ══════════ -->
 <div class="screen hidden" id="settings-screen">
-  <div class="topbar"><h2>Settings</h2><div style="width:40px"></div></div>
+  <div class="topbar"><h2>⚙️ Settings</h2><div style="width:40px"></div></div>
   <div class="settings-body">
-    <div class="settings-section-label">Appearance</div>
-    <div class="settings-item" style="cursor:default">
-      <span class="s-icon">🌙</span>
-      <div class="s-info"><div class="s-title">Dark Mode</div><div class="s-desc">Switch between light and dark</div></div>
-      <button class="theme-toggle" id="theme-toggle"></button>
-    </div>
-
     <div class="settings-section-label">Security</div>
     <div class="settings-item" id="s-change-pin">
-      <span class="s-icon">🔑</span>
-      <div class="s-info"><div class="s-title">Change PIN</div><div class="s-desc">Update your 6-digit PIN</div></div>
-      <span class="s-arrow">›</span>
+      <div class="s-icon">🔑</div>
+      <div class="s-info"><div class="s-title">Change Vault PIN</div><div class="s-desc">Update your 6-digit master access PIN</div></div>
+      <div class="s-arrow">›</div>
     </div>
-    <div class="settings-item" id="s-lock">
-      <span class="s-icon">🔒</span>
-      <div class="s-info"><div class="s-title">Lock Vault</div><div class="s-desc">Lock immediately</div></div>
-      <span class="s-arrow">›</span>
-    </div>
-
-    <div class="settings-section-label">Backup</div>
+    
+    <div class="settings-section-label">Data Management</div>
     <div class="settings-item" id="s-export">
-      <span class="s-icon">📤</span>
-      <div class="s-info"><div class="s-title">Export Backup</div><div class="s-desc">Save encrypted .vault file</div></div>
-      <span class="s-arrow">›</span>
+      <div class="s-icon">📤</div>
+      <div class="s-info"><div class="s-title">Export Backup</div><div class="s-desc">Save encrypted credentials to local file</div></div>
+      <div class="s-arrow">›</div>
     </div>
     <div class="settings-item" id="s-import">
-      <span class="s-icon">📥</span>
-      <div class="s-info"><div class="s-title">Import Backup</div><div class="s-desc">Restore from backup file</div></div>
-      <span class="s-arrow">›</span>
+      <div class="s-icon">📥</div>
+      <div class="s-info"><div class="s-title">Import Backup</div><div class="s-desc">Restore database from backup source file</div></div>
+      <div class="s-arrow">›</div>
     </div>
-    <input type="file" id="import-file" accept=".vault" style="display:none"/>
+    <input type="file" id="import-file" accept=".vault" class="hidden"/>
 
-    <div class="settings-section-label">About</div>
-    <div class="settings-item" style="cursor:default">
-      <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title">Vault v2.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+    <div class="settings-section-label">Preferences</div>
+    <div class="settings-item" id="s-theme-row">
+      <div class="s-icon">🌓</div>
+      <div class="s-info"><div class="s-title">Dark Mode</div><div class="s-desc">Switch interface lighting ecosystem</div></div>
+      <button class="theme-toggle" id="theme-toggle-btn"></button>
+    </div>
+
+    <div class="settings-section-label">System Info</div>
+    <div class="settings-item" style="cursor:default;">
+      <div class="s-icon">🛡️</div>
+      <div class="s-info"><div class="s-title">Encryption Paradigm</div><div class="s-desc">AES-256-GCM + PBKDF2 Web Crypto Standard</div></div>
+    </div>
+    <div class="settings-item" style="cursor:default; margin-bottom: 24px;">
+      <div class="s-icon">ℹ️</div>
+      <div class="s-info"><div class="s-title">About Vault</div><div class="s-desc">Version 2.0.0 (Local-First PWA Implementation)</div></div>
     </div>
   </div>
   <div class="bottom-nav">
@@ -670,555 +692,612 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
 </div>
 
-<!-- ══════════ LOCK OVERLAY ══════════ -->
-<div id="lock-overlay">
-  <div class="lock-icon-wrap">🔐</div>
-  <p>Vault locked</p>
+<div class="v-modal-overlay" id="category-modal">
+  <div class="v-modal-card">
+    <div class="v-modal-title">Category Distribution</div>
+    <div class="v-modal-list" id="category-modal-list"></div>
+    <button class="v-modal-btn" id="category-modal-close">Dismiss</button>
+  </div>
 </div>
 
 <div id="toast"></div>
 
+<div id="lock-overlay">
+  <div class="lock-icon-wrap">🔒</div>
+  <p style="margin-top:14px;">Vault Locked</p>
+</div>
+
 <script>
-// ═══════════════════════════════════════
-//  CRYPTO
-// ═══════════════════════════════════════
-const Crypto = {
-  enc: new TextEncoder(), dec: new TextDecoder(),
-  async hashPIN(pin) {
-    const buf = await crypto.subtle.digest('SHA-256', this.enc.encode(pin));
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+const Crypto={
+  async deriveKey(pin,salt){
+    const enc=new TextEncoder().encode(pin);
+    const base=await crypto.subtle.importKey('raw',enc,'PBKDF2',false,['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
   },
-  async deriveKey(pin, salt) {
-    const km = await crypto.subtle.importKey('raw', this.enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'}, km, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
-  },
-  async encrypt(data, pin) {
+  async encrypt(data,pin){
     const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
-    const key=await this.deriveKey(pin,salt);
-    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,this.enc.encode(JSON.stringify(data)));
-    const out=new Uint8Array(salt.length+iv.length+ct.byteLength);
-    out.set(salt,0); out.set(iv,16); out.set(new Uint8Array(ct),28);
-    return btoa(String.fromCharCode(...out));
+    const key=await this.deriveKey(pin,salt), enc=new TextEncoder().encode(JSON.stringify(data));
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc);
+    const buf=new Uint8Array(salt.length+iv.length+ct.byteLength);
+    buf.set(salt,0); buf.set(iv,salt.length); buf.set(new Uint8Array(ct),salt.length+iv.length);
+    return btoa(String.fromCharCode(...buf));
   },
-  async decrypt(b64, pin) {
-    const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
-    const key=await this.deriveKey(pin,raw.slice(0,16));
-    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:raw.slice(16,28)},key,raw.slice(28));
-    return JSON.parse(this.dec.decode(pt));
+  async decrypt(str,pin){
+    const arr=Uint8Array.from(atob(str),c=>c.charCodeAt(0));
+    const salt=arr.slice(0,16), iv=arr.slice(16,28), ct=arr.slice(28);
+    const key=await this.deriveKey(pin,salt);
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
+    return JSON.parse(new TextDecoder().decode(pt));
   }
 };
 
-// ═══════════════════════════════════════
-//  STATE & STORAGE
-// ═══════════════════════════════════════
-let state = {
-  entries:[], currentPIN:'', unlocked:false, editId:null,
-  activeFilter:'all', pinBuffer:'', pinMode:'unlock',
-  pinTemp:'', failCount:0, currentNav:'home',
+const Store={
+  get(k){return localStorage.getItem(k);},
+  set(k,v){localStorage.setItem(k,v);},
+  rem(k){localStorage.removeItem(k);}
 };
 
-const Store = {
-  get(k){ return localStorage.getItem(k); },
-  set(k,v){ localStorage.setItem(k,v); },
+const state={
+  hasPIN: !!Store.get('vault_pin_check'),
+  currentPIN:'', isLocked:true, entries:[], currentFilter:'all',
+  currentSort:'newest', currentId:null, wrongAttempts:0, mode:'add'
 };
 
-let autoLockTimer=null;
-const AUTO_LOCK_MS = 2*60*1000;
-
-// ═══════════════════════════════════════
-//  THEME
-// ═══════════════════════════════════════
-function applyTheme(dark) {
-  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-  document.getElementById('theme-toggle').classList.toggle('on', dark);
-  Store.set('vault_theme', dark ? 'dark' : 'light');
+const AUTO_LOCK_MS=2*60*1000; let lockTimer;
+function resetLockTimer(){
+  clearTimeout(lockTimer);
+  if(!state.isLocked) lockTimer=setTimeout(()=>lockSystem(),AUTO_LOCK_MS);
 }
-document.getElementById('theme-toggle').addEventListener('click', () => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  applyTheme(!isDark);
-});
+['click','touchstart','input','keydown'].forEach(e=>window.addEventListener(e,resetLockTimer));
 
-// ═══════════════════════════════════════
-//  SCREENS & NAV
-// ═══════════════════════════════════════
-const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen'];
-function showScreen(id) {
-  SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
+document.addEventListener('visibilitychange',()=>{ if(document.hidden && !state.isLocked) lockSystem(); });
+
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
 }
 
-// Bottom nav
-document.querySelectorAll('[data-nav]').forEach(item => {
-  item.addEventListener('click', () => {
-    const nav = item.dataset.nav;
-    if(nav==='home'){ state.currentNav='home'; showScreen('home-screen'); renderEntries(); updateStats(); }
-    else if(nav==='fav'){ state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
-    else if(nav==='settings'){ state.currentNav='settings'; showScreen('settings-screen'); }
-  });
-});
-document.getElementById('lock-nav-btn').addEventListener('click', lockVault);
-document.getElementById('lock-nav-btn2').addEventListener('click', lockVault);
-document.getElementById('lock-nav-btn3').addEventListener('click', lockVault);
-document.getElementById('add-btn-fav').addEventListener('click', () => openForm());
-document.getElementById('add-btn-settings').addEventListener('click', () => openForm());
-
-// ═══════════════════════════════════════
-//  TOAST
-// ═══════════════════════════════════════
-let toastT;
-function toast(msg, dur=2200) {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),dur);
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  resetLockTimer();
 }
 
-// ═══════════════════════════════════════
-//  AUTO LOCK
-// ═══════════════════════════════════════
-function resetAutoLock() {
-  clearTimeout(autoLockTimer);
-  if(!state.unlocked) return;
-  autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MS);
+// ═══════════════════════════════════
+//  SECURITY LOCK ROUTINES
+// ═══════════════════════════════════
+function lockSystem(){
+  state.isLocked=true; state.currentPIN=''; updatePINDots();
+  document.getElementById('lock-overlay').classList.add('visible');
+  setTimeout(()=>{
+    document.getElementById('lock-overlay').classList.remove('visible');
+    showScreen('pin-screen');
+  },400);
 }
-function lockVault() {
-  state.unlocked=false; state.currentPIN='';
-  clearTimeout(autoLockTimer);
-  const ov=document.getElementById('lock-overlay');
-  ov.classList.add('visible');
-  setTimeout(()=>{ ov.classList.remove('visible'); initPINScreen('unlock'); showScreen('pin-screen'); },700);
-}
-document.addEventListener('touchstart', resetAutoLock);
-document.addEventListener('click', resetAutoLock);
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.unlocked) lockVault(); });
 
-// ═══════════════════════════════════════
-//  PIN SCREEN
-// ═══════════════════════════════════════
-function initPINScreen(mode) {
-  state.pinMode=mode; state.pinBuffer=''; updatePINDots();
-  const lbl=document.getElementById('pin-label'), sub=document.getElementById('pin-subtitle');
-  lbl.className='pin-label';
-  const msgs = {
-    'setup':'Create a 6-digit PIN','setup-confirm':'Confirm your PIN',
-    'change-old':'Enter current PIN','change-new':'Enter new PIN','change-confirm':'Confirm new PIN',
-    'unlock':'Enter your PIN'
-  };
-  lbl.textContent = msgs[mode] || 'Enter your PIN';
-  sub.textContent = mode==='setup' ? 'You will use this to unlock your vault' : 'Your private password vault';
-  if(mode==='unlock'){
-    const lock = parseInt(Store.get('vault_lockout')||'0');
-    if(Date.now()<lock){ const s=Math.ceil((lock-Date.now())/1000); lbl.textContent=`Too many attempts. Wait ${s}s`; lbl.classList.add('error'); }
+// ═══════════════════════════════════
+//  BACKUP REMINDER NUDGE ENGINE
+// ═══════════════════════════════════
+function evaluateBackupReminder() {
+  const reminderZone = document.getElementById('backup-reminder-zone');
+  reminderZone.innerHTML = '';
+  
+  if (state.isLocked || !Store.get('vault_data')) return;
+  
+  const lastBackup = Store.get('vault_last_backup');
+  const dismissedTime = Store.get('vault_backup_dismissed_at');
+  const now = Date.now();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  
+  let targetReferenceTime = lastBackup ? parseInt(lastBackup, 10) : 0;
+  if (dismissedTime && parseInt(dismissedTime, 10) > targetReferenceTime) {
+    targetReferenceTime = parseInt(dismissedTime, 10);
+  }
+  
+  if (now - targetReferenceTime > thirtyDaysMs) {
+    const nudge = document.createElement('div');
+    nudge.className = 'backup-nudge';
+    nudge.innerHTML = `
+      <div class="backup-nudge-text">⚠️ It has been over 30 days since your last secure vault backup export. Prevent data loss by backing up.</div>
+      <div class="backup-nudge-close" id="close-nudge-btn">✕</div>
+    `;
+    reminderZone.appendChild(nudge);
+    
+    document.getElementById('close-nudge-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      Store.set('vault_backup_dismissed_at', Date.now().toString());
+      nudge.remove();
+    });
   }
 }
 
-function updatePINDots(err=false) {
-  for(let i=0;i<6;i++){
-    const d=document.getElementById('d'+i);
-    d.classList.toggle('filled', i<state.pinBuffer.length && !err);
-    d.classList.toggle('error', err);
-  }
-}
-
-function pinError(msg) {
-  updatePINDots(true);
-  const lbl=document.getElementById('pin-label');
-  lbl.textContent=msg; lbl.className='pin-label error';
-  setTimeout(()=>{ state.pinBuffer=''; updatePINDots(false); lbl.className='pin-label'; },900);
-}
-
-async function handlePINDigit(d) {
-  const lock=parseInt(Store.get('vault_lockout')||'0');
-  if(state.pinMode==='unlock' && Date.now()<lock){ pinError(`Locked. Wait ${Math.ceil((lock-Date.now())/1000)}s`); return; }
-  if(state.pinBuffer.length>=6) return;
-  state.pinBuffer+=d; updatePINDots();
-  if(state.pinBuffer.length<6) return;
-  const entered=state.pinBuffer;
-  await new Promise(r=>setTimeout(r,120));
-
-  if(state.pinMode==='setup'){
-    state.pinTemp=entered; initPINScreen('setup-confirm');
-  } else if(state.pinMode==='setup-confirm'){
-    if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
-    Store.set('vault_pin', await Crypto.hashPIN(entered));
-    state.currentPIN=entered; state.entries=[];
-    await saveEntries(); unlockSuccess();
-  } else if(state.pinMode==='unlock'){
-    const hash=await Crypto.hashPIN(entered);
-    if(hash!==Store.get('vault_pin')){
-      let f=(parseInt(Store.get('vault_fails')||'0'))+1; Store.set('vault_fails',f);
-      if(f>=5){ Store.set('vault_lockout',Date.now()+30000); Store.set('vault_fails',0); pinError('Locked for 30s'); }
-      else pinError(`Wrong PIN · ${5-f} left`);
-      return;
+// ═══════════════════════════════════
+//  PIN KEYPAD INPUT COMPONENT
+// ═══════════════════════════════════
+document.querySelectorAll('.num-btn[data-n]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(Store.get('vault_lockout_until') && Date.now()<parseInt(Store.get('vault_lockout_until'))) return;
+    if(state.currentPIN.length<6){
+      state.currentPIN+=b.getAttribute('data-n'); updatePINDots();
+      if(state.currentPIN.length===6) setTimeout(()=>validatePIN(),60);
     }
-    Store.set('vault_fails',0);
-    try{ const enc=Store.get('vault_data'); state.entries=enc?await Crypto.decrypt(enc,entered):[]; }
-    catch(e){ state.entries=[]; }
-    state.currentPIN=entered; unlockSuccess();
-  } else if(state.pinMode==='change-old'){
-    if(await Crypto.hashPIN(entered)!==Store.get('vault_pin')){ pinError('Wrong PIN'); return; }
-    state.pinTemp=entered; initPINScreen('change-new'); showScreen('pin-screen');
-  } else if(state.pinMode==='change-new'){
-    state.pinTemp=entered; initPINScreen('change-confirm');
-  } else if(state.pinMode==='change-confirm'){
-    if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
-    Store.set('vault_pin', await Crypto.hashPIN(entered));
-    state.currentPIN=entered; await saveEntries();
-    toast('PIN changed ✓'); showScreen('settings-screen');
-  }
-}
-
-function unlockSuccess() {
-  state.unlocked=true;
-  const lbl=document.getElementById('pin-label');
-  lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
-  applyTheme(Store.get('vault_theme')==='dark');
-  setTimeout(()=>{ showScreen('home-screen'); renderEntries(); updateStats(); resetAutoLock(); },300);
-}
-
-document.querySelectorAll('.num-btn[data-n]').forEach(b=>b.addEventListener('click',()=>handlePINDigit(b.dataset.n)));
-document.getElementById('del-btn').addEventListener('click',()=>{ state.pinBuffer=state.pinBuffer.slice(0,-1); updatePINDots(); });
-
-// ═══════════════════════════════════════
-//  ENTRIES
-// ═══════════════════════════════════════
-async function saveEntries() {
-  Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
-}
-
-const CAT_EMOJI = {social:'📱',banking:'🏦',work:'💼',email:'📧',other:'📁'};
-const CAT_COLOR = {social:'#5b5ff5',banking:'#10b981',work:'#f59e0b',email:'#ec4899',other:'#9096b8'};
-const CAT_BG    = {social:'rgba(91,95,245,.15)',banking:'rgba(16,185,129,.15)',work:'rgba(245,158,11,.15)',email:'rgba(236,72,153,.15)',other:'rgba(144,150,184,.15)'};
-
-function timeAgo(ts) {
-  if(!ts) return '';
-  const s=Math.floor((Date.now()-ts)/1000);
-  if(s<60) return 'just now';
-  const m=Math.floor(s/60); if(m<60) return `${m}m ago`;
-  const h=Math.floor(m/60); if(h<24) return `${h}h ago`;
-  const dd=Math.floor(h/24); if(dd<30) return `${dd}d ago`;
-  return new Date(ts).toLocaleDateString();
-}
-
-function getSorted(entries) {
-  const mode=document.getElementById('sort-select').value;
-  const arr=[...entries];
-  if(mode==='az') return arr.sort((a,b)=>a.name.localeCompare(b.name));
-  if(mode==='za') return arr.sort((a,b)=>b.name.localeCompare(a.name));
-  if(mode==='oldest') return arr.sort((a,b)=>a.created-b.created);
-  if(mode==='updated') return arr.sort((a,b)=>(b.updated||0)-(a.updated||0));
-  return arr.sort((a,b)=>b.created-a.created); // newest
-}
-
-function renderEntries() {
-  const list=document.getElementById('entries-list');
-  const search=document.getElementById('search-input').value.toLowerCase();
-  const filter=state.activeFilter;
-  let entries=state.entries.filter(e=>{
-    const mc=filter==='all'||e.category===filter;
-    const ms=!search||e.name.toLowerCase().includes(search)||(e.username||'').toLowerCase().includes(search);
-    return mc&&ms;
   });
-  // Favourites first
-  entries.sort((a,b)=>(b.fav?1:0)-(a.fav?1:0));
-  entries=getSorted(entries.filter(e=>e.fav)).concat(getSorted(entries.filter(e=>!e.fav)));
+});
 
-  if(!entries.length){
-    list.innerHTML=`<div class="empty-state"><span class="empty-icon">🔒</span><p>${search?'No results found':'No entries yet.<br>Tap + to add one'}</p></div>`;
-    return;
+document.getElementById('del-btn').addEventListener('click',()=>{
+  state.currentPIN=state.currentPIN.slice(0,-1); updatePINDots();
+});
+
+function updatePINDots(){
+  for(let i=0;i<6;i++){
+    document.getElementById(`d${i}`).className='pin-dot'+(i<state.currentPIN.length?' filled':'');
   }
-  list.innerHTML=entries.map((e,i)=>`
-    <div class="entry-card cat-${e.category}" data-id="${e.id}" style="animation-delay:${i*.04}s">
-      <div class="entry-avatar">${CAT_EMOJI[e.category]}</div>
-      <div class="entry-info">
-        <div class="entry-name">${esc(e.name)}</div>
-        <div class="entry-user">${esc(e.username||'—')}</div>
-        <div class="entry-pw-preview">••••••••</div>
-        <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
-      </div>
-      <div class="entry-meta">
-        <span class="fav-star" data-fav="${e.id}">${e.fav?'⭐':'☆'}</span>
-        <span class="entry-arrow">›</span>
-      </div>
-    </div>`).join('');
-
-  list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{
-    if(ev.target.classList.contains('fav-star')) return;
-    openDetail(c.dataset.id);
-  }));
-  list.querySelectorAll('.fav-star').forEach(s=>s.addEventListener('click',async ev=>{
-    ev.stopPropagation();
-    const entry=state.entries.find(e=>e.id===s.dataset.fav);
-    if(!entry) return;
-    entry.fav=!entry.fav;
-    await saveEntries(); renderEntries(); updateStats();
-  }));
 }
 
-function renderFavs() {
-  const list=document.getElementById('fav-list');
-  const favs=state.entries.filter(e=>e.fav);
-  if(!favs.length){
-    list.innerHTML=`<div class="empty-state"><span class="empty-icon">⭐</span><p>No starred entries yet.<br>Tap ☆ on any entry to star it.</p></div>`;
-    return;
+async function validatePIN(){
+  if(Store.get('vault_lockout_until')){
+    if(Date.now()<parseInt(Store.get('vault_lockout_until'))){
+      toast('Lockout active. Try again later.'); state.currentPIN=''; updatePINDots(); return;
+    } else { Store.rem('vault_lockout_until'); state.wrongAttempts=0; }
   }
-  list.innerHTML=favs.map((e,i)=>`
-    <div class="entry-card cat-${e.category}" data-id="${e.id}" style="animation-delay:${i*.04}s">
-      <div class="entry-avatar">${CAT_EMOJI[e.category]}</div>
-      <div class="entry-info">
-        <div class="entry-name">${esc(e.name)}</div>
-        <div class="entry-user">${esc(e.username||'—')}</div>
-        <div class="entry-pw-preview">••••••••</div>
-        <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
-      </div>
-      <div class="entry-meta">
-        <span class="fav-star" data-fav="${e.id}">⭐</span>
-        <span class="entry-arrow">›</span>
-      </div>
-    </div>`).join('');
-  list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{ if(ev.target.classList.contains('fav-star')) return; openDetail(c.dataset.id); }));
-  list.querySelectorAll('.fav-star').forEach(s=>s.addEventListener('click',async ev=>{
-    ev.stopPropagation();
-    const entry=state.entries.find(e=>e.id===s.dataset.fav);
-    if(entry){ entry.fav=false; await saveEntries(); renderFavs(); updateStats(); }
-  }));
+  
+  const label=document.getElementById('pin-label');
+  if(!state.hasPIN){
+    Store.set('vault_pin_check',await Crypto.encrypt('PARADIGM_VALID',state.currentPIN));
+    state.hasPIN=true; state.isLocked=false; state.entries=[];
+    toast('Master Access PIN Created Successfully! ✓');
+    Store.set('vault_last_backup', Date.now().toString());
+    updateStats(); renderEntries(); showScreen('home-screen'); evaluateBackupReminder();
+  } else {
+    try {
+      const check=Store.get('vault_pin_check'), encData=Store.get('vault_data');
+      await Crypto.decrypt(check,state.currentPIN);
+      state.wrongAttempts=0; state.isLocked=false;
+      if(encData){
+        state.entries=await Crypto.decrypt(encData,state.currentPIN);
+      } else { state.entries=[]; }
+      label.className='pin-label success'; label.textContent='Access Granted';
+      setTimeout(()=>{
+        label.className='pin-label'; label.textContent='Enter your 6-digit PIN';
+        state.currentPIN=''; updatePINDots();
+        updateStats(); renderEntries(); showScreen('home-screen'); evaluateBackupReminder();
+      },300);
+    } catch(e) {
+      state.wrongAttempts++; state.currentPIN=''; updatePINDots();
+      label.className='pin-label error';
+      if(state.wrongAttempts>=5){
+        const until=Date.now()+30000; Store.set('vault_lockout_until',until.toString());
+        label.textContent='Too many wrong entries. 30s Lockout initiated.';
+      } else { label.textContent=`Incorrect PIN (${state.wrongAttempts}/5)`; }
+      document.querySelectorAll('.pin-dot').forEach(d=>d.classList.add('error'));
+      setTimeout(()=>{
+        document.querySelectorAll('.pin-dot').forEach(d=>d.classList.remove('error'));
+        if(state.wrongAttempts<5) { label.className='pin-label'; label.textContent='Enter your 6-digit PIN'; }
+      },400);
+    }
+  }
 }
 
-function updateStats() {
-  document.getElementById('stat-total').textContent=state.entries.length;
-  document.getElementById('stat-fav').textContent=state.entries.filter(e=>e.fav).length;
-  document.getElementById('stat-cats').textContent=new Set(state.entries.map(e=>e.category)).size;
-}
+// ═══════════════════════════════════
+//  SEARCH FLOW AUTO RE-RENDER
+// ═══════════════════════════════════
+const srcInput = document.getElementById('search-input');
+const srcCancel = document.getElementById('search-cancel-btn');
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-document.getElementById('search-input').addEventListener('input', renderEntries);
-document.getElementById('sort-select').addEventListener('change', renderEntries);
-document.getElementById('cat-pills').addEventListener('click', e=>{
-  const pill=e.target.closest('.pill'); if(!pill) return;
-  state.activeFilter=pill.dataset.cat;
-  document.querySelectorAll('.pill').forEach(p=>p.classList.toggle('active',p===pill));
+srcInput.addEventListener('input',()=>{
+  if(srcInput.value.trim().length > 0) {
+    srcCancel.style.display = 'block';
+  } else {
+    srcCancel.style.display = 'none';
+  }
   renderEntries();
 });
 
-// ═══════════════════════════════════════
-//  DETAIL
-// ═══════════════════════════════════════
-let currentDetail=null;
+srcCancel.addEventListener('click', () => {
+  srcInput.value = '';
+  srcCancel.style.display = 'none';
+  srcInput.blur(); 
+  renderEntries();
+});
 
-function openDetail(id) {
-  const entry=state.entries.find(e=>e.id===id); if(!entry) return;
-  currentDetail=entry;
-  document.getElementById('d-avatar').textContent=CAT_EMOJI[entry.category];
-  document.getElementById('d-name').textContent=entry.name;
-  const cb=document.getElementById('d-cat');
-  cb.textContent=entry.category.charAt(0).toUpperCase()+entry.category.slice(1);
-  cb.style.background=CAT_BG[entry.category]; cb.style.color=CAT_COLOR[entry.category];
-  document.getElementById('d-updated').textContent='Last updated '+timeAgo(entry.updated||entry.created);
-  document.getElementById('detail-fav-btn').textContent=entry.fav?'⭐':'☆';
-  document.getElementById('d-user').textContent=entry.username||'—';
-  document.getElementById('d-pass').textContent='••••••••';
-  document.getElementById('d-pass').dataset.revealed='0';
-  document.getElementById('reveal-btn').textContent='Show';
-  document.getElementById('d-pass').classList.add('masked');
-  const notesF=document.getElementById('d-notes-field');
-  if(entry.notes){ document.getElementById('d-notes').textContent=entry.notes; notesF.style.display='block'; }
-  else notesF.style.display='none';
-  // Custom fields
-  const cf=document.getElementById('d-custom-fields');
-  cf.innerHTML=(entry.customFields||[]).map(f=>`
-    <div class="detail-field">
-      <div class="detail-field-label">${esc(f.name)}</div>
-      <div class="detail-field-row">
-        <div class="detail-field-value">${esc(f.value)}</div>
-        <button class="copy-btn" onclick="copyText('${f.value.replace(/'/g,"\\'")}',this)">Copy</button>
-      </div>
-    </div>`).join('');
-  showScreen('detail-screen');
+// ═══════════════════════════════════
+//  CATEGORY SPECIFIC COUNTER MODAL
+// ═══════════════════════════════════
+document.getElementById('card-stat-cats').addEventListener('click', () => {
+  const counts = { social: 0, banking: 0, work: 0, email: 0, other: 0 };
+  state.entries.forEach(e => { if(counts[e.cat] !== undefined) counts[e.cat]++; });
+  
+  const mapping = [
+    { key: 'social', label: '📱 Social' },
+    { key: 'banking', label: '🏦 Banking' },
+    { key: 'work', label: '💼 Work' },
+    { key: 'email', label: '📧 Email' },
+    { key: 'other', label: '📁 Other' }
+  ];
+  
+  const container = document.getElementById('category-modal-list');
+  container.innerHTML = '';
+  mapping.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'v-modal-item';
+    row.innerHTML = `
+      <div class="v-modal-item-label">${m.label}</div>
+      <div class="v-modal-item-count">${counts[m.key]}</div>
+    `;
+    container.appendChild(row);
+  });
+  
+  document.getElementById('category-modal').classList.add('show');
+});
+
+document.getElementById('category-modal-close').addEventListener('click', () => {
+  document.getElementById('category-modal').classList.remove('show');
+});
+document.getElementById('category-modal').addEventListener('click', (e) => {
+  if(e.target === document.getElementById('category-modal')) {
+    document.getElementById('category-modal').classList.remove('show');
+  }
+});
+
+// ═══════════════════════════════════
+//  DATA VISUALIZATION RENDERING
+// ═══════════════════════════════════
+function updateStats(){
+  document.getElementById('stat-total').textContent=state.entries.length;
+  document.getElementById('stat-fav').textContent=state.entries.filter(e=>e.fav).length;
+  const uniqueCats=new Set(state.entries.map(e=>e.cat));
+  document.getElementById('stat-cats').textContent=uniqueCats.size;
 }
 
-window.copyText=async function(val, btn) {
-  try{
-    await navigator.clipboard.writeText(val);
-    const orig=btn.textContent; btn.textContent='✓ Copied'; btn.classList.add('copied');
-    toast('Copied! Clears in 30s 🔒');
-    setTimeout(()=>{ btn.textContent=orig; btn.classList.remove('copied'); },2000);
-    setTimeout(()=>navigator.clipboard.writeText(''),30000);
-  } catch(e){ toast('Copy failed — try long press'); }
+const CatMeta={
+  social:{label:'Social',icon:'📱'}, banking:{label:'Banking',icon:'🏦'},
+  work:{label:'Work',icon:'💼'}, email:{label:'Email',icon:'📧'}, other:{label:'Other',icon:'📁'}
 };
 
-document.getElementById('detail-back').addEventListener('click',()=>{ showScreen('home-screen'); renderEntries(); });
-document.getElementById('detail-edit').addEventListener('click',()=>openForm(currentDetail.id));
-document.getElementById('detail-fav-btn').addEventListener('click',async()=>{
-  if(!currentDetail) return;
-  currentDetail.fav=!currentDetail.fav;
-  document.getElementById('detail-fav-btn').textContent=currentDetail.fav?'⭐':'☆';
-  await saveEntries(); updateStats();
-  toast(currentDetail.fav?'Added to starred ⭐':'Removed from starred');
-});
+function renderEntries(){
+  const query=document.getElementById('search-input').value.toLowerCase().trim();
+  let filtered=state.entries.filter(e=>{
+    const matchesCat=(state.currentFilter==='all'||e.cat===state.currentFilter);
+    const matchesSearch=(e.name.toLowerCase().includes(query)||e.user.toLowerCase().includes(query));
+    return matchesCat && matchesSearch;
+  });
 
-document.getElementById('reveal-btn').addEventListener('click',()=>{
-  const el=document.getElementById('d-pass'), btn=document.getElementById('reveal-btn');
-  if(el.dataset.revealed==='0'){ el.textContent=currentDetail.password; el.dataset.revealed='1'; el.classList.remove('masked'); btn.textContent='Hide'; }
-  else{ el.textContent='••••••••'; el.dataset.revealed='0'; el.classList.add('masked'); btn.textContent='Show'; }
-});
+  filtered.sort((a,b)=>{
+    if(state.currentSort==='newest') return b.id-a.id;
+    if(state.currentSort==='oldest') return a.id-b.id;
+    if(state.currentSort==='az') return a.name.localeCompare(b.name);
+    if(state.currentSort==='za') return b.name.localeCompare(a.name);
+    if(state.currentSort==='updated') return (b.updated||0)-(a.updated||0);
+    return 0;
+  });
 
-document.querySelectorAll('.copy-btn[data-copy]').forEach(btn=>{
-  btn.addEventListener('click',async()=>{
-    if(!currentDetail) return;
-    const val=btn.dataset.copy==='user'?currentDetail.username:currentDetail.password;
-    await copyText(val,btn);
+  const list=document.getElementById('entries-list'); list.innerHTML='';
+  if(filtered.length===0){
+    list.innerHTML=`<div class="empty-state"><span class="empty-icon">📂</span><p>No matching database entries discovered.<br/>Tap + to create records.</p></div>`;
+  } else {
+    filtered.forEach(e=>{
+      const c=CatMeta[e.cat]||CatMeta.other;
+      const d=document.createElement('div'); d.className=`entry-card cat-${e.cat}`;
+      d.innerHTML=`
+        <div class="entry-avatar">${c.icon}</div>
+        <div class="entry-info">
+          <div class="entry-name">${escapeHTML(e.name)}</div>
+          <div class="entry-user">${escapeHTML(e.user||'No Username')}</div>
+          <div class="entry-pw-preview">••••••••</div>
+        </div>
+        <div class="entry-meta">
+          <span class="fav-star" data-id="${e.id}">${e.fav?'⭐':'☆'}</span>
+          <span class="entry-arrow">›</span>
+        </div>
+      `;
+      d.addEventListener('click',(evt)=>{
+        if(evt.target.classList.contains('fav-star')) return;
+        launchDetailView(e.id);
+      });
+      d.querySelector('.fav-star').addEventListener('click',(evt)=>{
+        evt.stopPropagation(); toggleFav(e.id);
+      });
+      list.appendChild(d);
+    });
+  }
+  
+  // Update Favourites tab listing screen view
+  const favList=document.getElementById('fav-list'); favList.innerHTML='';
+  let starredList=state.entries.filter(e=>e.fav);
+  if(starredList.length===0){
+    favList.innerHTML=`<div class="empty-state"><span class="empty-icon">⭐</span><p>No starred records yet.<br/>Bookmark entries for fast retrieval.</p></div>`;
+  } else {
+    starredList.forEach(e=>{
+      const c=CatMeta[e.cat]||CatMeta.other;
+      const d=document.createElement('div'); d.className=`entry-card cat-${e.cat}`;
+      d.innerHTML=`
+        <div class="entry-avatar">${c.icon}</div>
+        <div class="entry-info">
+          <div class="entry-name">${escapeHTML(e.name)}</div>
+          <div class="entry-user">${escapeHTML(e.user||'No Username')}</div>
+          <div class="entry-pw-preview">••••••••</div>
+        </div>
+        <div class="entry-meta"><span class="entry-arrow">›</span></div>
+      `;
+      d.addEventListener('click',()=>launchDetailView(e.id));
+      favList.appendChild(d);
+    });
+  }
+}
+
+function escapeHTML(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function toggleFav(id){
+  const idx=state.entries.findIndex(e=>e.id===id); if(idx===-1) return;
+  state.entries[idx].fav=!state.entries[idx].fav;
+  updateStats(); renderEntries();
+  const enc=await Crypto.encrypt(state.entries,state.currentPIN); Store.set('vault_data',enc);
+}
+
+// ═══════════════════════════════════
+//  NAVIGATION SYSTEM DISPATCHER
+// ═══════════════════════════════════
+document.querySelectorAll('[data-nav]').forEach(item=>{
+  item.addEventListener('click',()=>{
+    const dst=item.getAttribute('data-nav');
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll(`[data-nav="${dst}"]`).forEach(i=>i.classList.add('active'));
+    if(dst==='home') showScreen('home-screen');
+    else if(dst==='fav') showScreen('fav-screen');
+    else if(dst==='settings') showScreen('settings-screen');
   });
 });
 
-// ═══════════════════════════════════════
-//  FORM
-// ═══════════════════════════════════════
-let customFieldsData=[];
-
-function renderCustomFields() {
-  const container=document.getElementById('custom-fields-list');
-  container.innerHTML=customFieldsData.map((cf,i)=>`
-    <div class="custom-field-row">
-      <input class="field-input cf-name" placeholder="Label" value="${esc(cf.name)}" oninput="customFieldsData[${i}].name=this.value" autocomplete="off"/>
-      <input class="field-input" placeholder="Value" value="${esc(cf.value)}" oninput="customFieldsData[${i}].value=this.value" autocomplete="off"/>
-      <button class="cf-del" onclick="removeCustomField(${i})">✕</button>
-    </div>`).join('');
-}
-
-window.removeCustomField=function(i){ customFieldsData.splice(i,1); renderCustomFields(); };
-document.getElementById('add-cf-btn').addEventListener('click',()=>{
-  customFieldsData.push({name:'',value:''}); renderCustomFields();
+document.getElementById('card-stat-fav').addEventListener('click', () => {
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('[data-nav="fav"]').forEach(i=>i.classList.add('active'));
+  showScreen('fav-screen');
 });
 
-function openForm(editId=null) {
-  state.editId=editId;
-  document.getElementById('form-title').textContent=editId?'Edit Entry':'Add Entry';
-  const delBtn=document.getElementById('form-delete');
-  customFieldsData=[];
-  if(editId){
-    const e=state.entries.find(x=>x.id===editId);
-    document.getElementById('f-name').value=e.name;
-    document.getElementById('f-cat').value=e.category;
-    document.getElementById('f-user').value=e.username||'';
-    document.getElementById('f-pass').value=e.password;
-    document.getElementById('f-notes').value=e.notes||'';
-    customFieldsData=(e.customFields||[]).map(cf=>({...cf}));
-    delBtn.classList.remove('hidden');
-    updateStrength(e.password);
-  } else {
-    ['f-name','f-user','f-pass','f-notes'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('f-cat').value='social';
-    delBtn.classList.add('hidden');
-    updateStrength('');
-  }
-  renderCustomFields();
+['add-btn','add-btn-fav','add-btn-settings'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',()=>launchAddForm());
+});
+['lock-nav-btn','lock-nav-btn2','lock-nav-btn3'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',()=>lockSystem());
+});
+
+// ═══════════════════════════════════
+//  CRUD MANAGEMENT LABELS & FIELDS
+// ═══════════════════════════════════
+function launchAddForm(){
+  state.mode='add'; state.currentId=null;
+  document.getElementById('form-title').textContent='Add Entry';
+  document.getElementById('form-delete').classList.add('hidden');
+  document.getElementById('f-name').value=''; document.getElementById('f-cat').value='social';
+  document.getElementById('f-user').value=''; document.getElementById('f-pass').value='';
+  document.getElementById('f-notes').value=''; document.getElementById('custom-fields-list').innerHTML='';
+  document.getElementById('strength-fill').style.width='0'; document.getElementById('strength-label').textContent='';
   showScreen('form-screen');
 }
 
-document.getElementById('add-btn').addEventListener('click',()=>openForm());
-document.getElementById('form-back').addEventListener('click',()=>{
-  if(state.editId) showScreen('detail-screen');
-  else { showScreen('home-screen'); renderEntries(); }
-});
+function launchDetailView(id){
+  const entry=state.entries.find(e=>e.id===id); if(!entry) return;
+  state.currentId=id;
+  const c=CatMeta[entry.cat]||CatMeta.other;
+  document.getElementById('d-avatar').textContent=c.icon;
+  document.getElementById('d-name').textContent=entry.name;
+  const badge=document.getElementById('d-cat'); badge.textContent=c.label;
+  badge.style.background=`rgba(${entry.cat==='social'?'91,95,245':entry.cat==='banking'?'16,185,129':entry.cat==='work'?'245,158,11':entry.cat==='email'?'236,72,153':'144,150,184'},0.15)`;
+  badge.style.color=`var(--${entry.cat==='social'?'accent':entry.cat==='banking'?'green':entry.cat==='work'?'yellow':entry.cat==='email'?'pink':'muted'})`;
+  
+  const upDate=entry.updated?new Date(entry.updated).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Legacy';
+  document.getElementById('d-updated').textContent=`Last Updated: ${upDate}`;
+  document.getElementById('detail-fav-btn').textContent=entry.fav?'⭐':'☆';
 
-// Eye toggle
-document.getElementById('pw-eye').addEventListener('click',()=>{
-  const inp=document.getElementById('f-pass');
-  inp.type=inp.type==='password'?'text':'password';
-});
-
-// Password generator
-document.getElementById('pw-gen').addEventListener('click',()=>{
-  const chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-  let pw=''; const arr=new Uint32Array(16);
-  crypto.getRandomValues(arr);
-  arr.forEach(n=>pw+=chars[n%chars.length]);
-  document.getElementById('f-pass').value=pw;
-  document.getElementById('f-pass').type='text';
-  updateStrength(pw);
-  toast('Strong password generated 🎲');
-});
-
-// Strength
-function updateStrength(pw) {
-  const fill=document.getElementById('strength-fill'), lbl=document.getElementById('strength-label');
-  if(!pw){ fill.style.width='0'; lbl.textContent=''; return; }
-  let s=0;
-  if(pw.length>=8)s++; if(pw.length>=12)s++;
-  if(/[A-Z]/.test(pw))s++; if(/[0-9]/.test(pw))s++; if(/[^A-Za-z0-9]/.test(pw))s++;
-  const lvl=[{w:'20%',bg:'#ef4444',t:'Very Weak'},{w:'40%',bg:'#f97316',t:'Weak'},{w:'60%',bg:'#f59e0b',t:'Fair'},{w:'80%',bg:'#06d6a0',t:'Strong'},{w:'100%',bg:'#10b981',t:'Very Strong'}];
-  const l=lvl[Math.min(s,4)];
-  fill.style.width=l.w; fill.style.background=l.bg; lbl.textContent=l.t; lbl.style.color=l.bg;
+  const container=document.getElementById('detail-fields-container'); container.innerHTML='';
+  
+  if(entry.user) container.appendChild(createDetailFieldRow('Username / Email',entry.user,false));
+  if(entry.pass) container.appendChild(createDetailFieldRow('Password',entry.pass,true));
+  if(entry.notes) container.appendChild(createDetailFieldRow('Notes',entry.notes,false));
+  
+  if(entry.customFields && entry.customFields.length>0){
+    entry.customFields.forEach(cf=>{
+      container.appendChild(createDetailFieldRow(cf.name,cf.value,false));
+    });
+  }
+  showScreen('detail-screen');
 }
-document.getElementById('f-pass').addEventListener('input',e=>updateStrength(e.target.value));
 
-// Save
+function createDetailFieldRow(label,val,isPassword){
+  const item=document.createElement('div'); item.className='detail-field';
+  item.innerHTML=`
+    <div class="detail-field-label">${escapeHTML(label)}</div>
+    <div class="detail-field-row">
+      <div class="detail-field-value ${isPassword?'masked':''}">${isPassword?'••••••••':escapeHTML(val)}</div>
+      <button class="copy-btn">${isPassword?'Show':'Copy'}</button>
+    </div>
+  `;
+  const btn=item.querySelector('.copy-btn'), vDisplay=item.querySelector('.detail-field-value');
+  if(isPassword){
+    btn.addEventListener('click',()=>{
+      if(vDisplay.classList.contains('masked')){
+        vDisplay.classList.remove('masked'); vDisplay.textContent=val; btn.textContent='Copy';
+      } else {
+        navigator.clipboard.writeText(val); btn.textContent='Copied ✓'; btn.classList.add('copied');
+        setTimeout(()=>{ btn.textContent='Show'; btn.classList.remove('copied'); vDisplay.classList.add('masked'); vDisplay.textContent='••••••••'; },3000);
+      }
+    });
+  } else {
+    btn.addEventListener('click',()=>{
+      navigator.clipboard.writeText(val); btn.textContent='Copied ✓'; btn.classList.add('copied');
+      setTimeout(()=>{ btn.textContent='Copy'; btn.classList.remove('copied'); },2000);
+    });
+  }
+  return item;
+}
+
+document.getElementById('detail-close').addEventListener('click',()=>showScreen('home-screen'));
+document.getElementById('detail-back').addEventListener('click',()=>showScreen('home-screen'));
+document.getElementById('form-back').addEventListener('click',()=>showScreen(state.mode==='edit'?'detail-screen':'home-screen'));
+
+document.getElementById('detail-fav-btn').addEventListener('click',async()=>{
+  await toggleFav(state.currentId);
+  const entry=state.entries.find(e=>e.id===state.currentId);
+  document.getElementById('detail-fav-btn').textContent=entry.fav?'⭐':'☆';
+});
+
+document.getElementById('detail-edit').addEventListener('click',()=>launchEditForm());
+
+function launchEditForm(){
+  const entry=state.entries.find(e=>e.id===state.currentId); if(!entry) return;
+  state.mode='edit';
+  document.getElementById('form-title').textContent='Edit Entry';
+  document.getElementById('form-delete').classList.remove('hidden');
+  document.getElementById('f-name').value=entry.name; document.getElementById('f-cat').value=entry.cat;
+  document.getElementById('f-user').value=entry.user||''; document.getElementById('f-pass').value=entry.pass||'';
+  document.getElementById('f-notes').value=entry.notes||'';
+  
+  const cfContainer=document.getElementById('custom-fields-list'); cfContainer.innerHTML='';
+  if(entry.customFields && entry.customFields.length>0){
+    entry.customFields.forEach(cf=>addCustomFieldInputRow(cf.name,cf.value));
+  }
+  checkPasswordStrength(entry.pass||'');
+  showScreen('form-screen');
+}
+
+// ═══════════════════════════════════
+//  CUSTOM COMPLEX DYNAMIC FIELDS
+// ═══════════════════════════════════
+function addCustomFieldInputRow(name='',val=''){
+  const container=document.getElementById('custom-fields-list');
+  const r=document.createElement('div'); r.className='custom-field-row';
+  r.innerHTML=`
+    <input class="field-input cf-name" placeholder="Label" value="${escapeHTML(name)}" autocomplete="off"/>
+    <input class="field-input cf-value" placeholder="Value" value="${escapeHTML(val)}" autocomplete="off"/>
+    <button class="cf-del">⌫</button>
+  `;
+  r.querySelector('.cf-del').addEventListener('click',()=>r.remove());
+  container.appendChild(r);
+}
+document.getElementById('add-cf-btn').addEventListener('click',()=>addCustomFieldInputRow());
+
+// ═══════════════════════════════════
+//  INTERACTIVE PASSWORD COMPLEXITY
+// ═══════════════════════════════════
+const eye=document.getElementById('pw-eye'), passIn=document.getElementById('f-pass');
+eye.addEventListener('click',()=>{
+  const isPw=(passIn.type==='password'); passIn.type=isPw?'text':'password'; eye.textContent=isPw?'🙈':'👁';
+});
+
+passIn.addEventListener('input',()=>checkPasswordStrength(passIn.value));
+
+function checkPasswordStrength(pw){
+  const bar=document.getElementById('strength-fill'), lbl=document.getElementById('strength-label');
+  if(!pw){ bar.style.width='0'; lbl.textContent=''; return; }
+  let score=0; if(pw.length>=8) score++; if(pw.length>=12) score++; if(/[A-Z]/.test(pw)) score++; if(/[0-9]/.test(pw)) score++; if(/[^A-Za-z0-9]/.test(pw)) score++;
+  
+  const widthMapping=['20%','40%','60%','80%','100%'];
+  const colors=['var(--red)','var(--red)','var(--yellow)','var(--accent)','var(--green)'];
+  const labels=['Unacceptable','Weak Sizing','Acceptable Sizing','Strong Layer','Impenetrable Vault Structure'];
+  
+  const activeIdx=Math.min(score,4);
+  bar.style.width=widthMapping[activeIdx]; bar.style.background=colors[activeIdx];
+  lbl.textContent=labels[activeIdx]; lbl.style.color=colors[activeIdx];
+}
+
+// ═══════════════════════════════════
+//  PERSISTENT ENGINE (SAVE / DELETE)
+// ═══════════════════════════════════
 document.getElementById('form-save').addEventListener('click',async()=>{
-  const name=document.getElementById('f-name').value.trim();
-  const pass=document.getElementById('f-pass').value;
-  if(!name){ toast('App name is required'); return; }
-  if(!pass){ toast('Password is required'); return; }
-  const now=Date.now();
-  const entry={
-    id: state.editId || now.toString(36)+Math.random().toString(36).slice(2),
-    name, category:document.getElementById('f-cat').value,
-    username:document.getElementById('f-user').value.trim(),
-    password:pass, notes:document.getElementById('f-notes').value.trim(),
-    customFields:customFieldsData.filter(f=>f.name||f.value),
-    fav: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).fav||false : false,
-    created: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).created||now : now,
-    updated: now,
-  };
-  if(state.editId){ const idx=state.entries.findIndex(e=>e.id===state.editId); state.entries[idx]=entry; currentDetail=entry; }
-  else state.entries.unshift(entry);
-  await saveEntries(); updateStats();
-  toast(state.editId?'Updated ✓':'Saved ✓');
-  if(state.editId) openDetail(entry.id);
-  else { showScreen('home-screen'); renderEntries(); }
+  const name=document.getElementById('f-name').value.trim(), cat=document.getElementById('f-cat').value;
+  const user=document.getElementById('f-user').value.trim(), pass=document.getElementById('f-pass').value;
+  const notes=document.getElementById('f-notes').value.trim();
+  if(!name){ toast('Application Name Obligatory'); return; }
+
+  const customFields=[];
+  document.querySelectorAll('#custom-fields-list .custom-field-row').forEach(row=>{
+    const cfn=row.querySelector('.cf-name').value.trim(), cfv=row.querySelector('.cf-value').value.trim();
+    if(cfn) customFields.push({name:cfn,value:cfv});
+  });
+
+  if(state.mode==='add'){
+    state.entries.push({id:Date.now(),name,cat,user,pass,notes,customFields,fav:false,updated:Date.now()});
+  } else {
+    const idx=state.entries.findIndex(e=>e.id===state.currentId);
+    if(idx!==-1){
+      state.entries[idx]={...state.entries[idx],name,cat,user,pass,notes,customFields,updated:Date.now()};
+    }
+  }
+
+  const enc=await Crypto.encrypt(state.entries,state.currentPIN); Store.set('vault_data',enc);
+  toast('Vault Directory Synchronized ✓'); updateStats(); renderEntries();
+  if(state.mode==='edit') launchDetailView(state.currentId); else showScreen('home-screen');
+  evaluateBackupReminder();
 });
 
 document.getElementById('form-delete').addEventListener('click',async()=>{
-  if(!confirm('Delete this entry?')) return;
-  state.entries=state.entries.filter(e=>e.id!==state.editId);
-  await saveEntries(); updateStats(); toast('Deleted');
-  showScreen('home-screen'); renderEntries();
+  if(!confirm('Authorize continuous removal of password entry trace?')) return;
+  state.entries=state.entries.filter(e=>e.id!==state.currentId);
+  const enc=await Crypto.encrypt(state.entries,state.currentPIN); Store.set('vault_data',enc);
+  toast('Record Erased'); updateStats(); renderEntries(); showScreen('home-screen');
+  evaluateBackupReminder();
 });
 
-// ═══════════════════════════════════════
-//  SETTINGS
-// ═══════════════════════════════════════
-document.getElementById('s-lock').addEventListener('click', lockVault);
-document.getElementById('s-change-pin').addEventListener('click',()=>{ initPINScreen('change-old'); showScreen('pin-screen'); });
+// ═══════════════════════════════════
+//  FILTER PILLS ROW SIZING
+// ═══════════════════════════════════
+document.querySelectorAll('#cat-pills .pill').forEach(pill=>{
+  pill.addEventListener('click',()=>{
+    document.querySelectorAll('#cat-pills .pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active'); state.currentFilter=pill.getAttribute('data-cat');
+    renderEntries();
+  });
+});
+
+document.getElementById('sort-select').addEventListener('change',e=>{
+  state.currentSort=e.target.value; renderEntries();
+});
+
+// ═══════════════════════════════════
+//  IMPORT / EXPORT IMPLEMENTATION
+// ═══════════════════════════════════
+document.getElementById('s-change-pin').addEventListener('click',()=>{
+  state.hasPIN=false; Store.rem('vault_pin_check'); showScreen('pin-screen');
+  document.getElementById('pin-subtitle').textContent='Setup alternative 6-digit access PIN code';
+});
 
 document.getElementById('s-export').addEventListener('click',async()=>{
   const enc=Store.get('vault_data'); if(!enc){ toast('Nothing to export'); return; }
   const blob=new Blob([JSON.stringify({v:2,data:enc})],{type:'application/json'});
   const url=URL.createObjectURL(blob), a=document.createElement('a');
   a.href=url; a.download=`vault-backup-${new Date().toISOString().slice(0,10)}.vault`;
-  a.click(); URL.revokeObjectURL(url); toast('Backup exported ✓');
+  a.click(); URL.revokeObjectURL(url);
+  
+  // Set tracking timestamps
+  Store.set('vault_last_backup', Date.now().toString());
+  toast('Backup exported ✓');
+  evaluateBackupReminder();
 });
 
 document.getElementById('s-import').addEventListener('click',()=>document.getElementById('import-file').click());
-document.getElementById('import-file').addEventListener('change',async e=>{
-  const file=e.target.files[0]; if(!file) return;
-  try{
-    const parsed=JSON.parse(await file.text());
-    if(!parsed.data) throw 0;
-    const entries=await Crypto.decrypt(parsed.data,state.currentPIN);
-    state.entries=entries; Store.set('vault_data',parsed.data);
-    toast(`Imported ${entries.length} entries ✓`);
-    renderEntries(); updateStats(); showScreen('home-screen');
-  } catch(err){ toast('Import failed — wrong PIN or corrupt file'); }
-  e.target.value='';
+document.getElementById('import-file').addEventListener('change',async e=>{\n  const file=e.target.files[0]; if(!file) return;\n  try{\n    const parsed=JSON.parse(await file.text());\n    if(!parsed.data) throw 0;\n    const entries=await Crypto.decrypt(parsed.data,state.currentPIN);\n    state.entries=entries; Store.set('vault_data',parsed.data);\n    toast(`Imported ${entries.length} entries ✓`);\n    renderEntries(); updateStats(); showScreen('home-screen'); evaluateBackupReminder();\n  } catch(err){ toast('Import failed — wrong PIN or corrupt file'); }\n  e.target.value='';\n});
+
+// ═══════════════════════════════════
+//  THEME TOGGLE MECHANISM
+// ═══════════════════════════════════
+const tBtn=document.getElementById('theme-toggle-btn');
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  if(t==='dark'){ tBtn.classList.add('on'); } else { tBtn.classList.remove('on'); }
+}
+tBtn.addEventListener('click',()=>{
+  const curr=document.documentElement.getAttribute('data-theme')||'light';
+  const nxt=curr==='light'?'dark':'light'; Store.set('vault_theme',nxt); applyTheme(nxt);
 });
 
-// ═══════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════
+// ═══════════════════════════════════
+//  INITIALIZATION CONTEXT EXECUTION
+// ═══════════════════════════════════
 function init() {
-  applyTheme(Store.get('vault_theme')==='dark');
-  const hasPin=!!Store.get('vault_pin');
-  initPINScreen(hasPin?'unlock':'setup');
-  showScreen('pin-screen');
+  applyTheme(Store.get('vault_theme')||'light');
+  if(!state.hasPIN){
+    document.getElementById('pin-subtitle').textContent='Initialize an absolute local PIN code to construct a schema';
+  }
 }
 init();
 </script>
