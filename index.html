@@ -557,27 +557,32 @@ select.field-input option{background:var(--bg2);color:var(--text);}
    SWIPE TO DELETE
 ═══════════════════════════════════ */
 .entry-card-wrap{
-  position:relative;overflow:hidden;border-radius:var(--radius);flex-shrink:0;
-  /* overflow:hidden here clips the card during swipe - that's intentional,
-     the card slides left revealing the fixed delete bg underneath */
+  position:relative;flex-shrink:0;
+  border-radius:var(--radius);
+  overflow:hidden;
 }
+/* Delete bg: hidden to the RIGHT, slides in when card moves left */
 .swipe-delete-bg{
   position:absolute;right:0;top:0;bottom:0;width:88px;
   background:linear-gradient(135deg,#ef4444,#dc2626);
   display:flex;align-items:center;justify-content:center;
-  flex-direction:column;gap:3px;border-radius:var(--radius);
+  flex-direction:column;gap:3px;
+  transform:translateX(100%); /* hidden by default — off screen right */
+  transition:transform .25s cubic-bezier(.32,1,.28,1);
   pointer-events:none;cursor:pointer;
-  /* Always visible in position, card slides left to expose it */
 }
-.swipe-delete-bg.visible{pointer-events:all;}
+.swipe-delete-bg.revealed{
+  transform:translateX(0);   /* fully visible when card is swiped */
+  pointer-events:all;
+}
 .swipe-delete-bg span{font-size:22px;}
 .swipe-delete-bg small{font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;}
 .entry-card{
   animation:slideUp .28s cubic-bezier(.22,1,.36,1) both;
-  will-change:transform;
-  position:relative;z-index:1; /* sits above delete bg */
+  position:relative;z-index:1;
   transition:transform .25s cubic-bezier(.32,1,.28,1);
-  border-radius:var(--radius); /* keep rounded corners while sliding */
+  border-radius:var(--radius);
+  will-change:transform;
 }
 .entry-card.swiped{transform:translateX(-88px);}
 
@@ -1119,7 +1124,7 @@ function renderEntries() {
     const id=btn.dataset.del;
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
-    if(!confirm(`Delete "${entry.name}"?`)) { btn.closest('.entry-card-wrap').querySelector('.entry-card').style.transform=''; btn.classList.remove('visible'); return; }
+    if(!confirm(`Delete "${entry.name}"?`)) { btn.closest('.entry-card-wrap').querySelector('.entry-card').style.transform=''; btn.classList.remove('revealed'); btn.closest('.entry-card-wrap').querySelector('.entry-card').classList.remove('swiped'); btn.closest('.entry-card-wrap').querySelector('.entry-card').style.transform=''; btn.style.transform=''; return; }
     state.entries=state.entries.filter(e=>e.id!==id);
     await saveEntries(); updateStats(); renderEntries();
     toast('Deleted');
@@ -1162,7 +1167,7 @@ function renderFavs() {
     const id=btn.dataset.del;
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
-    if(!confirm(`Delete "${entry.name}"?`)) { btn.closest('.entry-card-wrap').querySelector('.entry-card').style.transform=''; btn.classList.remove('visible'); return; }
+    if(!confirm(`Delete "${entry.name}"?`)) { btn.closest('.entry-card-wrap').querySelector('.entry-card').style.transform=''; btn.classList.remove('revealed'); btn.closest('.entry-card-wrap').querySelector('.entry-card').classList.remove('swiped'); btn.closest('.entry-card-wrap').querySelector('.entry-card').style.transform=''; btn.style.transform=''; return; }
     state.entries=state.entries.filter(e=>e.id!==id);
     await saveEntries(); updateStats(); renderFavs();
     toast('Deleted');
@@ -1256,84 +1261,110 @@ window.copyText=async function(val, btn) {
 };
 
 // ═══════════════════════════════════════
-//  SWIPE TO DELETE
+//  SWIPE TO DELETE  (v3 — wrap-level touch, bg hidden by default)
 // ═══════════════════════════════════════
 function addSwipeToDelete(container) {
-  const SWIPE_PX = 88; // must match CSS .entry-card.swiped translateX
+  const SWIPE_PX = 88;
 
   function closeAll() {
     container.querySelectorAll('.entry-card').forEach(c => {
       c.classList.remove('swiped');
       c.style.transform = '';
     });
-    container.querySelectorAll('.swipe-delete-bg').forEach(b => b.classList.remove('visible'));
+    container.querySelectorAll('.swipe-delete-bg').forEach(b => {
+      b.classList.remove('revealed');
+      b.style.transform = '';
+    });
   }
 
   container.querySelectorAll('.entry-card-wrap').forEach(wrap => {
     const card = wrap.querySelector('.entry-card');
     const delBg = wrap.querySelector('.swipe-delete-bg');
-    let startX = 0, startY = 0, dirLocked = false, isHoriz = false, wasOpen = false;
+    let startX = 0, startY = 0;
+    let dirLocked = false, isHoriz = false, dragging = false, wasOpen = false;
 
-    card.addEventListener('touchstart', e => {
+    // Attach to WRAP — avoids conflicts with star/arrow inner elements
+    wrap.addEventListener('touchstart', e => {
+      // If a different card is open, close it first
+      const openWrap = container.querySelector('.entry-card.swiped');
+      if (openWrap && openWrap !== card) closeAll();
+
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       dirLocked = false;
       isHoriz = false;
+      dragging = false;
       wasOpen = card.classList.contains('swiped');
-      // Remove CSS transition during drag for instant follow
-      card.style.transition = 'none';
     }, {passive: true});
 
-    card.addEventListener('touchmove', e => {
+    wrap.addEventListener('touchmove', e => {
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
 
+      // Lock direction on first meaningful move
       if (!dirLocked) {
-        if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return; // dead zone
-        isHoriz = Math.abs(dx) > Math.abs(dy);
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        isHoriz = Math.abs(dx) > Math.abs(dy) * 1.2;
         dirLocked = true;
       }
-      if (!isHoriz) return; // vertical — let scroll happen
 
+      if (!isHoriz) return; // vertical — don't interfere with scroll
       e.preventDefault();
+      dragging = true;
+
+      // Disable CSS transition during drag for instant finger-follow
+      card.style.transition = 'none';
+      delBg.style.transition = 'none';
 
       const base = wasOpen ? -SWIPE_PX : 0;
       const raw = base + dx;
-      // Clamp: can't slide right of 0, can't slide more than SWIPE_PX left
       const clamped = Math.min(0, Math.max(-SWIPE_PX, raw));
+
       card.style.transform = `translateX(${clamped}px)`;
-      delBg.classList.toggle('visible', clamped < -20);
+      // Mirror: bg slides in from right as card moves left
+      const bgOffset = SWIPE_PX + clamped; // 0 when fully open, SWIPE_PX when closed
+      delBg.style.transform = `translateX(${bgOffset}px)`;
     }, {passive: false});
 
-    card.addEventListener('touchend', e => {
-      card.style.transition = ''; // restore CSS transition for snap
-      const dx = e.changedTouches[0].clientX - startX;
-      if (!isHoriz) return;
+    wrap.addEventListener('touchend', e => {
+      // Restore CSS transitions for snap animation
+      card.style.transition = '';
+      delBg.style.transition = '';
 
-      const shouldOpen = wasOpen ? dx > -SWIPE_PX / 2 ? false : true
-                                 : dx < -SWIPE_PX / 2;
-      if (shouldOpen) {
-        card.style.transform = `translateX(-${SWIPE_PX}px)`;
-        card.classList.add('swiped');
-        delBg.classList.add('visible');
-      } else {
+      if (!dragging) return; // was a tap, not a drag — don't interfere
+      dragging = false;
+
+      const dx = e.changedTouches[0].clientX - startX;
+      const shouldOpen = wasOpen ? dx < -(SWIPE_PX / 3)
+                                 : dx < -(SWIPE_PX / 2);
+
+      if (shouldOpen || (wasOpen && dx >= 0)) {
+        const open = wasOpen ? true : shouldOpen;
+        if (open) {
+          card.style.transform = `translateX(-${SWIPE_PX}px)`;
+          delBg.style.transform = 'translateX(0)';
+          card.classList.add('swiped');
+          delBg.classList.add('revealed');
+        } else {
+          card.style.transform = '';
+          delBg.style.transform = '';
+          card.classList.remove('swiped');
+          delBg.classList.remove('revealed');
+        }
+      } else if (!wasOpen && !shouldOpen) {
         card.style.transform = '';
+        delBg.style.transform = '';
         card.classList.remove('swiped');
-        delBg.classList.remove('visible');
+        delBg.classList.remove('revealed');
+      } else {
+        // Was open, small drag — keep open
+        card.style.transform = `translateX(-${SWIPE_PX}px)`;
+        delBg.style.transform = 'translateX(0)';
+        card.classList.add('swiped');
+        delBg.classList.add('revealed');
       }
     }, {passive: true});
   });
-
-  // Tap outside open card to close it
-  container.addEventListener('touchstart', e => {
-    const openCard = container.querySelector('.entry-card.swiped');
-    if (openCard && !e.target.closest('.entry-card-wrap')) closeAll();
-    // Also close if tapping a different card wrap
-    if (openCard && e.target.closest('.entry-card-wrap') &&
-        e.target.closest('.entry-card-wrap') !== openCard.closest('.entry-card-wrap')) {
-      closeAll();
-    }
-  }, {passive: true});
 }
 
 document.getElementById('detail-back').addEventListener('click',()=>{ showScreen('home-screen'); renderEntries(); });
