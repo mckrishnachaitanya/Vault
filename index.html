@@ -556,19 +556,30 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 /* ═══════════════════════════════════
    SWIPE TO DELETE
 ═══════════════════════════════════ */
-.entry-card-wrap{position:relative;overflow:hidden;border-radius:var(--radius);flex-shrink:0;}
+.entry-card-wrap{
+  position:relative;overflow:hidden;border-radius:var(--radius);flex-shrink:0;
+  /* overflow:hidden here clips the card during swipe - that's intentional,
+     the card slides left revealing the fixed delete bg underneath */
+}
 .swipe-delete-bg{
-  position:absolute;right:0;top:0;bottom:0;width:90px;
+  position:absolute;right:0;top:0;bottom:0;width:88px;
   background:linear-gradient(135deg,#ef4444,#dc2626);
   display:flex;align-items:center;justify-content:center;
   flex-direction:column;gap:3px;border-radius:var(--radius);
-  opacity:0;transition:opacity .15s;pointer-events:none;
-  cursor:pointer;
+  pointer-events:none;cursor:pointer;
+  /* Always visible in position, card slides left to expose it */
 }
-.swipe-delete-bg.visible{opacity:1;pointer-events:all;}
-.swipe-delete-bg span{font-size:20px;}
+.swipe-delete-bg.visible{pointer-events:all;}
+.swipe-delete-bg span{font-size:22px;}
 .swipe-delete-bg small{font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;}
-.entry-card{animation:slideUp .28s cubic-bezier(.22,1,.36,1) both;will-change:transform;}
+.entry-card{
+  animation:slideUp .28s cubic-bezier(.22,1,.36,1) both;
+  will-change:transform;
+  position:relative;z-index:1; /* sits above delete bg */
+  transition:transform .25s cubic-bezier(.32,1,.28,1);
+  border-radius:var(--radius); /* keep rounded corners while sliding */
+}
+.entry-card.swiped{transform:translateX(-88px);}
 
 /* Staggered entry cards */
 .entry-card:nth-child(1){animation-delay:.04s}
@@ -1248,53 +1259,79 @@ window.copyText=async function(val, btn) {
 //  SWIPE TO DELETE
 // ═══════════════════════════════════════
 function addSwipeToDelete(container) {
+  const SWIPE_PX = 88; // must match CSS .entry-card.swiped translateX
+
+  function closeAll() {
+    container.querySelectorAll('.entry-card').forEach(c => {
+      c.classList.remove('swiped');
+      c.style.transform = '';
+    });
+    container.querySelectorAll('.swipe-delete-bg').forEach(b => b.classList.remove('visible'));
+  }
+
   container.querySelectorAll('.entry-card-wrap').forEach(wrap => {
     const card = wrap.querySelector('.entry-card');
     const delBg = wrap.querySelector('.swipe-delete-bg');
-    let startX = 0, startY = 0, swiping = false, opened = false;
-    const THRESHOLD = 80;
+    let startX = 0, startY = 0, dirLocked = false, isHoriz = false, wasOpen = false;
 
     card.addEventListener('touchstart', e => {
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
-      swiping = false;
+      dirLocked = false;
+      isHoriz = false;
+      wasOpen = card.classList.contains('swiped');
+      // Remove CSS transition during drag for instant follow
+      card.style.transition = 'none';
     }, {passive: true});
 
     card.addEventListener('touchmove', e => {
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
-      // Only horizontal swipes — ignore scrolling
-      if (!swiping && Math.abs(dy) > Math.abs(dx)) return;
-      if (dx > 0) { // right swipe — close if open
-        card.style.transform = opened ? `translateX(${Math.min(0, dx - THRESHOLD)}px)` : '';
-        return;
+
+      if (!dirLocked) {
+        if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return; // dead zone
+        isHoriz = Math.abs(dx) > Math.abs(dy);
+        dirLocked = true;
       }
-      swiping = true;
+      if (!isHoriz) return; // vertical — let scroll happen
+
       e.preventDefault();
-      const move = Math.max(-THRESHOLD, dx);
-      card.style.transform = `translateX(${move}px)`;
-      delBg.classList.toggle('visible', dx < -40);
+
+      const base = wasOpen ? -SWIPE_PX : 0;
+      const raw = base + dx;
+      // Clamp: can't slide right of 0, can't slide more than SWIPE_PX left
+      const clamped = Math.min(0, Math.max(-SWIPE_PX, raw));
+      card.style.transform = `translateX(${clamped}px)`;
+      delBg.classList.toggle('visible', clamped < -20);
     }, {passive: false});
 
     card.addEventListener('touchend', e => {
+      card.style.transition = ''; // restore CSS transition for snap
       const dx = e.changedTouches[0].clientX - startX;
-      if (dx < -THRESHOLD) {
-        card.style.transform = `translateX(-${THRESHOLD}px)`;
+      if (!isHoriz) return;
+
+      const shouldOpen = wasOpen ? dx > -SWIPE_PX / 2 ? false : true
+                                 : dx < -SWIPE_PX / 2;
+      if (shouldOpen) {
+        card.style.transform = `translateX(-${SWIPE_PX}px)`;
+        card.classList.add('swiped');
         delBg.classList.add('visible');
-        opened = true;
       } else {
         card.style.transform = '';
+        card.classList.remove('swiped');
         delBg.classList.remove('visible');
-        opened = false;
       }
     }, {passive: true});
   });
 
-  // Tap anywhere else to close open cards
+  // Tap outside open card to close it
   container.addEventListener('touchstart', e => {
-    if (!e.target.closest('.entry-card-wrap')) {
-      container.querySelectorAll('.entry-card').forEach(c => c.style.transform = '');
-      container.querySelectorAll('.swipe-delete-bg').forEach(b => b.classList.remove('visible'));
+    const openCard = container.querySelector('.entry-card.swiped');
+    if (openCard && !e.target.closest('.entry-card-wrap')) closeAll();
+    // Also close if tapping a different card wrap
+    if (openCard && e.target.closest('.entry-card-wrap') &&
+        e.target.closest('.entry-card-wrap') !== openCard.closest('.entry-card-wrap')) {
+      closeAll();
     }
   }, {passive: true});
 }
