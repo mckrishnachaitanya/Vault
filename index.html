@@ -207,7 +207,7 @@ body::after{
    HOME
 ═══════════════════════════════════ */
 #home-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
-.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);overflow-y:auto;overflow-x:clip;-webkit-overflow-scrolling:touch;flex:1 1 0;min-height:0;}
+.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 0;min-height:0;}
 .home-header{padding:52px 20px 0;}
 .home-greeting{font-size:13px;color:var(--muted);font-weight:500;}
 .home-title{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-top:2px;font-family:var(--font-head);}
@@ -559,22 +559,18 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .entry-card-wrap{
   position:relative;flex-shrink:0;
   border-radius:var(--radius);
-  /* No overflow:hidden — would clip card's translateX */
-  /* Card slides left; bg starts at translateX(100%) so never visible until swiped */
+  overflow:hidden; /* clips delete bg — wrap is NOT clipped by parent since entries-list has no overflow-x */
 }
-/* Delete bg: hidden off-right via translateX, clips via overflow on wrap */
+/* Delete bg: sits at right, hidden because wrap overflow:hidden clips it */
+/* Becomes visible as card's margin-right grows, pushing card left */
 .swipe-delete-bg{
   position:absolute;right:0;top:0;bottom:0;width:88px;
   background:linear-gradient(135deg,#ef4444,#dc2626);
   display:flex;align-items:center;justify-content:center;
-  flex-direction:column;gap:3px;border-radius:var(--radius);
-  transform:translateX(100%); /* hidden by default — off screen right */
-  transition:transform .25s cubic-bezier(.32,1,.28,1);
+  flex-direction:column;gap:3px;border-radius:0 var(--radius) var(--radius) 0;
   pointer-events:none;cursor:pointer;
-  /* stays clipped because translateX keeps it outside visible wrap bounds */
 }
 .swipe-delete-bg.revealed{
-  transform:translateX(0);
   pointer-events:all;
 }
 .swipe-delete-bg span{font-size:22px;}
@@ -582,11 +578,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .entry-card{
   animation:slideUp .28s cubic-bezier(.22,1,.36,1) both;
   position:relative;z-index:1;
-  transition:transform .25s cubic-bezier(.32,1,.28,1);
+  transition:margin-right .25s cubic-bezier(.32,1,.28,1);
   border-radius:var(--radius);
-  will-change:transform;
+  will-change:margin-right;
+  margin-right:0;
 }
-.entry-card.swiped{transform:translateX(-88px);}
+.entry-card.swiped{margin-right:88px;}
 
 /* Staggered entry cards */
 .entry-card:nth-child(1){animation-delay:.04s}
@@ -1274,8 +1271,7 @@ function addSwipeToDelete(container) {
   function snapOpen(card, delBg) {
     card.style.transition = '';
     delBg.style.transition = '';
-    card.style.transform = `translateX(-${SWIPE_PX}px)`;
-    delBg.style.transform = 'translateX(0)';
+    card.style.marginRight = SWIPE_PX + 'px';
     card.classList.add('swiped');
     delBg.classList.add('revealed');
   }
@@ -1283,14 +1279,16 @@ function addSwipeToDelete(container) {
   function snapClose(card, delBg) {
     card.style.transition = '';
     delBg.style.transition = '';
-    card.style.transform = '';
-    delBg.style.transform = '';
+    card.style.marginRight = '';
     card.classList.remove('swiped');
     delBg.classList.remove('revealed');
   }
 
   function closeAll() {
-    container.querySelectorAll('.entry-card').forEach(c => snapClose(c, c.closest('.entry-card-wrap').querySelector('.swipe-delete-bg')));
+    container.querySelectorAll('.entry-card').forEach(c => {
+      const bg = c.closest('.entry-card-wrap') ? c.closest('.entry-card-wrap').querySelector('.swipe-delete-bg') : null;
+      snapClose(c, bg);
+    });
   }
 
   // Global touchmove — fires before scroll container can claim it
@@ -1311,12 +1309,12 @@ function addSwipeToDelete(container) {
     dragging = true;
 
     activeCard.style.transition = 'none';
-    activeDelBg.style.transition = 'none';
 
-    const base = wasOpen ? -SWIPE_PX : 0;
-    const clamped = Math.min(0, Math.max(-SWIPE_PX, base + dx));
-    activeCard.style.transform = `translateX(${clamped}px)`;
-    activeDelBg.style.transform = `translateX(${SWIPE_PX + clamped}px)`;
+    const base = wasOpen ? SWIPE_PX : 0;
+    // dx is negative when swiping left, so we subtract it
+    const raw = base + (-dx);
+    const clamped = Math.min(SWIPE_PX, Math.max(0, raw));
+    activeCard.style.marginRight = clamped + 'px';
   }
 
   function onDocEnd(e) {
