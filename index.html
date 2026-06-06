@@ -78,7 +78,7 @@ body::after{
 /* ═══════════════════════════════════
    SCREENS
 ═══════════════════════════════════ */
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;overflow-y:auto;z-index:10;transition:opacity .22s,transform .22s;}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;z-index:10;transition:opacity .22s,transform .22s;}
 .screen.hidden{opacity:0;pointer-events:none;transform:translateY(14px);}
 .screen>*{position:relative;z-index:1;}
 
@@ -206,8 +206,8 @@ body::after{
 /* ═══════════════════════════════════
    HOME
 ═══════════════════════════════════ */
-#home-screen{background:var(--bg);}
-
+#home-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 .home-header{padding:52px 20px 0;}
 .home-greeting{font-size:13px;color:var(--muted);font-weight:500;}
 .home-title{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-top:2px;font-family:var(--font-head);}
@@ -225,10 +225,11 @@ body::after{
   background:var(--accent-g);border-radius:var(--radius-sm) var(--radius-sm) 0 0;
 }
 .stat-card::after{
-  content:'';position:absolute;inset:0;pointer-events:none;
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
   background:linear-gradient(160deg,rgba(91,95,245,.06) 0%,transparent 60%);
   border-radius:var(--radius-sm);
 }
+.stat-num,.stat-label{position:relative;z-index:1;}
 #stat-fav-card::before{background:linear-gradient(135deg,#f59e0b,#f97316);}
 #stat-cats-card::before{background:linear-gradient(135deg,#10b981,#06b6d4);}
 .stat-card.tappable{cursor:pointer;transition:all .14s;}
@@ -292,7 +293,7 @@ body::after{
 .search-clear.visible{display:flex;}
 .search-cancel{display:none;}
 
-.filter-row{display:flex;gap:8px;padding:0 20px 18px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.filter-row{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;flex-shrink:0;}
 .filter-row::-webkit-scrollbar{display:none;}
 .pill{
   padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);
@@ -304,8 +305,6 @@ body::after{
 .pill.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(91,95,245,.3);}
 
 
-
-.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);}
 
 /* Glass entry card */
 .entry-card{
@@ -354,8 +353,8 @@ body::after{
 /* ═══════════════════════════════════
    FORM SCREEN
 ═══════════════════════════════════ */
-#form-screen{background:var(--bg);}
-.form-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;}
+#form-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.form-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 
 .field-group{display:flex;flex-direction:column;gap:6px;}
 .field-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;}
@@ -409,7 +408,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 /* ═══════════════════════════════════
    DETAIL SCREEN
 ═══════════════════════════════════ */
-#detail-screen{background:var(--bg);}
+#detail-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
 
 .detail-hero{
   margin:0 20px 16px;padding:22px;border-radius:var(--radius);
@@ -433,7 +432,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 .detail-updated{font-size:11px;color:var(--muted);margin-top:8px;}
 
-.detail-fields{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);}
+.detail-fields{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 .detail-field{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
   padding:14px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -463,14 +462,14 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 /* ═══════════════════════════════════
    FAVOURITES SCREEN
 ═══════════════════════════════════ */
-#fav-screen{background:var(--bg);}
-#fav-screen .entries-list{padding-bottom:calc(var(--nav-h)+20px);}
+#fav-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+#fav-screen .entries-list{padding-bottom:calc(var(--nav-h)+20px);flex:1;overflow-y:auto;}
 
 /* ═══════════════════════════════════
    SETTINGS SCREEN
 ═══════════════════════════════════ */
-#settings-screen{background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;height:100%;}
-.settings-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:8px;}
+#settings-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.settings-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 .settings-section-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;margin:10px 0 4px;}
 .settings-item{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
@@ -849,6 +848,12 @@ function applyTheme(dark) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   document.getElementById('theme-toggle').classList.toggle('on', dark);
   Store.set('vault_theme', dark ? 'dark' : 'light');
+  // Update icon and label to reflect current state
+  const themeItem = document.getElementById('theme-toggle').closest('.settings-item');
+  if (themeItem) {
+    themeItem.querySelector('.s-icon').textContent = dark ? '☀️' : '🌙';
+    themeItem.querySelector('.s-title').textContent = dark ? 'Light Mode' : 'Dark Mode';
+  }
 }
 document.getElementById('theme-toggle').addEventListener('click', () => {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
