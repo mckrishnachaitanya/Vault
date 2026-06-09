@@ -163,14 +163,13 @@ body::after{
 .topbar h2{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.4px;font-family:var(--font-head);}
 .topbar-actions{display:flex;gap:8px;}
 .icon-btn{
-  width:40px;height:40px;border-radius:13px;
-  background:var(--surface);border:1.5px solid var(--border);
+  width:40px;height:40px;border-radius:50%;
+  background:transparent;border:none;
   display:flex;align-items:center;justify-content:center;
-  cursor:pointer;font-size:17px;transition:all .14s;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  box-shadow:var(--shadow-sm);
+  cursor:pointer;font-size:22px;transition:background .14s,transform .14s;
+  color:var(--accent);
 }
-.icon-btn:active{transform:scale(.91);}
+.icon-btn:active{transform:scale(.88);background:rgba(91,95,245,.10);}
 
 /* ═══════════════════════════════════
    BOTTOM NAV
@@ -813,7 +812,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ FORM SCREEN ══════════ -->
 <div class="screen hidden" id="form-screen">
   <div class="topbar">
-    <div class="icon-btn" id="form-back">←</div>
+    <div class="icon-btn" id="form-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
     <h2 id="form-title">Add Entry</h2>
     <div style="width:40px"></div>
   </div>
@@ -825,7 +824,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ DETAIL SCREEN ══════════ -->
 <div class="screen hidden" id="detail-screen">
   <div class="topbar">
-    <div class="icon-btn" id="detail-back">←</div>
+    <div class="icon-btn" id="detail-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
     <h2>Details</h2>
     <div style="width:40px"></div>
   </div>
