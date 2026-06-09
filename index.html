@@ -161,7 +161,6 @@ body::after{
   position:sticky;top:0;z-index:20;
 }
 .topbar h2{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.4px;font-family:var(--font-head);}
-.topbar-actions{display:flex;gap:8px;}
 .icon-btn{
   width:40px;height:40px;border-radius:50%;
   background:transparent;border:none;
@@ -668,7 +667,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 ═══════════════════════════════════ */
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}60%{transform:translateX(7px)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes popIn{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
 
 /* ═══════════════════════════════════
@@ -912,7 +910,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 </div>
 
 <!-- ══════════ STEP-UP PIN MODAL ══════════ -->
-<div id="stepup-overlay" class="delete-overlay" style="display:none">
+<div id="stepup-overlay" class="delete-overlay">
   <div class="delete-sheet" id="stepup-sheet" style="padding-bottom:32px">
     <div class="delete-sheet-handle"></div>
     <div class="delete-sheet-icon">🔐</div>
@@ -935,7 +933,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 </div>
 
 <!-- ══════════ PIN CHANGE WARNING SHEET ══════════ -->
-<div id="pinchange-overlay" class="delete-overlay" style="display:none">
+<div id="pinchange-overlay" class="delete-overlay">
   <div class="delete-sheet" id="pinchange-sheet">
     <div class="delete-sheet-handle"></div>
     <div class="delete-sheet-icon">⚠️</div>
@@ -1060,7 +1058,7 @@ async function handleStepUpDigit(d) {
 
 function closeStepUp(success=false) {
   const overlay=document.getElementById('stepup-overlay');
-  overlay.style.display='none';
+  overlay.classList.remove('active');
   stepUpBuffer=''; updateStepUpDots();
   document.getElementById('stepup-label').textContent='';
   if(stepUpResolve){ stepUpResolve(success); stepUpResolve=null; }
@@ -1075,11 +1073,7 @@ function requirePIN(title='Enter PIN to continue') {
     document.getElementById('stepup-title').textContent = title;
     document.getElementById('stepup-label').textContent = '';
     const overlay = document.getElementById('stepup-overlay');
-    overlay.style.display = 'flex';
-    // animate sheet in
-    const sheet = document.getElementById('stepup-sheet');
-    sheet.style.transform = 'translateY(100%)';
-    requestAnimationFrame(()=>{ sheet.style.transition='transform .28s cubic-bezier(.32,1,.6,1)'; sheet.style.transform=''; });
+    overlay.classList.add('active');
   });
 }
 
@@ -2423,9 +2417,6 @@ function updateStrength(pw) {
   const l=lvl[Math.min(s,4)];
   fill.style.width=l.w; fill.style.background=l.bg; lbl.textContent=l.t; lbl.style.color=l.bg;
 }
-// add-btn handled above with step-up auth
-document.getElementById('add-btn-fav') && document.getElementById('add-btn-fav').addEventListener('click',()=>openForm());
-document.getElementById('add-btn-settings') && document.getElementById('add-btn-settings').addEventListener('click',()=>openForm());
 document.getElementById('form-back').addEventListener('click',()=>{
   if(state.editId) showScreen('detail-screen');
   else { showScreen('home-screen'); renderEntries(); }
@@ -2486,15 +2477,10 @@ document.getElementById('import-file').addEventListener('change',async e=>{
 function showPinChangeWarning() {
   return new Promise(resolve => {
     const overlay = document.getElementById('pinchange-overlay');
-    const sheet = document.getElementById('pinchange-sheet');
-    overlay.style.display = 'flex';
-    sheet.style.transform = 'translateY(100%)';
-    requestAnimationFrame(()=>{ sheet.style.transition='transform .28s cubic-bezier(.32,1,.6,1)'; sheet.style.transform=''; });
+    overlay.classList.add('active');
 
     const cleanup = (val) => {
-      sheet.style.transition='transform .22s ease-in';
-      sheet.style.transform='translateY(100%)';
-      setTimeout(()=>{ overlay.style.display='none'; sheet.style.transform=''; sheet.style.transition=''; },220);
+      overlay.classList.remove('active');
       resolve(val);
     };
 
