@@ -16,14 +16,11 @@
   --bg2:       #e4e8f2;
   --surface:   rgba(255,255,255,0.72);
   --surface2:  rgba(255,255,255,0.9);
-  --glass:     rgba(255,255,255,0.55);
   --border:    rgba(180,190,220,0.5);
   --accent:    #5b5ff5;
   --accent-g:  linear-gradient(135deg,#5b5ff5,#8b5cf6);
   --green:     #10b981;
-  --yellow:    #f59e0b;
   --red:       #ef4444;
-  --pink:      #ec4899;
   --text:      #1a1d2e;
   --text2:     #4a4d6a;
   --muted:     #9096b8;
@@ -41,7 +38,6 @@
   --bg2:       #161922;
   --surface:   rgba(30,34,50,0.80);
   --surface2:  rgba(36,40,58,0.95);
-  --glass:     rgba(30,34,50,0.60);
   --border:    rgba(80,90,130,0.35);
   --text:      #eef0ff;
   --text2:     #9096b8;
@@ -299,7 +295,6 @@ body::after{
   font-family:var(--font);padding:0;
 }
 .search-clear.visible{display:flex;}
-.search-cancel{display:none;}
 
 .filter-row{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;flex-shrink:0;}
 .filter-row::-webkit-scrollbar{display:none;}
@@ -499,15 +494,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 .copy-btn:active{background:var(--accent);border-color:var(--accent);color:#fff;}
 .copy-btn.copied{background:var(--green);border-color:var(--green);color:#fff;}
-
-.detail-actions{display:flex;gap:10px;padding:0 20px 12px;}
-.btn-secondary{
-  flex:1;padding:14px;border-radius:var(--radius);
-  border:1.5px solid var(--border);background:var(--surface);color:var(--text);
-  font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;
-  transition:all .14s;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-}
-.btn-secondary:active{background:var(--surface2);}
 
 /* ═══════════════════════════════════
    FAVOURITES SCREEN
