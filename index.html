@@ -1243,6 +1243,8 @@ function resetAutoLock() {
   autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MS);
 }
 function lockVault() {
+  { const d=document.getElementById('debug-banner'); if(d) d.textContent=''; }
+  if(typeof showDbg==='function') showDbg(`[${Date.now()%100000}] lockVault called. docHidden=${document.hidden}`);
   // Capture which screen we were on, so we can restore it after re-auth
   const visibleScreen = SCREENS.find(s => !document.getElementById(s).classList.contains('hidden'));
   if(visibleScreen==='form-screen'){
@@ -1271,6 +1273,7 @@ document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.
 //  PIN SCREEN
 // ═══════════════════════════════════════
 function initPINScreen(mode) {
+  if(typeof showDbg==='function') showDbg(`[${Date.now()%100000}] initPINScreen called with mode=${mode}, prev unlocked=${state.unlocked}`);
   state.pinMode=mode; state.pinBuffer=''; updatePINDots();
   const lbl=document.getElementById('pin-label'), sub=document.getElementById('pin-subtitle');
   lbl.className='pin-label';
@@ -1289,7 +1292,7 @@ function initPINScreen(mode) {
     // Show biometric button if enabled and available
     const bioBtn = document.getElementById('bio-unlock-btn');
     const bioEn = isBioEnabled(), bioAv = isBioAvailable();
-    showDbg(`initPINScreen(unlock). bioEn=${bioEn} bioAv=${bioAv} hasPIN=${!!state.currentPIN} docHasFocus=${document.hasFocus()}`);
+    showDbg(`[${Date.now()%100000}] initPINScreen(unlock). bioEn=${bioEn} bioAv=${bioAv} hasPIN=${!!state.currentPIN} docHasFocus=${document.hasFocus()} docHidden=${document.hidden}`);
     if(bioEn && bioAv){
       bioBtn.style.display='block';
       // Auto-trigger only if PIN is already in memory (not a fresh cold open)
