@@ -1030,6 +1030,11 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <span class="s-icon">ℹ️</span>
       <div class="s-info"><div class="s-title">Vault v5.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
+    <div class="settings-item" id="s-debug-log">
+      <span class="s-icon">🐛</span>
+      <div class="s-info"><div class="s-title">Debug Log</div><div class="s-desc">View internal logs to diagnose issues</div></div>
+      <span class="s-arrow">›</span>
+    </div>
   </div>
   <div class="bottom-nav">
     <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
@@ -1085,7 +1090,77 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 
 <div id="toast"></div>
 
+<!-- ══════════ DEBUG LOG PANEL ══════════ -->
+<div id="debug-overlay" style="
+  display:none;position:fixed;inset:0;z-index:900;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(8px);
+  padding:52px 16px 24px;flex-direction:column;gap:12px;
+">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div style="font-size:17px;font-weight:800;color:#fff">🐛 Debug Log</div>
+    <div style="display:flex;gap:8px">
+      <button id="debug-copy" style="padding:6px 14px;border-radius:10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">Copy</button>
+      <button id="debug-clear" style="padding:6px 14px;border-radius:10px;background:rgba(239,68,68,.25);border:1px solid rgba(239,68,68,.4);color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">Clear</button>
+      <button id="debug-close" style="padding:6px 14px;border-radius:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">✕ Close</button>
+    </div>
+  </div>
+  <div id="debug-log-body" style="
+    flex:1;overflow-y:auto;background:rgba(0,0,0,.6);border-radius:14px;
+    padding:12px;font-family:var(--mono);font-size:11px;line-height:1.7;
+    border:1px solid rgba(255,255,255,.1);min-height:0;
+  "></div>
+</div>
+
 <script>
+// ═══════════════════════════════════════
+//  DEBUG LOG (in-app console)
+// ═══════════════════════════════════════
+const DebugLog = {
+  entries: [],
+  MAX: 200,
+  _orig: { log: console.log, warn: console.warn, error: console.error },
+  init() {
+    const self = this;
+    ['log','warn','error'].forEach(level => {
+      console[level] = (...args) => {
+        self._orig[level](...args);
+        const text = args.map(a => {
+          try { return (typeof a === 'object' && a !== null) ? JSON.stringify(a) : String(a); }
+          catch(e) { return String(a); }
+        }).join(' ');
+        self.entries.push({ level, text, time: new Date().toLocaleTimeString() });
+        if(self.entries.length > self.MAX) self.entries.shift();
+        self.render();
+      };
+    });
+    // Catch uncaught errors too
+    window.addEventListener('error', e => {
+      console.error('UNCAUGHT:', e.message, 'at', e.filename?.split('/').pop() + ':' + e.lineno);
+    });
+    window.addEventListener('unhandledrejection', e => {
+      console.error('UNHANDLED PROMISE:', String(e.reason));
+    });
+  },
+  render() {
+    const body = document.getElementById('debug-log-body');
+    if(!body || document.getElementById('debug-overlay').style.display === 'none') return;
+    const colors = { log:'#a0f0a0', warn:'#f0d080', error:'#ff8080' };
+    body.innerHTML = this.entries.map(e =>
+      `<div style="color:${colors[e.level]};margin-bottom:2px"><span style="opacity:.5">${e.time}</span> <span style="opacity:.6">[${e.level}]</span> ${e.text.replace(/</g,'&lt;')}</div>`
+    ).join('');
+    body.scrollTop = body.scrollHeight;
+  },
+  open() {
+    const overlay = document.getElementById('debug-overlay');
+    overlay.style.display = 'flex';
+    this.render();
+  },
+  close() {
+    document.getElementById('debug-overlay').style.display = 'none';
+  },
+};
+DebugLog.init();
+
 // ═══════════════════════════════════════
 //  CRYPTO
 // ═══════════════════════════════════════
@@ -2757,6 +2832,13 @@ document.getElementById('form-back').addEventListener('click',()=>{
 document.getElementById('s-change-pin').addEventListener('click', () => {
   initPINScreen('change-old'); showScreen('pin-screen');
 });
+document.getElementById('s-debug-log').addEventListener('click', () => DebugLog.open());
+document.getElementById('debug-close').addEventListener('click', () => DebugLog.close());
+document.getElementById('debug-clear').addEventListener('click', () => { DebugLog.entries=[]; DebugLog.render(); });
+document.getElementById('debug-copy').addEventListener('click', async () => {
+  const text = DebugLog.entries.map(e=>`[${e.time}][${e.level}] ${e.text}`).join('\n');
+  try{ await navigator.clipboard.writeText(text); toast('Log copied ✓'); } catch(e){ toast('Copy failed'); }
+});
 
 document.getElementById('s-export').addEventListener('click', async () => {
   if(state.unlockedViaBio){
@@ -3311,9 +3393,11 @@ const DocsDB = {
         const db=e.target.result;
         if(!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
         if(!db.objectStoreNames.contains('files')) db.createObjectStore('files');
+        console.log('[DocsDB] Created/upgraded stores');
       };
-      req.onsuccess = (e)=>{ this.db=e.target.result; resolve(this.db); };
-      req.onerror = (e)=>reject(e.target.error);
+      req.onsuccess = (e)=>{ this.db=e.target.result; console.log('[DocsDB] Opened'); resolve(this.db); };
+      req.onerror = (e)=>{ console.error('[DocsDB] Open failed', e.target.error); reject(e.target.error); };
+      req.onblocked = ()=>{ console.error('[DocsDB] Open blocked'); };
     });
   },
   async _get(store, key){
@@ -3370,12 +3454,15 @@ const DocsDB = {
   // natively, no base64/JSON wrapping, no size limits from string encoding.
   async loadFile(id, pin){
     const stored = await this._get('files', id);
-    if(!stored) return null;
-    return Crypto.decryptRaw(stored, pin); // returns ArrayBuffer
+    if(!stored){ console.warn('[DocsDB] loadFile: no record for', id); return null; }
+    console.log('[DocsDB] loadFile decrypting', id);
+    return Crypto.decryptRaw(stored, pin);
   },
   async saveFile(id, arrayBuffer, pin){
+    console.log('[DocsDB] saveFile encrypting', id, arrayBuffer.byteLength, 'bytes');
     const stored = await Crypto.encryptRaw(arrayBuffer, pin);
     await this._put('files', id, stored);
+    console.log('[DocsDB] saveFile done', id);
   },
   async deleteFile(id){
     await this._delete('files', id);
@@ -3494,12 +3581,24 @@ async function openDocsTab(){
 
 async function loadDocsManifest(){
   if(!state.currentPIN){ state.docs=[]; return; }
-  try{ state.docs = await DocsDB.loadManifest(state.currentPIN); }
-  catch(e){ console.error('Failed to load docs manifest', e); state.docs=[]; }
+  try{
+    state.docs = await DocsDB.loadManifest(state.currentPIN);
+    console.log('[Docs] Manifest loaded —', state.docs.length, 'docs');
+  } catch(e){
+    console.error('Failed to load docs manifest', e);
+    toast('Could not load documents: ' + (e && e.message ? e.message : String(e)), 4000);
+    state.docs=[];
+  }
 }
 
 async function saveDocsManifest(){
-  await DocsDB.saveManifest(state.docs||[], state.currentPIN);
+  try{
+    await DocsDB.saveManifest(state.docs||[], state.currentPIN);
+    console.log('[Docs] Manifest saved —', (state.docs||[]).length, 'docs');
+  } catch(e){
+    console.error('Failed to save docs manifest', e);
+    toast('Could not save document list: ' + (e && e.message ? e.message : String(e)), 4000);
+  }
 }
 
 // ═══════════════════════════════════════
