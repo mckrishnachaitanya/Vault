@@ -2364,8 +2364,16 @@ function renderLinkedDocs(entry, container) {
           </div>
           <button class="linked-doc-unlink" data-unlink="${docId}" title="Remove link">✕</button>`;
         // Tap row (not ✕) → open doc viewer, returning to this entry detail
-        row.addEventListener('click', ev => {
+        // Bio session: require step-up before viewing (same gate as Docs tab),
+        // but only once per session (docsStepUpDone stays true after first pass).
+        row.addEventListener('click', async ev => {
           if(ev.target.closest('[data-unlink]')) return;
+          if(state.unlockedViaBio && !state.docsStepUpDone){
+            const ok = await _showStepUpModal('Enter PIN to view document');
+            if(!ok) return;
+            state.docsStepUpDone = true;
+            state.stepUpDone = true;
+          }
           state.docViewSource = 'entry';
           state.docViewEntryId = entry.id;
           openDocDetail(docId);
@@ -2391,10 +2399,9 @@ function renderLinkedDocs(entry, container) {
     btn.className = 'link-doc-btn';
     btn.innerHTML = '＋ Link a document';
     btn.addEventListener('click', async () => {
-      if(state.unlockedViaBio){
-        const ok = await requirePIN('Enter PIN to link a document');
-        if(!ok) return;
-      }
+      // No additional step-up needed here — sensitive entries already require
+      // step-up to open the detail screen itself. That's sufficient.
+      if(!state.docs) await loadDocsManifest();
       if(!state.docs || !state.docs.length){
         toast('No documents in vault yet — add one in the Docs tab first');
         return;
