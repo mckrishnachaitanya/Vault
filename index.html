@@ -813,17 +813,10 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   flex-direction:column;gap:3px;border-radius:var(--radius-sm) var(--radius) var(--radius) var(--radius-sm);
   pointer-events:none;cursor:pointer;
   z-index:0;
-  opacity:0;transition:opacity .15s;
+  opacity:0;
 }
-.swipe-delete-bg.revealed{
-  pointer-events:all;
-  opacity:1;
-}
-/* Show bg only after card has animated in */
-.entry-card-wrap:not(:has(.entry-card[style*="animation:none"])) .swipe-delete-bg{
-  animation:swipeBgAppear .35s .28s forwards;
-}
-@keyframes swipeBgAppear{ to{ opacity:1; } }
+.swipe-delete-bg.ready{ opacity:1; }
+.swipe-delete-bg.revealed{ pointer-events:all; opacity:1; }
 
 .swipe-delete-bg span{font-size:22px;}
 .swipe-delete-bg small{font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;}
@@ -1980,6 +1973,7 @@ function renderEntries(animate=false) {
     toast('Deleted');
   }));
   addSwipeToDelete(list);
+  setTimeout(()=>{ list.querySelectorAll('.swipe-delete-bg').forEach(b=>b.classList.add('ready')); }, 380);
 }
 
 function renderFavs() {
@@ -2030,6 +2024,7 @@ function renderFavs() {
     toast('Deleted');
   }));
   addSwipeToDelete(list);
+  setTimeout(()=>{ list.querySelectorAll('.swipe-delete-bg').forEach(b=>b.classList.add('ready')); }, 380);
 }
 
 function updateStats() {
@@ -3746,7 +3741,7 @@ function renderDocs(){
       : '';
     return `
     <div class="entry-card-wrap">
-      <div class="doc-card" data-id="${d.id}" style="animation:none">
+      <div class="doc-card entry-card" data-id="${d.id}" style="animation:none">
         ${thumbHtml}
         <div class="doc-info">
           <div class="doc-name">${esc(d.name)}</div>
@@ -3758,7 +3753,7 @@ function renderDocs(){
           <span class="entry-arrow">›</span>
         </div>
       </div>
-      <div class="swipe-delete-bg" data-docdel="${d.id}"><span>🗑️</span><small>DELETE</small></div>
+      <div class="swipe-delete-bg ready" data-docdel="${d.id}"><span>🗑️</span><small>DELETE</small></div>
     </div>`;
   }).join('');
 
@@ -3933,21 +3928,37 @@ async function openDocDetail(id){
 
   const cat=docMimeCategory(doc.mimeType);
   if(cat==='pdf'){
-    // PDFs: don't embed — show a tap-to-open card that uses Download/Share.
-    // <embed> on Android Chrome hijacks the page. Instead show a clear
-    // preview card and let the Download/Share button open it in the PDF app.
-    preview.innerHTML=`
-      <div class="doc-no-preview" style="cursor:pointer" id="pdf-open-card">
-        <span>📕</span>
-        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">${esc(doc.name)}</div>
-        <div style="font-size:13px;color:var(--muted)">Tap Download / Share below to open</div>
-      </div>`;
-    // Load blob for the share button
+    // Load blob first, then offer to open in new tab.
+    // <embed> on Android Chrome hijacks the page; window.open() opens
+    // the system PDF viewer in a new tab so the user can come back
+    // to Vault via the tab switcher.
+    preview.innerHTML=`<div class="doc-no-preview"><span>⏳</span>Loading PDF…</div>`;
+    showScreen('docview-screen');
     try{
       const ab=await DocsDB.loadFile(id,state.currentPIN);
-      if(ab) currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
-    } catch(e){ console.error('PDF load failed',e); }
-  } else if(cat==='image'){
+      if(!ab){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
+      currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
+      preview.innerHTML=`
+        <div class="doc-no-preview" style="gap:16px">
+          <span>📕</span>
+          <div style="font-size:15px;font-weight:700;color:var(--text)">${esc(doc.name)}</div>
+          <button onclick="window.open('${currentDocBlobUrl}','_blank')" style="
+            padding:12px 28px;border-radius:var(--radius);border:none;
+            background:var(--accent-g);color:#fff;font-family:var(--font);
+            font-size:15px;font-weight:700;cursor:pointer;
+            box-shadow:0 4px 16px rgba(91,95,245,.35)">
+            🔍 Open PDF
+          </button>
+          <div style="font-size:12px;color:var(--muted)">Opens in new tab — use tab switcher to return</div>
+        </div>`;
+    } catch(e){
+      console.error('PDF load failed',e);
+      preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not decrypt PDF</div>`;
+    }
+    return;
+  }
+
+  if(cat==='image'){
     preview.innerHTML=`<div class="doc-no-preview"><span>⏳</span>Loading…</div>`;
     showScreen('docview-screen');
     try{
@@ -3959,14 +3970,15 @@ async function openDocDetail(id){
       console.error('Doc preview failed',e);
       preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not decrypt file</div>`;
     }
-    return; // already called showScreen
-  } else {
-    preview.innerHTML=`<div class="doc-no-preview"><span>${docIcon(doc)}</span>No preview available<br>Use Download / Share below</div>`;
-    try{
-      const ab=await DocsDB.loadFile(id,state.currentPIN);
-      if(ab) currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
-    } catch(e){ console.error('File load failed',e); }
+    return;
   }
+
+  // Other file types
+  preview.innerHTML=`<div class="doc-no-preview"><span>${docIcon(doc)}</span>No preview available<br>Use Download / Share below</div>`;
+  try{
+    const ab=await DocsDB.loadFile(id,state.currentPIN);
+    if(ab) currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
+  } catch(e){ console.error('File load failed',e); }
   showScreen('docview-screen');
 }
 
@@ -3994,13 +4006,21 @@ document.getElementById('docview-rename-save').addEventListener('click', async()
   const newName=input.value.trim();
   if(!newName){ toast('Name cannot be empty'); return; }
   if(newName===currentDocDetail.name){ document.getElementById('docview-rename-panel').style.display='none'; return; }
-  // Check for collision with another doc
   const collision=(state.docs||[]).find(d=>d.name===newName && d.id!==currentDocDetail.id);
   if(collision){ toast('A file with that name already exists'); return; }
   currentDocDetail.name=newName;
   currentDocDetail.updated=Date.now();
   document.getElementById('docview-title-bar').textContent=newName;
   document.getElementById('docview-rename-panel').style.display='none';
+  // Refresh meta card so Name and Updated rows reflect the change
+  const meta=document.getElementById('docview-meta');
+  meta.innerHTML=`
+    <div class="docview-meta-row"><span>Name</span><span>${esc(currentDocDetail.name)}</span></div>
+    <div class="docview-meta-row"><span>Type</span><span>${esc(currentDocDetail.mimeType||'Unknown')}</span></div>
+    <div class="docview-meta-row"><span>Size</span><span>${formatBytes(currentDocDetail.size)}</span></div>
+    <div class="docview-meta-row"><span>Added</span><span>${new Date(currentDocDetail.created).toLocaleDateString()}</span></div>
+    <div class="docview-meta-row"><span>Updated</span><span>${timeAgo(currentDocDetail.updated)}</span></div>
+  `;
   await saveDocsManifest();
   toast('Renamed ✓');
 });
