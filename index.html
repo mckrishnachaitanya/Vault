@@ -536,17 +536,37 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   transition:all .15s;position:relative;
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);flex-shrink:0;
-  animation:slideUp .28s cubic-bezier(.22,1,.36,1) both;
 }
+.doc-card::after{content:'';position:absolute;inset:0;border-radius:var(--radius);background:linear-gradient(135deg,rgba(255,255,255,.06),transparent);pointer-events:none;}
 .doc-card:active{transform:scale(.975);box-shadow:none;}
+
+/* Left accent strip — same pattern as entry cards */
+.doc-card::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;}
+.doc-type-pdf::before{background:#ef4444;}
+.doc-type-image::before{background:#06b6d4;}
+.doc-type-word::before{background:#2b7cd3;}
+.doc-type-excel::before{background:#1d6f42;}
+.doc-type-video::before{background:#8b5cf6;}
+.doc-type-audio::before{background:#f59e0b;}
+.doc-type-zip::before{background:#f97316;}
+.doc-type-other::before{background:#9096b8;}
+
+/* Type-aware avatar gradients */
 .doc-thumb{
   width:44px;height:44px;border-radius:13px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:20px;
-  background:linear-gradient(135deg,rgba(91,95,245,.25),rgba(139,92,246,.18));
-  box-shadow:0 4px 12px rgba(91,95,245,.18);
   object-fit:cover;overflow:hidden;
 }
 .doc-thumb img{width:100%;height:100%;object-fit:cover;border-radius:13px;}
+.doc-type-pdf    .doc-thumb{background:linear-gradient(135deg,rgba(239,68,68,.25),rgba(220,38,38,.18));box-shadow:0 4px 12px rgba(239,68,68,.18);}
+.doc-type-image  .doc-thumb{background:linear-gradient(135deg,rgba(6,182,212,.25),rgba(14,165,233,.18));box-shadow:0 4px 12px rgba(6,182,212,.18);}
+.doc-type-word   .doc-thumb{background:linear-gradient(135deg,rgba(43,124,211,.25),rgba(59,130,246,.18));box-shadow:0 4px 12px rgba(43,124,211,.18);}
+.doc-type-excel  .doc-thumb{background:linear-gradient(135deg,rgba(29,111,66,.25),rgba(16,185,129,.18));box-shadow:0 4px 12px rgba(29,111,66,.18);}
+.doc-type-video  .doc-thumb{background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(167,139,250,.18));box-shadow:0 4px 12px rgba(139,92,246,.18);}
+.doc-type-audio  .doc-thumb{background:linear-gradient(135deg,rgba(245,158,11,.25),rgba(251,191,36,.18));box-shadow:0 4px 12px rgba(245,158,11,.18);}
+.doc-type-zip    .doc-thumb{background:linear-gradient(135deg,rgba(249,115,22,.25),rgba(251,146,60,.18));box-shadow:0 4px 12px rgba(249,115,22,.18);}
+.doc-type-other  .doc-thumb{background:linear-gradient(135deg,rgba(144,150,184,.25),rgba(144,150,184,.18));box-shadow:0 4px 12px rgba(144,150,184,.18);}
+
 .doc-info{flex:1;min-width:0;}
 .doc-name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-family:var(--font-head);}
 .doc-meta{font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -3561,20 +3581,37 @@ const DocsDB = {
 // ═══════════════════════════════════════
 //  DOCS — HELPERS
 // ═══════════════════════════════════════
-function docMimeCategory(mimeType){
-  if(!mimeType) return 'other';
-  if(mimeType.startsWith('image/')) return 'image';
-  if(mimeType==='application/pdf') return 'pdf';
+// ═══════════════════════════════════════
+//  DOCS — FILE TYPE METADATA
+// ═══════════════════════════════════════
+// Each file type gets: CSS class, display icon, label, accent colour
+const DOC_FILE_TYPES = {
+  pdf:   { cls:'doc-type-pdf',   icon:'📕', label:'PDF',        color:'#ef4444' },
+  image: { cls:'doc-type-image', icon:'🖼️', label:'Image',      color:'#06b6d4' },
+  word:  { cls:'doc-type-word',  icon:'📘', label:'Word',       color:'#2b7cd3' },
+  excel: { cls:'doc-type-excel', icon:'📗', label:'Spreadsheet',color:'#1d6f42' },
+  video: { cls:'doc-type-video', icon:'🎬', label:'Video',      color:'#8b5cf6' },
+  audio: { cls:'doc-type-audio', icon:'🎵', label:'Audio',      color:'#f59e0b' },
+  zip:   { cls:'doc-type-zip',   icon:'🗜️', label:'Archive',    color:'#f97316' },
+  other: { cls:'doc-type-other', icon:'📁', label:'File',       color:'#9096b8' },
+};
+
+function docFileType(doc){
+  const mime = (doc.mimeType||'').toLowerCase();
+  const name = (doc.name||'').toLowerCase();
+  if(mime==='application/pdf' || name.endsWith('.pdf')) return 'pdf';
+  if(mime.startsWith('image/')) return 'image';
+  if(mime.includes('word') || mime.includes('officedocument.wordprocessing') || name.endsWith('.doc') || name.endsWith('.docx')) return 'word';
+  if(mime.includes('sheet') || mime.includes('excel') || mime.includes('spreadsheet') || name.endsWith('.xls') || name.endsWith('.xlsx') || name.endsWith('.csv')) return 'excel';
+  if(mime.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.mov') || name.endsWith('.avi')) return 'video';
+  if(mime.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.m4a') || name.endsWith('.wav')) return 'audio';
+  if(mime.includes('zip') || mime.includes('compressed') || mime.includes('archive') || name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z')) return 'zip';
   return 'other';
 }
-function docIcon(doc){
-  const cat=docMimeCategory(doc.mimeType);
-  if(cat==='pdf') return '📕';
-  if(cat==='image') return '🖼️';
-  if((doc.mimeType||'').includes('word')) return '📄';
-  if((doc.mimeType||'').includes('sheet')||(doc.mimeType||'').includes('excel')) return '📊';
-  return '📁';
-}
+function docFileMeta(doc){ return DOC_FILE_TYPES[docFileType(doc)] || DOC_FILE_TYPES.other; }
+// Keep backward-compat helpers used in viewer
+function docMimeCategory(mimeType){ if(!mimeType) return 'other'; if(mimeType.startsWith('image/')) return 'image'; if(mimeType==='application/pdf') return 'pdf'; return 'other'; }
+function docIcon(doc){ return docFileMeta(doc).icon; }
 function formatBytes(bytes){
   if(!bytes) return '0 B';
   const units=['B','KB','MB','GB'];
@@ -3732,20 +3769,22 @@ function renderDocs(){
     return;
   }
   list.innerHTML=docs.map(d=>{
-    const cat=docMimeCategory(d.mimeType);
+    const ft=docFileMeta(d);
+    const isImage=docFileType(d)==='image';
+    let thumbHtml = isImage && d.thumb
+      ? `<div class="doc-thumb"><img src="${d.thumb}" alt=""/></div>`
+      : `<div class="doc-thumb">${ft.icon}</div>`;
     const catMeta=docCatMeta(d.category);
-    let thumbHtml=`<div class="doc-thumb">${docIcon(d)}</div>`;
-    if(cat==='image'&&d.thumb) thumbHtml=`<div class="doc-thumb"><img src="${d.thumb}" alt=""/></div>`;
     const catBadge = (d.category&&d.category!=='none')
       ? `<span class="doc-cat-badge" style="background:${catMeta.bg};color:${catMeta.color}">${catMeta.label}</span>`
       : '';
     return `
     <div class="entry-card-wrap">
-      <div class="doc-card entry-card" data-id="${d.id}" style="animation:none">
+      <div class="doc-card entry-card ${ft.cls}" data-id="${d.id}" style="animation:none">
         ${thumbHtml}
         <div class="doc-info">
           <div class="doc-name">${esc(d.name)}</div>
-          <div class="doc-meta">${formatBytes(d.size)} · ${timeAgo(d.updated||d.created)}</div>
+          <div class="doc-meta">${ft.label} · ${formatBytes(d.size)} · ${timeAgo(d.updated||d.created)}</div>
           ${catBadge}
         </div>
         <div class="doc-actions">
@@ -3879,6 +3918,7 @@ let currentDocBlobUrl=null;
 async function openDocDetail(id){
   const doc=(state.docs||[]).find(d=>d.id===id); if(!doc) return;
   currentDocDetail=doc;
+  const ft=docFileMeta(doc);
   document.getElementById('docview-title-bar').textContent=doc.name;
   document.getElementById('docview-fav-btn').textContent=doc.fav?'⭐':'☆';
 
@@ -3947,7 +3987,7 @@ async function openDocDetail(id){
             background:var(--accent-g);color:#fff;font-family:var(--font);
             font-size:15px;font-weight:700;cursor:pointer;
             box-shadow:0 4px 16px rgba(91,95,245,.35)">
-            🔍 Open PDF
+            ${ft.icon} Open PDF
           </button>
           <div style="font-size:12px;color:var(--muted)">Opens in new tab — use tab switcher to return</div>
         </div>`;
@@ -3973,12 +4013,31 @@ async function openDocDetail(id){
     return;
   }
 
-  // Other file types
-  preview.innerHTML=`<div class="doc-no-preview"><span>${docIcon(doc)}</span>No preview available<br>Use Download / Share below</div>`;
+  // Other file types — decrypt and offer open-in-new-tab, same as PDF
+  preview.innerHTML=`<div class="doc-no-preview"><span>⏳</span>Loading…</div>`;
+  showScreen('docview-screen');
   try{
     const ab=await DocsDB.loadFile(id,state.currentPIN);
-    if(ab) currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
-  } catch(e){ console.error('File load failed',e); }
+    if(!ab){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
+    currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
+    const ext = doc.name.split('.').pop().toUpperCase();
+    preview.innerHTML=`
+      <div class="doc-no-preview" style="gap:16px">
+        <span>${docIcon(doc)}</span>
+        <div style="font-size:15px;font-weight:700;color:var(--text)">${esc(doc.name)}</div>
+        <button onclick="window.open('${currentDocBlobUrl}','_blank')" style="
+          padding:12px 28px;border-radius:var(--radius);border:none;
+          background:var(--accent-g);color:#fff;font-family:var(--font);
+          font-size:15px;font-weight:700;cursor:pointer;
+          box-shadow:0 4px 16px rgba(91,95,245,.35)">
+          🔍 Open ${ext}
+        </button>
+        <div style="font-size:12px;color:var(--muted)">Opens in new tab — use tab switcher to return</div>
+      </div>`;
+  } catch(e){
+    console.error('File load failed',e);
+    preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not decrypt file</div>`;
+  }
   showScreen('docview-screen');
 }
 
