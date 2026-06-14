@@ -698,6 +698,81 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .theme-toggle.on::after{transform:translateX(20px);}
 
 /* ═══════════════════════════════════
+   LINKED DOCUMENTS (R6c)
+═══════════════════════════════════ */
+.linked-docs-section{display:flex;flex-direction:column;gap:8px;}
+.linked-docs-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;margin-bottom:2px;}
+.linked-doc-row{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;
+  background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:var(--shadow-sm);cursor:pointer;transition:all .14s;
+}
+.linked-doc-row:active{transform:scale(.98);background:var(--surface2);}
+.linked-doc-icon{
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+}
+.linked-doc-name{flex:1;font-size:13px;font-weight:700;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.linked-doc-meta{font-size:11px;color:var(--muted);margin-top:1px;}
+.linked-doc-unlink{
+  width:28px;height:28px;border-radius:8px;flex-shrink:0;
+  background:rgba(239,68,68,.10);border:1.5px solid rgba(239,68,68,.25);
+  color:var(--red);font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .14s;
+}
+.linked-doc-unlink:active{background:rgba(239,68,68,.22);}
+.link-doc-btn{
+  display:flex;align-items:center;gap:8px;padding:11px 14px;
+  border-radius:var(--radius-sm);border:1.5px dashed var(--border);
+  background:transparent;color:var(--accent);font-family:var(--font);
+  font-size:13px;font-weight:700;cursor:pointer;transition:all .14s;width:100%;
+}
+.link-doc-btn:active{background:rgba(91,95,245,.07);}
+.link-doc-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* Link picker overlay */
+#link-picker-overlay{
+  position:fixed;inset:0;z-index:800;
+  background:rgba(0,0,0,.55);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .22s;
+}
+#link-picker-overlay.active{opacity:1;pointer-events:all;}
+#link-picker-sheet{
+  width:100%;max-height:75vh;
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:28px 28px 0 0;
+  display:flex;flex-direction:column;
+  box-shadow:0 -8px 40px rgba(0,0,0,.25);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  transform:translateY(20px);opacity:0;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .22s;
+}
+#link-picker-overlay.active #link-picker-sheet{transform:translateY(0);opacity:1;}
+.link-picker-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 20px 12px;border-bottom:1.5px solid var(--border);flex-shrink:0;
+}
+.link-picker-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);}
+.link-picker-close{
+  width:32px;height:32px;border-radius:50%;border:none;
+  background:var(--bg2);color:var(--text2);font-size:16px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.link-picker-list{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 28px;display:flex;flex-direction:column;gap:8px;}
+.link-picker-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;}
+.link-picker-doc-row{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;transition:all .14s;
+}
+.link-picker-doc-row:active{background:var(--surface2);transform:scale(.98);}
+
+/* ═══════════════════════════════════
    TOAST
 ═══════════════════════════════════ */
 #toast{
@@ -823,9 +898,11 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   position:relative;flex-shrink:0;
   border-radius:var(--radius);
   overflow:hidden;
-  isolation:isolate; /* force new stacking context — prevents backdrop-filter children from escaping clip */
 }
-/* Delete bg: hidden behind card, revealed by card's margin-right shift */
+/* Delete bg — always invisible until revealed by an actual swipe gesture.
+   Never set opacity:1 via CSS class — backdrop-filter on the card above
+   can punch through overflow:hidden on Android Chrome, making the red
+   bleed through the glass card. Only JS sets opacity during swipe. */
 .swipe-delete-bg{
   position:absolute;right:0;top:0;bottom:0;width:88px;
   background:linear-gradient(135deg,#ef4444,#dc2626);
@@ -834,8 +911,8 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   pointer-events:none;cursor:pointer;
   z-index:0;
   opacity:0;
+  transition:opacity .15s;
 }
-.swipe-delete-bg.ready{ opacity:1; }
 .swipe-delete-bg.revealed{ pointer-events:all; opacity:1; }
 
 .swipe-delete-bg span{font-size:22px;}
@@ -1178,6 +1255,17 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 
 <div id="toast"></div>
 
+<!-- ══════════ LINK PICKER OVERLAY ══════════ -->
+<div id="link-picker-overlay">
+  <div id="link-picker-sheet">
+    <div class="link-picker-header">
+      <div class="link-picker-title">🔗 Link a Document</div>
+      <button class="link-picker-close" id="link-picker-close">✕</button>
+    </div>
+    <div class="link-picker-list" id="link-picker-list"></div>
+  </div>
+</div>
+
 <!-- ══════════ DEBUG LOG PANEL ══════════ -->
 <div id="debug-overlay" style="
   display:none;position:fixed;inset:0;z-index:900;
@@ -1301,8 +1389,10 @@ let state = {
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
   unlockedViaBio: false, stepUpDone: false,
   preLockScreen: null, formDraft: null, bioGen: 0, bioPending: false,
-  cloudUser: null, cloudSyncOn: false, syncStatus: 'idle', // idle|syncing|synced|failed|offline
-  docsStepUpDone: false, // Docs tab gate — separate from stepUpDone, see R6a
+  cloudUser: null, cloudSyncOn: false, syncStatus: 'idle',
+  docsStepUpDone: false,
+  docViewSource: 'docs',   // 'docs' | 'entry' — controls docview-back destination
+  docViewEntryId: null,    // entry id when docViewSource === 'entry'
 };
 
 const Store = {
@@ -1993,7 +2083,6 @@ function renderEntries(animate=false) {
     toast('Deleted');
   }));
   addSwipeToDelete(list);
-  setTimeout(()=>{ list.querySelectorAll('.swipe-delete-bg').forEach(b=>b.classList.add('ready')); }, 380);
 }
 
 function renderFavs() {
@@ -2044,7 +2133,6 @@ function renderFavs() {
     toast('Deleted');
   }));
   addSwipeToDelete(list);
-  setTimeout(()=>{ list.querySelectorAll('.swipe-delete-bg').forEach(b=>b.classList.add('ready')); }, 380);
 }
 
 function updateStats() {
@@ -2156,6 +2244,9 @@ async function openDetail(id) {
     </div>`;
   }).join('');
 
+  // Append linked documents section after the entry fields
+  renderLinkedDocs(entry, container);
+
   showScreen('detail-screen');
 }
 
@@ -2221,6 +2312,188 @@ function getDetailFields(e) {
   return fields;
 }
 
+// ═══════════════════════════════════════
+//  R6c — LINKED DOCUMENTS
+// ═══════════════════════════════════════
+
+function renderLinkedDocs(entry, container) {
+  // Remove any existing linked docs section first
+  const existing = container.querySelector('.linked-docs-section-wrap');
+  if(existing) existing.remove();
+
+  const linked = entry.linkedDocIds || [];
+  const atMax = linked.length >= 10;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'linked-docs-section-wrap';
+
+  const section = document.createElement('div');
+  section.className = 'detail-field';
+  section.style.display = 'flex';
+  section.style.flexDirection = 'column';
+  section.style.gap = '8px';
+
+  const label = document.createElement('div');
+  label.className = 'detail-field-label';
+  label.textContent = 'Linked Documents';
+  section.appendChild(label);
+
+  if(linked.length > 0){
+    linked.forEach(docId => {
+      const doc = (state.docs||[]).find(d=>d.id===docId);
+      const row = document.createElement('div');
+      row.className = 'linked-doc-row';
+
+      if(!doc){
+        // Stale link — show placeholder
+        row.innerHTML = `
+          <div class="linked-doc-icon" style="background:rgba(144,150,184,.15)">❓</div>
+          <div style="flex:1">
+            <div class="linked-doc-name" style="color:var(--muted)">Document not found</div>
+            <div class="linked-doc-meta">May have been deleted</div>
+          </div>
+          <button class="linked-doc-unlink" data-unlink="${docId}" title="Remove link">✕</button>`;
+        row.style.cursor = 'default';
+      } else {
+        const ft = docFileTypeMeta(doc);
+        row.innerHTML = `
+          <div class="linked-doc-icon" style="background:${ft.bg}">${ft.icon}</div>
+          <div style="flex:1;min-width:0">
+            <div class="linked-doc-name">${esc(doc.name)}</div>
+            <div class="linked-doc-meta">${ft.label} · ${formatBytes(doc.size)}</div>
+          </div>
+          <button class="linked-doc-unlink" data-unlink="${docId}" title="Remove link">✕</button>`;
+        // Tap row (not ✕) → open doc viewer, returning to this entry detail
+        row.addEventListener('click', ev => {
+          if(ev.target.closest('[data-unlink]')) return;
+          state.docViewSource = 'entry';
+          state.docViewEntryId = entry.id;
+          openDocDetail(docId);
+        });
+      }
+
+      // Unlink button
+      row.querySelector('[data-unlink]').addEventListener('click', async ev => {
+        ev.stopPropagation();
+        entry.linkedDocIds = (entry.linkedDocIds||[]).filter(id=>id!==docId);
+        await saveEntries();
+        renderLinkedDocs(entry, container);
+        toast('Link removed');
+      });
+
+      section.appendChild(row);
+    });
+  }
+
+  // "Link a document" button — hidden at max 10
+  if(!atMax){
+    const btn = document.createElement('button');
+    btn.className = 'link-doc-btn';
+    btn.innerHTML = '＋ Link a document';
+    btn.addEventListener('click', async () => {
+      if(state.unlockedViaBio){
+        const ok = await requirePIN('Enter PIN to link a document');
+        if(!ok) return;
+      }
+      if(!state.docs || !state.docs.length){
+        toast('No documents in vault yet — add one in the Docs tab first');
+        return;
+      }
+      openLinkPicker(entry, container);
+    });
+    section.appendChild(btn);
+  } else {
+    const cap = document.createElement('div');
+    cap.style.cssText = 'font-size:12px;color:var(--muted);text-align:center;padding:4px 0';
+    cap.textContent = 'Maximum 10 linked documents reached';
+    section.appendChild(cap);
+  }
+
+  wrap.appendChild(section);
+  container.appendChild(wrap);
+}
+
+function openLinkPicker(entry, container) {
+  const overlay = document.getElementById('link-picker-overlay');
+  const list = document.getElementById('link-picker-list');
+  const alreadyLinked = new Set(entry.linkedDocIds || []);
+
+  // Docs not yet linked to this entry
+  const available = (state.docs||[]).filter(d => !alreadyLinked.has(d.id));
+
+  if(!available.length){
+    list.innerHTML = `<div class="link-picker-empty">All documents are already linked to this entry.</div>`;
+  } else {
+    list.innerHTML = available.map(d => {
+      const ft = docFileTypeMeta(d);
+      let thumbHtml = `<div class="linked-doc-icon" style="background:${ft.bg};width:40px;height:40px;border-radius:12px">${ft.icon}</div>`;
+      if(d.thumb) thumbHtml = `<div style="width:40px;height:40px;border-radius:12px;overflow:hidden;flex-shrink:0"><img src="${d.thumb}" style="width:100%;height:100%;object-fit:cover"/></div>`;
+      return `<div class="link-picker-doc-row" data-pickid="${d.id}">
+        ${thumbHtml}
+        <div style="flex:1;min-width:0">
+          <div class="linked-doc-name">${esc(d.name)}</div>
+          <div class="linked-doc-meta">${ft.label} · ${formatBytes(d.size)}${d.category&&d.category!=='none'?' · '+docCatMeta(d.category).icon+' '+docCatMeta(d.category).label:''}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    list.querySelectorAll('[data-pickid]').forEach(row => {
+      row.addEventListener('click', async () => {
+        const docId = row.dataset.pickid;
+        if(!entry.linkedDocIds) entry.linkedDocIds = [];
+        if(entry.linkedDocIds.length >= 10){ toast('Maximum 10 linked documents per entry'); return; }
+        if(!entry.linkedDocIds.includes(docId)) entry.linkedDocIds.push(docId);
+        // Update the entry in state.entries
+        const idx = state.entries.findIndex(e=>e.id===entry.id);
+        if(idx>=0) state.entries[idx].linkedDocIds = entry.linkedDocIds;
+        await saveEntries();
+        closeLinkPicker();
+        renderLinkedDocs(entry, container);
+        toast('Document linked ✓');
+      });
+    });
+  }
+
+  overlay.classList.add('active');
+}
+
+function closeLinkPicker() {
+  document.getElementById('link-picker-overlay').classList.remove('active');
+}
+
+// Remove a doc id from all entry linkedDocIds arrays (called on doc delete)
+async function cleanStaleLinkFor(docId) {
+  let changed = false;
+  state.entries.forEach(e => {
+    if(e.linkedDocIds && e.linkedDocIds.includes(docId)){
+      e.linkedDocIds = e.linkedDocIds.filter(id=>id!==docId);
+      changed = true;
+    }
+  });
+  if(changed) await saveEntries();
+}
+
+document.getElementById('link-picker-close').addEventListener('click', closeLinkPicker);
+document.getElementById('link-picker-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('link-picker-overlay')) closeLinkPicker();
+});
+
+// Helper — get file type meta for a doc (icon, label, bg colour)
+function docFileTypeMeta(doc) {
+  const mime = doc.mimeType || '';
+  const name = doc.name || '';
+  const ext = name.split('.').pop().toLowerCase();
+  if(mime.startsWith('image/'))                                   return {icon:'🖼️', label:'Image',       bg:'rgba(6,182,212,.18)',   color:'#06b6d4'};
+  if(mime==='application/pdf'||ext==='pdf')                       return {icon:'📕', label:'PDF',         bg:'rgba(239,68,68,.18)',   color:'#ef4444'};
+  if(mime.includes('word')||ext==='docx'||ext==='doc')            return {icon:'📘', label:'Word',        bg:'rgba(59,130,246,.18)',  color:'#3b82f6'};
+  if(mime.includes('sheet')||mime.includes('excel')||ext==='xlsx'||ext==='xls') return {icon:'📗', label:'Excel', bg:'rgba(16,185,129,.18)', color:'#10b981'};
+  if(mime.includes('presentation')||ext==='pptx'||ext==='ppt')   return {icon:'📙', label:'Slides',      bg:'rgba(249,115,22,.18)',  color:'#f97316'};
+  if(mime.startsWith('video/'))                                   return {icon:'🎬', label:'Video',       bg:'rgba(139,92,246,.18)',  color:'#8b5cf6'};
+  if(mime.startsWith('audio/'))                                   return {icon:'🎵', label:'Audio',       bg:'rgba(245,158,11,.18)',  color:'#f59e0b'};
+  if(mime.includes('zip')||mime.includes('archive')||ext==='zip'||ext==='rar') return {icon:'🗜️', label:'Archive', bg:'rgba(249,115,22,.18)', color:'#f97316'};
+  return {icon:'📁', label:'File', bg:'rgba(144,150,184,.18)', color:'#9096b8'};
+}
+
 window.toggleDetailField=function(vid, btn, val){
   const el=document.getElementById(vid);
   const isHidden=el.textContent==='••••••••';
@@ -2254,12 +2527,14 @@ function addSwipeToDelete(container) {
     card.style.marginRight = SWIPE_PX + 'px';
     card.classList.add('swiped');
     delBg.classList.add('revealed');
+    delBg.style.opacity = '1';
   }
 
   function snapClose(card, delBg) {
     card.style.transition = '';
     card.style.marginRight = '';
     card.classList.remove('swiped');
+    delBg.style.opacity = '0';
     setTimeout(() => { delBg.classList.remove('revealed'); }, 280);
   }
 
@@ -2650,6 +2925,8 @@ function collectFormData() {
     created: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).created||Date.now() : Date.now(),
     updated: Date.now(),
     customFields: customFieldsData.filter(f=>f.name||f.value),
+    // Preserve linked doc ids through edit — never wiped by form save
+    linkedDocIds: state.editId ? ((state.entries.find(e=>e.id===state.editId)||{}).linkedDocIds||[]) : [],
   };
   switch(type){
     case 'app':    return {...base, url:g('f-url'), username:g('f-user'), password:g('f-pass'), notes:g('f-notes')};
@@ -3793,7 +4070,7 @@ function renderDocs(){
           <span class="entry-arrow">›</span>
         </div>
       </div>
-      <div class="swipe-delete-bg ready" data-docdel="${d.id}"><span>🗑️</span><small>DELETE</small></div>
+      <div class="swipe-delete-bg" data-docdel="${d.id}"><span>🗑️</span><small>DELETE</small></div>
     </div>`;
   }).join('');
 
@@ -3816,6 +4093,7 @@ function renderDocs(){
     const ok=await confirmDelete(doc.name); if(!ok){ snapDocCard(btn,false); return; }
     state.docs=(state.docs||[]).filter(d=>d.id!==id);
     await saveDocsManifest(); await DocsDB.deleteFile(id);
+    await cleanStaleLinkFor(id);
     toast('Deleted'); renderDocs();
   }));
   addSwipeToDelete(list);
@@ -4044,8 +4322,17 @@ async function openDocDetail(id){
 
 document.getElementById('docview-back').addEventListener('click',()=>{
   if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
+  const src = state.docViewSource;
+  const entryId = state.docViewEntryId;
+  state.docViewSource = 'docs';
+  state.docViewEntryId = null;
   currentDocDetail=null;
-  openDocsTab();
+  if(src==='entry' && entryId){
+    // Return to the entry detail screen that opened this doc
+    openDetail(entryId);
+  } else {
+    openDocsTab();
+  }
 });
 
 document.getElementById('docview-rename-btn').addEventListener('click',()=>{
@@ -4102,13 +4389,18 @@ document.getElementById('docview-delete-btn').addEventListener('click', async ()
   const ok = await confirmDelete(currentDocDetail.name);
   if(!ok) return;
   const id=currentDocDetail.id;
+  const src=state.docViewSource;
+  const entryId=state.docViewEntryId;
   state.docs=(state.docs||[]).filter(d=>d.id!==id);
   await saveDocsManifest();
   await DocsDB.deleteFile(id);
+  await cleanStaleLinkFor(id);
   if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
   currentDocDetail=null;
+  state.docViewSource='docs'; state.docViewEntryId=null;
   toast('Deleted');
-  openDocsTab();
+  if(src==='entry' && entryId) openDetail(entryId);
+  else openDocsTab();
 });
 
 document.getElementById('docview-share-btn').addEventListener('click', async ()=>{

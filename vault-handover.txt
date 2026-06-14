@@ -4,7 +4,7 @@ GitHub: https://mckrishnachaitanya.github.io/Vault/
 Stack:  Single HTML file, Web Crypto (AES-256-GCM+PBKDF2), WebAuthn,
         localStorage, Google Fonts. No build step.
 Deploy: Upload index.html to GitHub Pages. Done.
-VERSION: v5.1 — 14-Jun-2026 — ~4218 lines.
+VERSION: v5.3 — 14-Jun-2026 — ~4570 lines.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROZEN — Architecture & Decisions
@@ -222,10 +222,148 @@ NOT YET DONE / OPEN ITEMS
   emptiness-aware empty-vs-non-empty guard from R5 to any future
   per-document sync logic.
 
+R6c → SHIPPED (v5.3) — Linked Documents. See R6c SUMMARY below.
+
 NEXT SESSION
 ------------
 Upload: index.html + this file.
-R6a → say "Test R6a" to walk through device testing, or report
-       results/bugs found during manual testing.
-R6b → say "Implement R6b" when ready (after R6a is tested).
-Bug → say "Bug: [describe]" for anything new found in normal use.
+R6b → say "Implement R6b" for Firebase Storage doc sync.
+Bug → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R6c SUMMARY — Linked Documents (shipped v5.3)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT WAS BUILT
+--------------
+- entry.linkedDocIds: string[] — preserved through form edits,
+  absent on old entries (treated as []). Max 10 per entry.
+- renderLinkedDocs(entry, container): appends a "Linked Documents"
+  section to the detail-fields-container after entry fields.
+  Shows each linked doc as a tappable row (icon + name + size),
+  unlink ✕ per row, and "＋ Link a document" button.
+- Link picker: bottom-sheet overlay (#link-picker-overlay) listing
+  all docs not already linked to this entry. Tapping a row adds
+  its id to entry.linkedDocIds and saves.
+- Back-nav: state.docViewSource ('docs'|'entry') + state.docViewEntryId.
+  When a linked doc is opened from an entry detail, back returns
+  to that entry detail (not the Docs tab).
+- Stale cleanup: cleanStaleLinkFor(docId) called on every doc
+  delete (swipe and viewer). Scans all entries, removes the id,
+  saves entries if changed.
+- Step-up: "Link a document" button requires PIN if unlockedViaBio
+  (same as edit button). Viewing linked docs does NOT re-prompt —
+  the entry detail step-up already happened.
+- docFileTypeMeta(doc): returns {icon, label, bg, color} for a
+  doc — used in linked doc rows and picker. Parallel to existing
+  DOC_FILE_TYPES/docFileMeta but with bg/color for icon backgrounds.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R6c PLAN — Linked Documents (not yet built)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OVERVIEW
+--------
+Allow a vault entry (any type, but most useful for identity, bank,
+card) to link to 1–10 documents from the Docs vault. Links show in
+the entry detail screen; tapping a link opens the doc viewer.
+Unlinking does not delete the document.
+
+SCHEMA CHANGE
+-------------
+Add optional linkedDocIds: string[] to entry schema.
+- Default: absent/undefined (treated as [])
+- Max: 10 links per entry (enforced in UI — "Link another document"
+  button hidden/disabled at 10)
+- Existing entries with no linkedDocIds are unaffected — field is
+  simply absent, no migration needed
+- On doc delete: scan state.entries for any linkedDocIds containing
+  that doc id, remove it from the array, call saveEntries(). This
+  prevents stale links.
+
+ENTRY DETAIL SCREEN CHANGES
+----------------------------
+New section rendered at the bottom of detail-fields, above the
+edit/delete buttons (if any linked docs exist, or always as a
+link-add affordance):
+
+  LINKED DOCUMENTS
+  [doc icon] HDFC_Statement_Jan.pdf    [✕]
+  [doc icon] Cheque_Leaf.jpg           [✕]
+  [+ Link a document]  (hidden when 10 links reached)
+
+- Each linked doc row shows: docIcon(doc) + doc.name + unlink ✕
+- Tapping the row (not ✕) opens the doc viewer for that doc
+- After viewing, back button returns to entry detail (not docs tab)
+  — detailSource logic needs extending: set a flag so docview-back
+  goes to detail-screen instead of docs-screen
+- Tapping ✕ unlinks (removes from linkedDocIds, saves entries,
+  re-renders detail fields)
+
+LINK PICKER
+-----------
+- "Link a document" opens a modal/sheet listing ALL docs (no
+  category filter — user decides what to link)
+- Docs already linked to this entry are excluded from the picker
+  (greyed out or hidden)
+- Picker shows same card style as docs list (icon, name, size, thumb)
+- Tapping a doc in picker: adds its id to entry.linkedDocIds,
+  saves entries, closes picker, re-renders linked docs section
+- Picker is a simple overlay (same pattern as delete-overlay/
+  stepup-overlay) — no new screen needed
+
+BACK-NAVIGATION FROM LINKED DOC VIEW
+-------------------------------------
+When user opens a doc from an entry detail screen (not from Docs tab):
+- Set state.docViewSource = 'entry' (vs 'docs' default)
+- Also store state.docViewEntryId = entry.id
+- In docview-back handler:
+  if state.docViewSource === 'entry':
+    showScreen('detail-screen'), re-open that entry detail
+  else:
+    openDocsTab() as before
+
+STALE LINK CLEANUP
+------------------
+In docview-delete-btn handler, after deleting the doc from IndexedDB
+and manifest, run:
+  state.entries.forEach(e => {
+    if(e.linkedDocIds && e.linkedDocIds.includes(id)){
+      e.linkedDocIds = e.linkedDocIds.filter(lid => lid !== id);
+    }
+  });
+  await saveEntries();
+This keeps entries clean even if the detail screen is not currently open.
+
+DISPLAY-ONLY RULES
+------------------
+- Linked docs section always visible in detail screen if entry has
+  linkedDocIds.length > 0, even in bio-unlocked session (the doc
+  viewer will enforce its own step-up if needed via openDocsTab
+  which is NOT called in this path — doc is opened directly via
+  openDocDetail(id), which has no step-up gate of its own).
+  Decision: opening a linked doc from an entry detail does NOT
+  require additional PIN beyond what was needed to open the entry
+  detail itself. If entry was sensitive (card/bank/identity) the
+  step-up already happened to open the detail. Consistent.
+- "Link a document" button: requires step-up if unlockedViaBio
+  (same as edit button on detail screen).
+
+LIMITS
+------
+- Max 10 linked docs per entry. Enforced in picker and unlink
+  logic. Toast: "Maximum 10 documents per entry" if attempted.
+- No limit on how many entries can link to the same document
+  (a single Aadhaar scan can be linked from multiple entries).
+
+IMPLEMENTATION ORDER
+--------------------
+1. Schema: add linkedDocIds to collectFormData() output (empty [])
+2. Stale cleanup: update doc delete handler in renderDocs and
+   docview-delete-btn
+3. Back-nav: add state.docViewSource + state.docViewEntryId,
+   update docview-back handler
+4. Detail screen: add renderLinkedDocs(entry, container) helper,
+   call from openDetail() after existing fields
+5. Link picker overlay: HTML + CSS + JS (openLinkPicker(entryId))
+6. Wire: "Link a document" button in detail, unlink ✕ handlers
