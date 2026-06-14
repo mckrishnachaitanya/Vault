@@ -551,6 +551,57 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .doc-name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-family:var(--font-head);}
 .doc-meta{font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .doc-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.doc-cat-badge{
+  display:inline-block;padding:2px 8px;border-radius:20px;
+  font-size:10px;font-weight:700;letter-spacing:.3px;margin-top:3px;
+}
+
+/* Docs search */
+.docs-search-wrap{padding:0 20px 10px;position:relative;}
+.docs-search-wrap input{
+  width:100%;padding:11px 36px 11px 40px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--border);color:var(--text);
+  font-family:var(--font);font-size:14px;outline:none;transition:border .2s;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+}
+.docs-search-wrap input:focus{border-color:var(--accent);}
+.docs-search-wrap input::placeholder{color:var(--muted);}
+.docs-search-icon{position:absolute;left:34px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--muted);pointer-events:none;}
+.docs-search-clear{
+  position:absolute;right:30px;top:50%;transform:translateY(-50%);
+  display:none;width:20px;height:20px;border-radius:50%;
+  background:var(--muted);border:none;color:var(--bg);
+  font-size:12px;font-weight:800;cursor:pointer;
+  align-items:center;justify-content:center;
+}
+.docs-search-clear.visible{display:flex;}
+
+/* Doc category filter pills */
+.docs-filter-row{display:flex;gap:8px;padding:0 20px 10px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
+.docs-filter-row::-webkit-scrollbar{display:none;}
+
+/* Rename input in viewer */
+.docview-rename-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.docview-rename-input{
+  flex:1;padding:10px 14px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--accent);color:var(--text);
+  font-family:var(--font);font-size:14px;outline:none;
+}
+.docview-rename-save{
+  padding:10px 16px;border-radius:var(--radius-sm);border:none;
+  background:var(--accent-g);color:#fff;font-family:var(--font);
+  font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+
+/* Category picker in viewer */
+.doc-cat-picker{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+.doc-cat-pick-btn{
+  padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);
+  background:var(--surface);color:var(--muted);font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .14s;
+}
+.doc-cat-pick-btn.selected{color:#fff;border-color:transparent;}
 
 .docs-empty-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
 
@@ -762,10 +813,17 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   flex-direction:column;gap:3px;border-radius:var(--radius-sm) var(--radius) var(--radius) var(--radius-sm);
   pointer-events:none;cursor:pointer;
   z-index:0;
+  opacity:0;transition:opacity .15s;
 }
 .swipe-delete-bg.revealed{
   pointer-events:all;
+  opacity:1;
 }
+/* Show bg only after card has animated in */
+.entry-card-wrap:not(:has(.entry-card[style*="animation:none"])) .swipe-delete-bg{
+  animation:swipeBgAppear .35s .28s forwards;
+}
+@keyframes swipeBgAppear{ to{ opacity:1; } }
 
 .swipe-delete-bg span{font-size:22px;}
 .swipe-delete-bg small{font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;}
@@ -893,6 +951,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ DOCUMENTS SCREEN ══════════ -->
 <div class="screen hidden" id="docs-screen">
   <div class="topbar"><h2>📄 Documents</h2><button class="lock-top-btn" id="lock-top-btn-docs" title="Lock Vault">🔒</button></div>
+  <div class="docs-search-wrap">
+    <span class="docs-search-icon">🔍</span>
+    <input type="text" id="docs-search-input" placeholder="Search documents..."/>
+    <button class="docs-search-clear" id="docs-search-clear">✕</button>
+  </div>
+  <div class="docs-filter-row" id="docs-cat-pills"></div>
   <div class="docs-list" id="docs-list"></div>
   <input type="file" id="doc-file-input" style="display:none"/>
   <div class="bottom-nav">
@@ -908,14 +972,25 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <div class="screen hidden" id="docview-screen">
   <div class="topbar">
     <div class="icon-btn" id="docview-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
-    <h2 id="docview-title-bar">Document</h2>
+    <h2 id="docview-title-bar" style="font-size:15px;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Document</h2>
     <div style="display:flex;gap:6px">
+      <button class="detail-icon-btn" id="docview-rename-btn" title="Rename">✏️</button>
       <button class="detail-icon-btn" id="docview-fav-btn" title="Star">☆</button>
       <button class="detail-icon-btn" id="docview-delete-btn" title="Delete" style="color:var(--red)">🗑️</button>
     </div>
   </div>
   <div class="docview-body">
     <div class="docview-preview" id="docview-preview"></div>
+    <div id="docview-rename-panel" style="display:none;padding:0 4px 4px">
+      <div class="docview-rename-row">
+        <input class="docview-rename-input" id="docview-rename-input" placeholder="New filename…" autocomplete="off"/>
+        <button class="docview-rename-save" id="docview-rename-save">Save</button>
+      </div>
+    </div>
+    <div id="docview-cat-panel" style="padding:0 4px 4px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Category</div>
+      <div class="doc-cat-picker" id="docview-cat-picker"></div>
+    </div>
     <div class="docview-meta-card" id="docview-meta"></div>
     <button class="btn-primary" id="docview-share-btn">⬇️ Download / Share</button>
   </div>
@@ -3303,21 +3378,28 @@ document.getElementById('s-cloud-delete').addEventListener('click', async ()=>{
 
 // ═══════════════════════════════════════
 //  CUSTOM DELETE CONFIRM
-function confirmDelete(entryName) {
+function confirmDelete(entryName, {title='Delete Entry', message=null, confirmLabel='Delete', icon='🗑️'}={}) {
   return new Promise(resolve => {
     const overlay = document.getElementById('delete-overlay');
-    const sheet   = document.getElementById('delete-sheet');
     const msg     = document.getElementById('delete-sheet-msg');
     const btnOk   = document.getElementById('delete-sheet-confirm');
     const btnCx   = document.getElementById('delete-sheet-cancel');
+    const iconEl  = overlay.querySelector('.delete-sheet-icon');
+    const titleEl = overlay.querySelector('.delete-sheet-title');
 
-    msg.innerHTML = `<span class="delete-sheet-entry-name">"${entryName}"</span> will be permanently removed. This cannot be undone.`;
+    if(iconEl)  iconEl.textContent  = icon;
+    if(titleEl) titleEl.textContent = title;
+    btnOk.textContent = confirmLabel;
+    msg.innerHTML = message || `<span class="delete-sheet-entry-name">"${entryName}"</span> will be permanently removed. This cannot be undone.`;
 
-    // Show
     overlay.classList.add('active');
 
     function finish(result) {
       overlay.classList.remove('active');
+      // Reset defaults
+      if(iconEl)  iconEl.textContent  = '🗑️';
+      if(titleEl) titleEl.textContent = 'Delete Entry';
+      btnOk.textContent = 'Delete';
       btnOk.removeEventListener('click', onOk);
       btnCx.removeEventListener('click', onCancel);
       overlay.removeEventListener('click', onOverlay);
@@ -3569,12 +3651,17 @@ function arrayBufferToThumb(ab, mimeType){
 async function openDocsTab(){
   if(state.unlockedViaBio && !state.docsStepUpDone){
     const ok = await _showStepUpModal('Enter PIN to access Documents');
-    if(!ok) return; // stay on current screen
+    if(!ok) return;
     state.docsStepUpDone = true;
     state.stepUpDone = true;
   }
   state.currentNav='docs';
   showScreen('docs-screen');
+  docsSearchQuery=''; docsActiveFilter='all';
+  const si=document.getElementById('docs-search-input');
+  if(si) si.value='';
+  const sc=document.getElementById('docs-search-clear');
+  if(sc) sc.classList.remove('visible');
   await loadDocsManifest();
   renderDocs();
 }
@@ -3602,33 +3689,76 @@ async function saveDocsManifest(){
 }
 
 // ═══════════════════════════════════════
+//  DOCS — CATEGORIES
+// ═══════════════════════════════════════
+const DOC_CATEGORIES = [
+  { id:'none',      label:'Uncategorised', color:'#9096b8', bg:'rgba(144,150,184,.15)' },
+  { id:'identity',  label:'Identity',      color:'#f97316', bg:'rgba(249,115,22,.15)'  },
+  { id:'medical',   label:'Medical',       color:'#ef4444', bg:'rgba(239,68,68,.15)'   },
+  { id:'property',  label:'Property',      color:'#10b981', bg:'rgba(16,185,129,.15)'  },
+  { id:'financial', label:'Financial',     color:'#8b5cf6', bg:'rgba(139,92,246,.15)'  },
+  { id:'education', label:'Education',     color:'#06b6d4', bg:'rgba(6,182,212,.15)'   },
+  { id:'travel',    label:'Travel',        color:'#f59e0b', bg:'rgba(245,158,11,.15)'  },
+  { id:'other',     label:'Other',         color:'#5b5ff5', bg:'rgba(91,95,245,.15)'   },
+];
+function docCatMeta(catId){ return DOC_CATEGORIES.find(c=>c.id===(catId||'none')) || DOC_CATEGORIES[0]; }
+
+let docsActiveFilter='all';
+let docsSearchQuery='';
+
+// ═══════════════════════════════════════
 //  DOCS — LIST RENDERING
 // ═══════════════════════════════════════
+function renderDocsCatPills(){
+  const row=document.getElementById('docs-cat-pills');
+  const usedCats=new Set((state.docs||[]).map(d=>d.category||'none'));
+  const pills=[{id:'all',label:'All'},...DOC_CATEGORIES.filter(c=>usedCats.has(c.id))];
+  row.innerHTML=pills.map(c=>`
+    <div class="pill${docsActiveFilter===c.id?' active':''}" data-doccat="${c.id}">${c.label}</div>
+  `).join('');
+  row.querySelectorAll('[data-doccat]').forEach(p=>p.addEventListener('click',()=>{
+    docsActiveFilter=p.dataset.doccat;
+    renderDocs();
+  }));
+}
+
 function renderDocs(){
   const list=document.getElementById('docs-list');
-  const docs=(state.docs||[]).slice().sort((a,b)=>{
-    if(!!a.fav !== !!b.fav) return a.fav ? -1 : 1;
-    return (b.updated||b.created||0) - (a.updated||a.created||0);
+  renderDocsCatPills();
+  let docs=(state.docs||[]).slice().sort((a,b)=>{
+    if(!!a.fav!==!!b.fav) return a.fav?-1:1;
+    return (b.updated||b.created||0)-(a.updated||a.created||0);
   });
+  if(docsActiveFilter!=='all') docs=docs.filter(d=>(d.category||'none')===docsActiveFilter);
+  if(docsSearchQuery) docs=docs.filter(d=>d.name.toLowerCase().includes(docsSearchQuery)||((d.category||'').toLowerCase().includes(docsSearchQuery)));
+
   if(!docs.length){
-    list.innerHTML=`<div class="docs-empty-wrap"><div class="empty-state"><span class="empty-icon">📄</span><p>No documents yet.<br>Tap + to add one</p></div></div>`;
+    list.innerHTML=`<div class="docs-empty-wrap"><div class="empty-state"><span class="empty-icon">📄</span><p>${docsSearchQuery?'No results found':'No documents yet.<br>Tap + to add one'}</p></div></div>`;
     return;
   }
   list.innerHTML=docs.map(d=>{
     const cat=docMimeCategory(d.mimeType);
-    let thumb = `<div class="doc-thumb">${docIcon(d)}</div>`;
-    if(cat==='image' && d.thumb) thumb = `<div class="doc-thumb"><img src="${d.thumb}" alt=""/></div>`;
+    const catMeta=docCatMeta(d.category);
+    let thumbHtml=`<div class="doc-thumb">${docIcon(d)}</div>`;
+    if(cat==='image'&&d.thumb) thumbHtml=`<div class="doc-thumb"><img src="${d.thumb}" alt=""/></div>`;
+    const catBadge = (d.category&&d.category!=='none')
+      ? `<span class="doc-cat-badge" style="background:${catMeta.bg};color:${catMeta.color}">${catMeta.label}</span>`
+      : '';
     return `
-    <div class="doc-card" data-id="${d.id}">
-      ${thumb}
-      <div class="doc-info">
-        <div class="doc-name">${esc(d.name)}</div>
-        <div class="doc-meta">${formatBytes(d.size)} · ${timeAgo(d.updated||d.created)}</div>
+    <div class="entry-card-wrap">
+      <div class="doc-card" data-id="${d.id}" style="animation:none">
+        ${thumbHtml}
+        <div class="doc-info">
+          <div class="doc-name">${esc(d.name)}</div>
+          <div class="doc-meta">${formatBytes(d.size)} · ${timeAgo(d.updated||d.created)}</div>
+          ${catBadge}
+        </div>
+        <div class="doc-actions">
+          <span class="fav-star" data-docfav="${d.id}">${d.fav?'⭐':'☆'}</span>
+          <span class="entry-arrow">›</span>
+        </div>
       </div>
-      <div class="doc-actions">
-        <span class="fav-star" data-docfav="${d.id}">${d.fav?'⭐':'☆'}</span>
-        <span class="entry-arrow">›</span>
-      </div>
+      <div class="swipe-delete-bg" data-docdel="${d.id}"><span>🗑️</span><small>DELETE</small></div>
     </div>`;
   }).join('');
 
@@ -3643,6 +3773,25 @@ function renderDocs(){
     doc.fav=!doc.fav; doc.updated=Date.now();
     await saveDocsManifest(); renderDocs();
   }));
+  list.querySelectorAll('[data-docdel]').forEach(btn=>btn.addEventListener('click',async ev=>{
+    ev.stopPropagation();
+    const id=btn.dataset.docdel;
+    const doc=(state.docs||[]).find(d=>d.id===id); if(!doc) return;
+    if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to delete'); if(!ok){ snapDocCard(btn,false); return; } }
+    const ok=await confirmDelete(doc.name); if(!ok){ snapDocCard(btn,false); return; }
+    state.docs=(state.docs||[]).filter(d=>d.id!==id);
+    await saveDocsManifest(); await DocsDB.deleteFile(id);
+    toast('Deleted'); renderDocs();
+  }));
+  addSwipeToDelete(list);
+}
+
+function snapDocCard(delBtn, open){
+  const card=delBtn.closest('.entry-card-wrap')?.querySelector('.doc-card');
+  if(!card) return;
+  card.style.marginRight=open?'88px':'';
+  card.classList.toggle('swiped',open);
+  if(!open) setTimeout(()=>delBtn.classList.remove('revealed'),280);
 }
 
 // ═══════════════════════════════════════
@@ -3664,6 +3813,28 @@ document.getElementById('doc-file-input').addEventListener('change', async (e)=>
   list.prepend(row);
 
   try{
+    // Check for duplicate filename — ask user what to do
+    if(!state.docs) state.docs=[];
+    const existing = state.docs.find(d => d.name === file.name);
+    if(existing){
+      const replace = await confirmDelete(file.name, {
+        title: 'File Already Exists',
+        message: `<span class="delete-sheet-entry-name">"${file.name}"</span> is already in your vault. Replace it with the new file?`,
+        confirmLabel: 'Replace',
+        icon: '🔄',
+      });
+      if(!replace){
+        // User cancelled — keep existing, go back to docs screen
+        state.currentNav='docs';
+        showScreen('docs-screen');
+        renderDocs();
+        return;
+      }
+      // Delete old file blob before replacing
+      await DocsDB.deleteFile(existing.id);
+      state.docs = state.docs.filter(d => d.id !== existing.id);
+    }
+
     const arrayBuffer = await fileToArrayBuffer(file);
     const id = Date.now().toString(36)+Math.random().toString(36).slice(2);
     // Small thumbnail from canvas for list display — generated before encryption,
@@ -3673,14 +3844,13 @@ document.getElementById('doc-file-input').addEventListener('change', async (e)=>
 
     await DocsDB.saveFile(id, arrayBuffer, state.currentPIN);
 
-    if(!state.docs) state.docs=[];
     state.docs.unshift({
       id, name:file.name, mimeType:file.type||'application/octet-stream',
-      size:file.size, created:Date.now(), updated:Date.now(), fav:false,
+      size:file.size, created:existing?.created||Date.now(), updated:Date.now(), fav:existing?.fav||false,
       thumb,
     });
     await saveDocsManifest();
-    toast('Document added ✓');
+    toast(existing ? 'Document replaced ✓' : 'Document added ✓');
     state.currentNav='docs';
     showScreen('docs-screen');
     renderDocs();
@@ -3690,6 +3860,19 @@ document.getElementById('doc-file-input').addEventListener('change', async (e)=>
     showScreen('docs-screen');
     renderDocs();
   }
+});
+
+// Docs search
+document.getElementById('docs-search-input').addEventListener('input', e=>{
+  docsSearchQuery=e.target.value.toLowerCase().trim();
+  document.getElementById('docs-search-clear').classList.toggle('visible', docsSearchQuery.length>0);
+  renderDocs();
+});
+document.getElementById('docs-search-clear').addEventListener('click', ()=>{
+  docsSearchQuery='';
+  document.getElementById('docs-search-input').value='';
+  document.getElementById('docs-search-clear').classList.remove('visible');
+  renderDocs();
 });
 
 // ═══════════════════════════════════════
@@ -3704,6 +3887,36 @@ async function openDocDetail(id){
   document.getElementById('docview-title-bar').textContent=doc.name;
   document.getElementById('docview-fav-btn').textContent=doc.fav?'⭐':'☆';
 
+  // Hide rename panel on open
+  const renamePanel=document.getElementById('docview-rename-panel');
+  renamePanel.style.display='none';
+  document.getElementById('docview-rename-input').value='';
+
+  // Category picker
+  const catMeta=docCatMeta(doc.category);
+  const picker=document.getElementById('docview-cat-picker');
+  picker.innerHTML=DOC_CATEGORIES.map(c=>`
+    <button class="doc-cat-pick-btn${(doc.category||'none')===c.id?' selected':''}"
+      data-catid="${c.id}"
+      style="${(doc.category||'none')===c.id?`background:${c.bg};color:${c.color};border-color:${c.color}`:''}">
+      ${c.label}
+    </button>`).join('');
+  picker.querySelectorAll('[data-catid]').forEach(btn=>btn.addEventListener('click',async()=>{
+    doc.category=btn.dataset.catid==='none'?undefined:btn.dataset.catid;
+    doc.updated=Date.now();
+    await saveDocsManifest();
+    // Re-render picker selection
+    picker.querySelectorAll('[data-catid]').forEach(b=>{
+      const cm=docCatMeta(b.dataset.catid);
+      const sel=(doc.category||'none')===b.dataset.catid;
+      b.classList.toggle('selected',sel);
+      b.style.background=sel?cm.bg:'';
+      b.style.color=sel?cm.color:'';
+      b.style.borderColor=sel?cm.color:'';
+    });
+    toast('Category updated');
+  }));
+
   // Meta card
   const meta=document.getElementById('docview-meta');
   meta.innerHTML=`
@@ -3716,33 +3929,80 @@ async function openDocDetail(id){
 
   // Preview
   const preview=document.getElementById('docview-preview');
-  preview.innerHTML=`<div class="doc-no-preview"><span>⏳</span>Loading preview…</div>`;
   if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
 
-  showScreen('docview-screen');
-
-  try{
-    const ab = await DocsDB.loadFile(id, state.currentPIN);
-    if(ab===null){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
-    currentDocBlobUrl = arrayBufferToObjectUrl(ab, doc.mimeType);
-    const cat=docMimeCategory(doc.mimeType);
-    if(cat==='image'){
+  const cat=docMimeCategory(doc.mimeType);
+  if(cat==='pdf'){
+    // PDFs: don't embed — show a tap-to-open card that uses Download/Share.
+    // <embed> on Android Chrome hijacks the page. Instead show a clear
+    // preview card and let the Download/Share button open it in the PDF app.
+    preview.innerHTML=`
+      <div class="doc-no-preview" style="cursor:pointer" id="pdf-open-card">
+        <span>📕</span>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">${esc(doc.name)}</div>
+        <div style="font-size:13px;color:var(--muted)">Tap Download / Share below to open</div>
+      </div>`;
+    // Load blob for the share button
+    try{
+      const ab=await DocsDB.loadFile(id,state.currentPIN);
+      if(ab) currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
+    } catch(e){ console.error('PDF load failed',e); }
+  } else if(cat==='image'){
+    preview.innerHTML=`<div class="doc-no-preview"><span>⏳</span>Loading…</div>`;
+    showScreen('docview-screen');
+    try{
+      const ab=await DocsDB.loadFile(id,state.currentPIN);
+      if(ab===null){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
+      currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
       preview.innerHTML=`<img src="${currentDocBlobUrl}" alt="${esc(doc.name)}"/>`;
-    } else if(cat==='pdf'){
-      preview.innerHTML=`<embed src="${currentDocBlobUrl}" type="application/pdf"/>`;
-    } else {
-      preview.innerHTML=`<div class="doc-no-preview"><span>${docIcon(doc)}</span>No preview available for this file type<br>Use Download / Share below</div>`;
+    } catch(e){
+      console.error('Doc preview failed',e);
+      preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not decrypt file</div>`;
     }
-  } catch(e){
-    console.error('Doc preview failed', e);
-    preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not decrypt file</div>`;
+    return; // already called showScreen
+  } else {
+    preview.innerHTML=`<div class="doc-no-preview"><span>${docIcon(doc)}</span>No preview available<br>Use Download / Share below</div>`;
+    try{
+      const ab=await DocsDB.loadFile(id,state.currentPIN);
+      if(ab) currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
+    } catch(e){ console.error('File load failed',e); }
   }
+  showScreen('docview-screen');
 }
 
 document.getElementById('docview-back').addEventListener('click',()=>{
   if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
   currentDocDetail=null;
   openDocsTab();
+});
+
+document.getElementById('docview-rename-btn').addEventListener('click',()=>{
+  const panel=document.getElementById('docview-rename-panel');
+  const input=document.getElementById('docview-rename-input');
+  const visible=panel.style.display!=='none';
+  panel.style.display=visible?'none':'block';
+  if(!visible){
+    input.value=currentDocDetail?currentDocDetail.name:'';
+    input.focus();
+    input.select();
+  }
+});
+
+document.getElementById('docview-rename-save').addEventListener('click', async()=>{
+  if(!currentDocDetail) return;
+  const input=document.getElementById('docview-rename-input');
+  const newName=input.value.trim();
+  if(!newName){ toast('Name cannot be empty'); return; }
+  if(newName===currentDocDetail.name){ document.getElementById('docview-rename-panel').style.display='none'; return; }
+  // Check for collision with another doc
+  const collision=(state.docs||[]).find(d=>d.name===newName && d.id!==currentDocDetail.id);
+  if(collision){ toast('A file with that name already exists'); return; }
+  currentDocDetail.name=newName;
+  currentDocDetail.updated=Date.now();
+  document.getElementById('docview-title-bar').textContent=newName;
+  document.getElementById('docview-rename-panel').style.display='none';
+  await saveDocsManifest();
+  toast('Renamed ✓');
 });
 
 document.getElementById('docview-fav-btn').addEventListener('click', async ()=>{
