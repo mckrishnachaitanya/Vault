@@ -4,7 +4,7 @@ GitHub: https://mckrishnachaitanya.github.io/Vault/
 Stack:  Single HTML file, Web Crypto (AES-256-GCM+PBKDF2), WebAuthn,
         localStorage, IndexedDB, Google Fonts. No build step.
 Deploy: Upload index.html to GitHub Pages. Done.
-VERSION: v5.4 — 15-Jun-2026 — ~4890 lines. R6a fully tested ✓
+VERSION: v5.5 — 15-Jun-2026 — ~4910 lines. R6a fully tested ✓
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROZEN — Architecture & Decisions
@@ -235,6 +235,13 @@ PASSWORD HEALTH
 
 BUGS FIXED IN R6d
 -----------------
+- Share button (v5.5): navigator.canShare({files}) silently returns false
+  on desktop and some iOS/Android contexts — old code dead-ended with a
+  toast. New logic: checks canShare BEFORE any async work (preserves
+  gesture), opens native share sheet if supported, otherwise falls back
+  to download automatically. Also handles mid-flight share failure by
+  triggering download. Button shows ⏳ loading state if file still
+  decrypting when user taps.
 - Category pills showing "Uncategorised" when all docs uncategorised:
   pills now only render when at least one doc has a real category (≠ none).
 - Share button: now re-decrypts ArrayBuffer fresh instead of fetch(blobUrl)

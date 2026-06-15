@@ -4736,24 +4736,76 @@ document.getElementById('docview-download-btn').addEventListener('click', async 
 
 // Share — uses pre-built File object (built when viewer loads) so
 // navigator.share() is called synchronously after tap with no async gap.
+// Falls back to download if Web Share API is unavailable or file sharing
+// isn't supported (desktop browsers, older iOS, non-HTTPS contexts).
 document.getElementById('docview-share-btn').addEventListener('click', async ()=>{
-  if(!currentDocDetail){ toast('File not ready'); return; }
-  // Use pre-built File if available
-  let file = currentDocFile;
-  if(!file){
-    // Fallback: build from cached AB or re-decrypt
-    const ab = currentDocArrayBuffer || await DocsDB.loadFile(currentDocDetail.id, state.currentPIN);
-    if(!ab){ toast('Could not load file'); return; }
-    file = new File([new Blob([ab],{type:currentDocDetail.mimeType})], currentDocDetail.name, {type:currentDocDetail.mimeType||'application/octet-stream'});
-  }
-  if(!navigator.share || !navigator.canShare || !navigator.canShare({files:[file]})){
-    toast('Share not supported on this device — use Download');
+  if(!currentDocDetail){ toast('File not ready — try again in a moment'); return; }
+
+  const shareBtn = document.getElementById('docview-share-btn');
+
+  // If still decrypting (currentDocFile not ready yet), fall back to download
+  // immediately — better UX than a broken share sheet.
+  const fileReady = !!currentDocFile;
+
+  // Check share support BEFORE any async work (preserves gesture context)
+  const canWebShare = !!(
+    navigator.share &&
+    navigator.canShare &&
+    fileReady &&
+    navigator.canShare({ files: [currentDocFile] })
+  );
+
+  if(canWebShare){
+    // Synchronous path — gesture context intact, share sheet opens immediately
+    try{
+      await navigator.share({ files:[currentDocFile], title:currentDocDetail.name });
+    } catch(e){
+      if(e.name !== 'AbortError'){
+        // Share failed mid-flight — fall back to download silently
+        _triggerDownload();
+        toast('Share failed — downloading instead');
+      }
+    }
     return;
   }
+
+  // Fallback: download the file (works everywhere, no gesture-context issue)
+  // If the blob URL is ready use it directly; otherwise wait for the AB
+  if(currentDocBlobUrl){
+    _triggerDownload();
+    toast('Downloading… (sharing not supported on this browser)');
+    return;
+  }
+
+  // Last resort: decrypt now (file was still loading when user tapped)
+  shareBtn.textContent = '⏳ Loading…';
+  shareBtn.disabled = true;
   try{
-    await navigator.share({files:[file], title:currentDocDetail.name});
+    const ab = currentDocArrayBuffer || await DocsDB.loadFile(currentDocDetail.id, state.currentPIN);
+    if(!ab){ toast('Could not load file'); return; }
+    currentDocArrayBuffer = ab;
+    currentDocBlobUrl = arrayBufferToObjectUrl(ab, currentDocDetail.mimeType);
+    currentDocFile = new File(
+      [new Blob([ab],{type:currentDocDetail.mimeType})],
+      currentDocDetail.name,
+      {type:currentDocDetail.mimeType||'application/octet-stream'}
+    );
+    _triggerDownload();
+    toast('Downloading… (sharing not supported on this browser)');
   } catch(e){
-    if(e.name!=='AbortError') toast('Share failed — use Download instead');
+    console.error('Share/download fallback failed', e);
+    toast('Could not load file — try again');
+  } finally{
+    shareBtn.textContent = '↗️ Share';
+    shareBtn.disabled = false;
+  }
+
+  function _triggerDownload(){
+    if(!currentDocBlobUrl || !currentDocDetail) return;
+    const a = document.createElement('a');
+    a.href = currentDocBlobUrl;
+    a.download = currentDocDetail.name;
+    a.click();
   }
 });
 
