@@ -230,9 +230,9 @@ body::after{
 .cloud-status-badge.offline{background:rgba(144,150,184,.14);}
 @keyframes cloudSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
-.stats-row{display:flex;gap:10px;padding:16px 20px;}
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:16px 20px;}
 .stat-card{
-  flex:1;padding:14px 16px;border-radius:var(--radius-sm);
+  padding:12px 14px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);
@@ -250,9 +250,10 @@ body::after{
 .stat-num,.stat-label{position:relative;z-index:1;}
 #stat-fav-card::before{background:linear-gradient(135deg,#f59e0b,#f97316);}
 #stat-cats-card::before{background:linear-gradient(135deg,#10b981,#06b6d4);}
+#stat-health-card::before{background:linear-gradient(135deg,#5b5ff5,#8b5cf6);}
 .stat-card.tappable{cursor:pointer;transition:all .14s;}
 .stat-card.tappable:active{transform:scale(.94);background:var(--surface2);}
-.stat-num{font-size:22px;font-weight:800;color:var(--accent);font-family:var(--font-head);}
+.stat-num{font-size:20px;font-weight:800;color:var(--accent);font-family:var(--font-head);}
 .stat-label{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500;}
 
 /* Backup nudge */
@@ -1037,10 +1038,13 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
     <div class="stat-card tappable" id="stat-fav-card"><div class="stat-num" id="stat-fav">0</div><div class="stat-label">Favourites</div></div>
     <div class="stat-card tappable" id="stat-cats-card"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Types Used</div></div>
+    <div class="stat-card tappable" id="stat-health-card"><div class="stat-num" id="stat-health-icon" style="font-size:22px">🛡️</div><div class="stat-label" id="stat-health-label">PW Health</div></div>
   </div>
   <div id="backup-nudge-wrap"></div>
   <div id="expiry-nudge-wrap"></div>
-  <div id="health-card-wrap"></div>
+  <div class="cat-inline-panel" id="health-inline-panel">
+    <div class="cat-inline-inner" id="health-panel-inner"></div>
+  </div>
   <div class="cat-inline-panel" id="cat-inline-panel">
     <div class="cat-inline-inner">
       <div class="cat-breakdown-list" id="cat-breakdown-list"></div>
@@ -2479,22 +2483,29 @@ function openLinkPicker(entry, container) {
   const overlay = document.getElementById('link-picker-overlay');
   const list = document.getElementById('link-picker-list');
   const alreadyLinked = new Set(entry.linkedDocIds || []);
-
-  // Docs not yet linked to this entry
   const available = (state.docs||[]).filter(d => !alreadyLinked.has(d.id));
 
-  if(!available.length){
-    list.innerHTML = `<div class="link-picker-empty">All documents are already linked to this entry.</div>`;
-  } else {
-    list.innerHTML = available.map(d => {
+  function renderPickerList(query='') {
+    const filtered = query
+      ? available.filter(d=>d.name.toLowerCase().includes(query)||((d.category||'').includes(query)))
+      : available;
+
+    if(!filtered.length){
+      list.innerHTML = `<div class="link-picker-empty">${query?'No documents match your search':'All documents are already linked to this entry.'}</div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(d => {
       const ft = docFileTypeMeta(d);
-      let thumbHtml = `<div class="linked-doc-icon" style="background:${ft.bg};width:40px;height:40px;border-radius:12px">${ft.icon}</div>`;
+      const catMeta = docCatMeta(d.category);
+      let thumbHtml = `<div class="linked-doc-icon" style="background:${ft.bg};width:40px;height:40px;border-radius:12px;flex-shrink:0">${ft.icon}</div>`;
       if(d.thumb) thumbHtml = `<div style="width:40px;height:40px;border-radius:12px;overflow:hidden;flex-shrink:0"><img src="${d.thumb}" style="width:100%;height:100%;object-fit:cover"/></div>`;
+      const catBadge = d.category&&d.category!=='none'
+        ? `<span style="font-size:10px;font-weight:700;color:${catMeta.color}">${catMeta.icon} ${catMeta.label}</span>` : '';
       return `<div class="link-picker-doc-row" data-pickid="${d.id}">
         ${thumbHtml}
         <div style="flex:1;min-width:0">
           <div class="linked-doc-name">${esc(d.name)}</div>
-          <div class="linked-doc-meta">${ft.label} · ${formatBytes(d.size)}${d.category&&d.category!=='none'?' · '+docCatMeta(d.category).icon+' '+docCatMeta(d.category).label:''}</div>
+          <div class="linked-doc-meta">${ft.label} · ${formatBytes(d.size)} ${catBadge}</div>
         </div>
       </div>`;
     }).join('');
@@ -2505,7 +2516,6 @@ function openLinkPicker(entry, container) {
         if(!entry.linkedDocIds) entry.linkedDocIds = [];
         if(entry.linkedDocIds.length >= 10){ toast('Maximum 10 linked documents per entry'); return; }
         if(!entry.linkedDocIds.includes(docId)) entry.linkedDocIds.push(docId);
-        // Update the entry in state.entries
         const idx = state.entries.findIndex(e=>e.id===entry.id);
         if(idx>=0) state.entries[idx].linkedDocIds = entry.linkedDocIds;
         await saveEntries();
@@ -2515,6 +2525,66 @@ function openLinkPicker(entry, container) {
       });
     });
   }
+
+  // Build search bar + list
+  list.innerHTML = `
+    <div style="position:relative;margin-bottom:10px">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none">🔍</span>
+      <input id="link-picker-search" type="text" placeholder="Search documents…"
+        style="width:100%;padding:10px 12px 10px 36px;border-radius:var(--radius-sm);
+        background:var(--bg2);border:1.5px solid var(--border);color:var(--text);
+        font-family:var(--font);font-size:14px;outline:none;box-sizing:border-box"/>
+    </div>
+    <div id="link-picker-results"></div>`;
+
+  // Re-render list area only, not the search bar
+  const origList = list;
+  function reRender(q){
+    const results = document.getElementById('link-picker-results');
+    if(!results) return;
+    const alreadyLinked2 = new Set(entry.linkedDocIds || []);
+    const avail2 = (state.docs||[]).filter(d=>!alreadyLinked2.has(d.id));
+    const filtered = q ? avail2.filter(d=>d.name.toLowerCase().includes(q)||((d.category||'').includes(q))) : avail2;
+    if(!filtered.length){
+      results.innerHTML=`<div class="link-picker-empty">${q?'No documents match':'All documents already linked.'}</div>`;
+      return;
+    }
+    results.innerHTML = filtered.map(d => {
+      const ft = docFileTypeMeta(d);
+      const catMeta = docCatMeta(d.category);
+      let thumbHtml = `<div class="linked-doc-icon" style="background:${ft.bg};width:40px;height:40px;border-radius:12px;flex-shrink:0">${ft.icon}</div>`;
+      if(d.thumb) thumbHtml = `<div style="width:40px;height:40px;border-radius:12px;overflow:hidden;flex-shrink:0"><img src="${d.thumb}" style="width:100%;height:100%;object-fit:cover"/></div>`;
+      const catBadge = d.category&&d.category!=='none'
+        ? `<span style="font-size:10px;font-weight:700;color:${catMeta.color};margin-left:4px">${catMeta.icon} ${catMeta.label}</span>` : '';
+      return `<div class="link-picker-doc-row" data-pickid="${d.id}">
+        ${thumbHtml}
+        <div style="flex:1;min-width:0">
+          <div class="linked-doc-name">${esc(d.name)}</div>
+          <div class="linked-doc-meta">${ft.label} · ${formatBytes(d.size)}${catBadge}</div>
+        </div>
+      </div>`;
+    }).join('');
+    results.querySelectorAll('[data-pickid]').forEach(row=>{
+      row.addEventListener('click', async ()=>{
+        const docId = row.dataset.pickid;
+        if(!entry.linkedDocIds) entry.linkedDocIds=[];
+        if(entry.linkedDocIds.length>=10){ toast('Maximum 10 linked documents per entry'); return; }
+        if(!entry.linkedDocIds.includes(docId)) entry.linkedDocIds.push(docId);
+        const idx=state.entries.findIndex(e=>e.id===entry.id);
+        if(idx>=0) state.entries[idx].linkedDocIds=entry.linkedDocIds;
+        await saveEntries();
+        closeLinkPicker();
+        renderLinkedDocs(entry, container);
+        toast('Document linked ✓');
+      });
+    });
+  }
+
+  reRender('');
+  setTimeout(()=>{
+    const si=document.getElementById('link-picker-search');
+    if(si) si.addEventListener('input', e=>reRender(e.target.value.toLowerCase().trim()));
+  }, 50);
 
   overlay.classList.add('active');
 }
@@ -3250,24 +3320,20 @@ function passwordScore(pw) {
   let s=0;
   if(pw.length>=8)s++; if(pw.length>=12)s++;
   if(/[A-Z]/.test(pw))s++; if(/[0-9]/.test(pw))s++; if(/[^A-Za-z0-9]/.test(pw))s++;
-  return s; // 0-5, same scale as updateStrength
+  return s;
 }
 
-// Extract the primary password field from any entry type
 function entryPassword(e) {
   switch(e.type){
     case 'app':  return e.password||'';
     case 'wifi': return e.password||'';
     case 'bank': return e.netBankingPassword||'';
-    case 'card': return e.cvv||''; // not a password per se but sensitive
     default:     return '';
   }
 }
 
 function runHealthCheck() {
   const entries = state.entries.filter(e=>['app','wifi','bank'].includes(e.type));
-
-  // 1. Reused passwords — same non-empty password on 2+ entries
   const pwMap = {};
   entries.forEach(e=>{
     const pw = entryPassword(e);
@@ -3277,69 +3343,47 @@ function runHealthCheck() {
   });
   const reused = Object.values(pwMap).filter(arr=>arr.length>1).flat();
   const reusedIds = new Set(reused.map(e=>e.id));
-
-  // 2. Weak passwords (score <= 2, i.e. Very Weak or Weak)
-  const weak = entries.filter(e=>{
-    const pw = entryPassword(e);
-    return pw && passwordScore(pw)<=2 && !reusedIds.has(e.id);
-  });
-
-  // 3. No password set (app/wifi/bank entries missing password)
-  const missing = entries.filter(e=>{
-    return !entryPassword(e) && e.type!=='card';
-  });
-
-  return { reused, weak, missing };
+  const weak = entries.filter(e=>{ const pw=entryPassword(e); return pw&&passwordScore(pw)<=2&&!reusedIds.has(e.id); });
+  const missing = entries.filter(e=>!entryPassword(e)&&e.type!=='card');
+  return {reused, weak, missing};
 }
 
 function checkPasswordHealth() {
-  const wrap = document.getElementById('health-card-wrap');
-  if(!wrap) return;
+  const iconEl = document.getElementById('stat-health-icon');
+  const labelEl = document.getElementById('stat-health-label');
+  const card = document.getElementById('stat-health-card');
+  if(!iconEl||!labelEl||!card) return;
 
-  // Need at least 2 app/wifi/bank entries to be meaningful
   const relevant = state.entries.filter(e=>['app','wifi','bank'].includes(e.type));
-  if(relevant.length < 2){ wrap.innerHTML=''; return; }
+  if(relevant.length < 2){
+    iconEl.textContent='🛡️'; labelEl.textContent='PW Health';
+    card.style.opacity='.5'; card.style.cursor='default';
+    card.onclick=null; return;
+  }
+  card.style.opacity=''; card.style.cursor='pointer';
 
-  const {reused, weak, missing} = runHealthCheck();
+  const {reused,weak,missing} = runHealthCheck();
   const totalIssues = reused.length + weak.length + missing.length;
 
-  let cardClass, icon, title, sub;
-  if(totalIssues === 0){
-    cardClass='good'; icon='🛡️';
-    title='Password Health: Good';
-    sub='No reused or weak passwords found';
+  if(totalIssues===0){
+    iconEl.textContent='🛡️'; labelEl.textContent='All Good';
+    card.style.setProperty('--health-color','var(--green)');
+  } else if(reused.length>0){
+    iconEl.textContent='⚠️'; labelEl.textContent=`${totalIssues} Issues`;
+    card.style.setProperty('--health-color','var(--red)');
   } else {
-    const parts=[];
-    if(reused.length) parts.push(`${reused.length} reused`);
-    if(weak.length)   parts.push(`${weak.length} weak`);
-    if(missing.length)parts.push(`${missing.length} missing`);
-    const severity = reused.length>0 ? 'bad' : 'warn';
-    cardClass=severity; icon=severity==='bad'?'⚠️':'🔔';
-    title=`Password Health: ${reused.length>0?'At Risk':'Fair'}`;
-    sub=parts.join(' · ');
+    iconEl.textContent='🔔'; labelEl.textContent=`${totalIssues} Issues`;
+    card.style.setProperty('--health-color','#f59e0b');
   }
 
-  wrap.innerHTML=`
-    <div class="health-card ${cardClass}" id="health-card">
-      <span class="health-icon">${icon}</span>
-      <div class="health-info">
-        <div class="health-title">${title}</div>
-        <div class="health-sub">${sub}</div>
-      </div>
-      <span class="health-chevron${healthPanelOpen?' open':''}" id="health-chevron">›</span>
-    </div>
-    <div class="health-panel${healthPanelOpen?' open':''}" id="health-panel">
-      <div class="health-panel-inner" id="health-panel-inner"></div>
-    </div>`;
-
-  document.getElementById('health-card').addEventListener('click', ()=>{
+  card.onclick = () => {
     healthPanelOpen=!healthPanelOpen;
-    document.getElementById('health-panel').classList.toggle('open', healthPanelOpen);
-    document.getElementById('health-chevron').classList.toggle('open', healthPanelOpen);
+    // Close cat panel if open
+    if(healthPanelOpen){ catPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('stat-cats-card').style.background=''; }
+    document.getElementById('health-inline-panel').classList.toggle('open', healthPanelOpen);
+    document.getElementById('stat-health-card').style.background = healthPanelOpen?'var(--surface2)':'';
     if(healthPanelOpen) renderHealthPanel(reused, weak, missing);
-  });
-
-  if(healthPanelOpen) renderHealthPanel(reused, weak, missing);
+  };
 }
 
 function renderHealthPanel(reused, weak, missing) {
@@ -3347,54 +3391,48 @@ function renderHealthPanel(reused, weak, missing) {
   if(!inner) return;
   let html='';
 
+  if(!reused.length&&!weak.length&&!missing.length){
+    inner.innerHTML=`<div style="text-align:center;color:var(--green);padding:16px;font-weight:700;font-size:14px">🛡️ All passwords look healthy!</div>`;
+    return;
+  }
+
   if(reused.length){
-    html+=`<div class="health-section">
-      <div class="health-section-title" style="color:#ef4444">🔁 Reused Passwords <span style="background:rgba(239,68,68,.15);color:#ef4444;padding:2px 8px;border-radius:20px;font-size:10px">${reused.length}</span></div>
-      ${reused.map(e=>`
-        <div class="health-entry-row" data-hid="${e.id}">
-          <span style="font-size:16px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
-          <div class="health-entry-name">${esc(e.name)}</div>
-          <div class="health-entry-detail">Same password</div>
-        </div>`).join('')}
+    html+=`<div class="cat-breakdown-item" style="flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:4px">
+      <div style="font-size:11px;font-weight:700;color:#ef4444;letter-spacing:.8px;text-transform:uppercase">🔁 Reused · ${reused.length}</div>
+      ${reused.map(e=>`<div class="health-entry-row" data-hid="${e.id}" style="width:100%">
+        <span style="font-size:15px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
+        <div class="health-entry-name">${esc(e.name)}</div>
+        <div class="health-entry-detail">Same pw</div>
+      </div>`).join('')}
     </div>`;
   }
-
   if(weak.length){
-    html+=`<div class="health-section">
-      <div class="health-section-title" style="color:#f59e0b">💧 Weak Passwords <span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:2px 8px;border-radius:20px;font-size:10px">${weak.length}</span></div>
-      ${weak.map(e=>`
-        <div class="health-entry-row" data-hid="${e.id}">
-          <span style="font-size:16px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
-          <div class="health-entry-name">${esc(e.name)}</div>
-          <div class="health-entry-detail">Score ${passwordScore(entryPassword(e))}/5</div>
-        </div>`).join('')}
+    html+=`<div class="cat-breakdown-item" style="flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:4px">
+      <div style="font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:.8px;text-transform:uppercase">💧 Weak · ${weak.length}</div>
+      ${weak.map(e=>`<div class="health-entry-row" data-hid="${e.id}" style="width:100%">
+        <span style="font-size:15px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
+        <div class="health-entry-name">${esc(e.name)}</div>
+        <div class="health-entry-detail">${passwordScore(entryPassword(e))}/5</div>
+      </div>`).join('')}
     </div>`;
   }
-
   if(missing.length){
-    html+=`<div class="health-section">
-      <div class="health-section-title" style="color:#9096b8">❓ No Password Set <span style="background:rgba(144,150,184,.15);color:#9096b8;padding:2px 8px;border-radius:20px;font-size:10px">${missing.length}</span></div>
-      ${missing.map(e=>`
-        <div class="health-entry-row" data-hid="${e.id}">
-          <span style="font-size:16px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
-          <div class="health-entry-name">${esc(e.name)}</div>
-          <div class="health-entry-detail">Empty</div>
-        </div>`).join('')}
+    html+=`<div class="cat-breakdown-item" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase">❓ No Password · ${missing.length}</div>
+      ${missing.map(e=>`<div class="health-entry-row" data-hid="${e.id}" style="width:100%">
+        <span style="font-size:15px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
+        <div class="health-entry-name">${esc(e.name)}</div>
+        <div class="health-entry-detail">Empty</div>
+      </div>`).join('')}
     </div>`;
   }
 
-  if(!html){
-    html=`<div class="health-section" style="text-align:center;color:var(--muted);font-size:14px;padding:20px">
-      🛡️ All passwords look healthy!
-    </div>`;
-  }
-
-  inner.innerHTML=html;
-
-  // Tap any entry row → open its detail
+  inner.innerHTML=`<div class="cat-breakdown-list" style="gap:12px">${html}</div>`;
   inner.querySelectorAll('[data-hid]').forEach(row=>{
     row.addEventListener('click', ()=>{
-      healthPanelOpen=false; // close panel for clean nav
+      healthPanelOpen=false;
+      document.getElementById('health-inline-panel').classList.remove('open');
+      document.getElementById('stat-health-card').style.background='';
       openDetail(row.dataset.hid);
     });
   });
@@ -4643,21 +4681,25 @@ document.getElementById('docview-download-btn').addEventListener('click', async 
   toast('Downloading…');
 });
 
-// Share — uses native share sheet; download fallback only if share not supported
+// Share — uses native share sheet with File built from ArrayBuffer (no fetch needed)
 document.getElementById('docview-share-btn').addEventListener('click', async ()=>{
-  if(!currentDocDetail || !currentDocBlobUrl){ toast('File not ready'); return; }
+  if(!currentDocDetail){ toast('File not ready'); return; }
   const doc=currentDocDetail;
   try{
-    const resp=await fetch(currentDocBlobUrl);
-    const blob=await resp.blob();
-    const file=new File([blob], doc.name, {type:doc.mimeType||'application/octet-stream'});
+    // Re-decrypt to get ArrayBuffer — avoids fetch() losing gesture context
+    const ab = await DocsDB.loadFile(doc.id, state.currentPIN);
+    if(!ab){ toast('Could not load file'); return; }
+    const blob = new Blob([ab], {type:doc.mimeType||'application/octet-stream'});
+    const file = new File([blob], doc.name, {type:doc.mimeType||'application/octet-stream'});
     if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
       await navigator.share({files:[file], title:doc.name});
       return;
     }
-  } catch(e){ /* fall through */ }
-  // Fallback if Web Share API not available
-  toast('Share not supported — use Download instead');
+    toast('Share not supported on this device — use Download');
+  } catch(e){
+    console.error('Share failed',e);
+    toast('Share failed — use Download instead');
+  }
 });
 
 // ═══════════════════════════════════════
@@ -4752,34 +4794,43 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
     const importedDocs = manifestData.docs || [];
 
     if(!state.docs) state.docs=[];
-    let imported=0, skipped=0;
+    let imported=0, replaced=0, skipped=0;
     for(const doc of importedDocs){
-      // Support both v4 (files/<name>) and older formats (files/<id>.bin)
       const binEntry = zip.file(`files/${doc.name}`) || zip.file(`files/${doc.id}.bin`);
       if(!binEntry){ skipped++; continue; }
 
       const ab = await binEntry.async('arraybuffer');
 
-      let newId = doc.id;
-      if(state.docs.some(d=>d.id===newId)) newId = Date.now().toString(36)+Math.random().toString(36).slice(2);
+      // Deduplicate by filename — replace existing doc with same name
+      const existingByName = state.docs.find(d=>d.name===doc.name);
+      if(existingByName){
+        await DocsDB.deleteFile(existingByName.id);
+        state.docs = state.docs.filter(d=>d.id!==existingByName.id);
+        replaced++;
+      }
 
+      const newId = Date.now().toString(36)+Math.random().toString(36).slice(2);
       await DocsDB.saveFile(newId, ab, state.currentPIN);
 
       let thumb=null;
       if((doc.mimeType||'').startsWith('image/')){
         try{ thumb = await arrayBufferToThumb(ab, doc.mimeType); } catch(e){}
       }
+      // Preserve ALL manifest fields including category and fav
       state.docs.unshift({
         id:newId, name:doc.name, mimeType:doc.mimeType, size:doc.size,
-        created:doc.created||Date.now(), updated:Date.now(), fav:!!doc.fav,
-        thumb,
+        created:doc.created||Date.now(), updated:Date.now(),
+        fav:!!doc.fav, category:doc.category||undefined, thumb,
       });
       imported++;
     }
     await saveDocsManifest();
+    const parts=[];
+    if(imported-replaced>0) parts.push(`${imported-replaced} added`);
+    if(replaced>0) parts.push(`${replaced} replaced`);
+    if(skipped>0) parts.push(`${skipped} skipped`);
     if(imported>0){
-      const msg = skipped>0 ? `Imported ${imported}, skipped ${skipped}` : `Imported ${imported} document${imported===1?'':'s'} ✓`;
-      toast(msg, 3000);
+      toast(parts.join(' · ')+' ✓', 3000);
       if(!document.getElementById('docs-screen').classList.contains('hidden')) renderDocs();
     } else {
       toast('No documents found in backup');
