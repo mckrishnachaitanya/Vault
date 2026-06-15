@@ -578,8 +578,9 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 
 /* Docs search */
 .docs-search-wrap{padding:0 20px 10px;position:relative;}
+.docs-search-input-wrap{position:relative;}
 .docs-search-wrap input{
-  width:100%;padding:11px 36px 11px 40px;border-radius:var(--radius-sm);
+  width:100%;padding:11px 40px 11px 40px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);color:var(--text);
   font-family:var(--font);font-size:14px;outline:none;transition:border .2s;
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
@@ -587,9 +588,9 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 .docs-search-wrap input:focus{border-color:var(--accent);}
 .docs-search-wrap input::placeholder{color:var(--muted);}
-.docs-search-icon{position:absolute;left:34px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--muted);pointer-events:none;}
+.docs-search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--muted);pointer-events:none;}
 .docs-search-clear{
-  position:absolute;right:30px;top:50%;transform:translateY(-50%);
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
   display:none;width:20px;height:20px;border-radius:50%;
   background:var(--muted);border:none;color:var(--bg);
   font-size:12px;font-weight:800;cursor:pointer;
@@ -1042,9 +1043,11 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <div class="screen hidden" id="docs-screen">
   <div class="topbar"><h2>📄 Documents</h2><button class="lock-top-btn" id="lock-top-btn-docs" title="Lock Vault">🔒</button></div>
   <div class="docs-search-wrap">
-    <span class="docs-search-icon">🔍</span>
-    <input type="text" id="docs-search-input" placeholder="Search documents..."/>
-    <button class="docs-search-clear" id="docs-search-clear">✕</button>
+    <div class="docs-search-input-wrap">
+      <span class="docs-search-icon">🔍</span>
+      <input type="text" id="docs-search-input" placeholder="Search documents..."/>
+      <button class="docs-search-clear" id="docs-search-clear">✕</button>
+    </div>
   </div>
   <div class="docs-filter-row" id="docs-cat-pills"></div>
   <div class="docs-list" id="docs-list"></div>
@@ -1082,7 +1085,10 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <div class="doc-cat-picker" id="docview-cat-picker"></div>
     </div>
     <div class="docview-meta-card" id="docview-meta"></div>
-    <button class="btn-primary" id="docview-share-btn">⬇️ Download / Share</button>
+    <div style="display:flex;gap:10px">
+      <button class="btn-primary" id="docview-download-btn" style="flex:1;font-size:15px;padding:14px 10px">⬇️ Download</button>
+      <button class="btn-primary" id="docview-share-btn" style="flex:1;font-size:15px;padding:14px 10px;background:linear-gradient(135deg,#10b981,#06b6d4)">↗️ Share</button>
+    </div>
   </div>
 </div>
 
@@ -4028,7 +4034,10 @@ let docsSearchQuery='';
 function renderDocsCatPills(){
   const row=document.getElementById('docs-cat-pills');
   const usedCats=new Set((state.docs||[]).map(d=>d.category||'none'));
-  const pills=[{id:'all',icon:'',label:'All'},...DOC_CATEGORIES.filter(c=>usedCats.has(c.id))];
+  // Only show pills if at least one doc has a real category (not just 'none')
+  const hasRealCats = [...usedCats].some(c=>c!=='none');
+  if(!hasRealCats){ row.innerHTML=''; return; }
+  const pills=[{id:'all',icon:'',label:'All'},...DOC_CATEGORIES.filter(c=>usedCats.has(c.id)&&c.id!=='none')];
   if(pills.length<=1){ row.innerHTML=''; return; }
   row.innerHTML=pills.map(c=>`
     <div class="pill${docsActiveFilter===c.id?' active':''}" data-doccat="${c.id}">${c.icon?c.icon+' ':''}${c.label}</div>
@@ -4366,7 +4375,10 @@ document.getElementById('docview-rename-save').addEventListener('click', async()
   currentDocDetail.updated=Date.now();
   document.getElementById('docview-title-bar').textContent=newName;
   document.getElementById('docview-rename-panel').style.display='none';
-  // Refresh meta card so Name and Updated rows reflect the change
+  // Update filename shown inside PDF/file preview card if present
+  const previewNameEl = document.querySelector('#docview-preview .doc-no-preview div[style*="font-weight:700"]');
+  if(previewNameEl) previewNameEl.textContent=newName;
+  // Refresh meta card
   const meta=document.getElementById('docview-meta');
   meta.innerHTML=`
     <div class="docview-meta-row"><span>Name</span><span>${esc(currentDocDetail.name)}</span></div>
@@ -4376,6 +4388,9 @@ document.getElementById('docview-rename-save').addEventListener('click', async()
     <div class="docview-meta-row"><span>Updated</span><span>${timeAgo(currentDocDetail.updated)}</span></div>
   `;
   await saveDocsManifest();
+  // Silently re-render docs list so card shows new name when user goes back
+  const docsList = document.getElementById('docs-list');
+  if(docsList) renderDocs();
   toast('Renamed ✓');
 });
 
@@ -4410,8 +4425,18 @@ document.getElementById('docview-delete-btn').addEventListener('click', async ()
   else openDocsTab();
 });
 
+// Download — always triggers file save, never share sheet
+document.getElementById('docview-download-btn').addEventListener('click', async ()=>{
+  if(!currentDocDetail || !currentDocBlobUrl){ toast('File not ready'); return; }
+  const a=document.createElement('a');
+  a.href=currentDocBlobUrl; a.download=currentDocDetail.name;
+  a.click();
+  toast('Downloading…');
+});
+
+// Share — uses native share sheet; download fallback only if share not supported
 document.getElementById('docview-share-btn').addEventListener('click', async ()=>{
-  if(!currentDocDetail || !currentDocBlobUrl) { toast('File not ready'); return; }
+  if(!currentDocDetail || !currentDocBlobUrl){ toast('File not ready'); return; }
   const doc=currentDocDetail;
   try{
     const resp=await fetch(currentDocBlobUrl);
@@ -4421,11 +4446,9 @@ document.getElementById('docview-share-btn').addEventListener('click', async ()=
       await navigator.share({files:[file], title:doc.name});
       return;
     }
-  } catch(e){ /* fall through to download */ }
-  // Fallback — trigger download
-  const a=document.createElement('a');
-  a.href=currentDocBlobUrl; a.download=doc.name;
-  a.click();
+  } catch(e){ /* fall through */ }
+  // Fallback if Web Share API not available
+  toast('Share not supported — use Download instead');
 });
 
 // ═══════════════════════════════════════
