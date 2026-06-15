@@ -230,9 +230,9 @@ body::after{
 .cloud-status-badge.offline{background:rgba(144,150,184,.14);}
 @keyframes cloudSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
-.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:16px 20px;}
+.stats-row{display:flex;gap:10px;padding:16px 20px;}
 .stat-card{
-  padding:12px 14px;border-radius:var(--radius-sm);
+  flex:1;padding:14px 16px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);
@@ -250,11 +250,28 @@ body::after{
 .stat-num,.stat-label{position:relative;z-index:1;}
 #stat-fav-card::before{background:linear-gradient(135deg,#f59e0b,#f97316);}
 #stat-cats-card::before{background:linear-gradient(135deg,#10b981,#06b6d4);}
-#stat-health-card::before{background:linear-gradient(135deg,#5b5ff5,#8b5cf6);}
 .stat-card.tappable{cursor:pointer;transition:all .14s;}
 .stat-card.tappable:active{transform:scale(.94);background:var(--surface2);}
-.stat-num{font-size:20px;font-weight:800;color:var(--accent);font-family:var(--font-head);}
+.stat-num{font-size:22px;font-weight:800;color:var(--accent);font-family:var(--font-head);}
 .stat-label{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500;}
+
+/* Password Health slim banner */
+.health-banner{
+  margin:0 20px 8px;padding:9px 14px;border-radius:var(--radius-sm);
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  transition:all .14s;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+}
+.health-banner:active{transform:scale(.98);}
+.health-banner.good{background:rgba(16,185,129,.10);border:1.5px solid rgba(16,185,129,.25);}
+.health-banner.warn{background:rgba(245,158,11,.10);border:1.5px solid rgba(245,158,11,.25);}
+.health-banner.bad{background:rgba(239,68,68,.10);border:1.5px solid rgba(239,68,68,.25);}
+.health-banner-icon{font-size:16px;flex-shrink:0;}
+.health-banner-text{flex:1;font-size:13px;font-weight:700;color:var(--text);}
+.health-banner-sub{font-size:11px;color:var(--muted);font-weight:500;margin-left:6px;}
+.health-banner-chevron{font-size:16px;color:var(--muted);transition:transform .22s;}
+.health-banner-chevron.open{transform:rotate(90deg);}
 
 /* Backup nudge */
 .backup-nudge{
@@ -1038,13 +1055,13 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
     <div class="stat-card tappable" id="stat-fav-card"><div class="stat-num" id="stat-fav">0</div><div class="stat-label">Favourites</div></div>
     <div class="stat-card tappable" id="stat-cats-card"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Types Used</div></div>
-    <div class="stat-card tappable" id="stat-health-card"><div class="stat-num" id="stat-health-icon" style="font-size:22px">🛡️</div><div class="stat-label" id="stat-health-label">PW Health</div></div>
   </div>
-  <div id="backup-nudge-wrap"></div>
-  <div id="expiry-nudge-wrap"></div>
+  <div id="health-banner-wrap"></div>
   <div class="cat-inline-panel" id="health-inline-panel">
     <div class="cat-inline-inner" id="health-panel-inner"></div>
   </div>
+  <div id="backup-nudge-wrap"></div>
+  <div id="expiry-nudge-wrap"></div>
   <div class="cat-inline-panel" id="cat-inline-panel">
     <div class="cat-inline-inner">
       <div class="cat-breakdown-list" id="cat-breakdown-list"></div>
@@ -1678,9 +1695,9 @@ document.querySelectorAll('[data-nav]').forEach(item => {
   item.addEventListener('click', () => {
     const nav = item.dataset.nav;
     if(nav==='home'){ state.currentNav='home'; showScreen('home-screen'); renderEntries(); updateStats(); }
-    else if(nav==='fav'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
-    else if(nav==='settings'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); state.currentNav='settings'; showScreen('settings-screen'); }
-    else if(nav==='docs'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); openDocsTab(); }
+    else if(nav==='fav'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('health-inline-panel').classList.remove('open'); state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
+    else if(nav==='settings'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('health-inline-panel').classList.remove('open'); state.currentNav='settings'; showScreen('settings-screen'); }
+    else if(nav==='docs'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('health-inline-panel').classList.remove('open'); openDocsTab(); }
   });
 });
 ['lock-top-btn-home','lock-top-btn-fav','lock-top-btn-settings','lock-top-btn-docs'].forEach(id=>{
@@ -3349,41 +3366,50 @@ function runHealthCheck() {
 }
 
 function checkPasswordHealth() {
-  const iconEl = document.getElementById('stat-health-icon');
-  const labelEl = document.getElementById('stat-health-label');
-  const card = document.getElementById('stat-health-card');
-  if(!iconEl||!labelEl||!card) return;
+  const wrap = document.getElementById('health-banner-wrap');
+  if(!wrap) return;
 
   const relevant = state.entries.filter(e=>['app','wifi','bank'].includes(e.type));
-  if(relevant.length < 2){
-    iconEl.textContent='🛡️'; labelEl.textContent='PW Health';
-    card.style.opacity='.5'; card.style.cursor='default';
-    card.onclick=null; return;
-  }
-  card.style.opacity=''; card.style.cursor='pointer';
+  if(relevant.length < 2){ wrap.innerHTML=''; return; }
 
-  const {reused,weak,missing} = runHealthCheck();
+  const {reused, weak, missing} = runHealthCheck();
   const totalIssues = reused.length + weak.length + missing.length;
 
-  if(totalIssues===0){
-    iconEl.textContent='🛡️'; labelEl.textContent='All Good';
-    card.style.setProperty('--health-color','var(--green)');
-  } else if(reused.length>0){
-    iconEl.textContent='⚠️'; labelEl.textContent=`${totalIssues} Issues`;
-    card.style.setProperty('--health-color','var(--red)');
+  let cls, icon, text, sub;
+  if(totalIssues === 0){
+    cls='good'; icon='🛡️'; text='Passwords healthy'; sub='';
+  } else if(reused.length > 0){
+    cls='bad'; icon='⚠️'; text=`${totalIssues} password issue${totalIssues>1?'s':''}`;
+    const parts=[];
+    if(reused.length) parts.push(`${reused.length} reused`);
+    if(weak.length)   parts.push(`${weak.length} weak`);
+    if(missing.length)parts.push(`${missing.length} missing`);
+    sub=parts.join(' · ');
   } else {
-    iconEl.textContent='🔔'; labelEl.textContent=`${totalIssues} Issues`;
-    card.style.setProperty('--health-color','#f59e0b');
+    cls='warn'; icon='🔔'; text=`${totalIssues} password issue${totalIssues>1?'s':''}`;
+    const parts=[];
+    if(weak.length)   parts.push(`${weak.length} weak`);
+    if(missing.length)parts.push(`${missing.length} missing`);
+    sub=parts.join(' · ');
   }
 
-  card.onclick = () => {
+  wrap.innerHTML=`
+    <div class="health-banner ${cls}" id="health-banner">
+      <span class="health-banner-icon">${icon}</span>
+      <span class="health-banner-text">${text}</span>
+      ${sub?`<span class="health-banner-sub">${sub}</span>`:''}
+      <span class="health-banner-chevron${healthPanelOpen?' open':''}" id="health-chevron">›</span>
+    </div>`;
+
+  document.getElementById('health-banner').addEventListener('click', ()=>{
     healthPanelOpen=!healthPanelOpen;
-    // Close cat panel if open
     if(healthPanelOpen){ catPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('stat-cats-card').style.background=''; }
     document.getElementById('health-inline-panel').classList.toggle('open', healthPanelOpen);
-    document.getElementById('stat-health-card').style.background = healthPanelOpen?'var(--surface2)':'';
+    document.getElementById('health-chevron').classList.toggle('open', healthPanelOpen);
     if(healthPanelOpen) renderHealthPanel(reused, weak, missing);
-  };
+  });
+
+  if(healthPanelOpen) renderHealthPanel(reused, weak, missing);
 }
 
 function renderHealthPanel(reused, weak, missing) {
@@ -3432,7 +3458,6 @@ function renderHealthPanel(reused, weak, missing) {
     row.addEventListener('click', ()=>{
       healthPanelOpen=false;
       document.getElementById('health-inline-panel').classList.remove('open');
-      document.getElementById('stat-health-card').style.background='';
       openDetail(row.dataset.hid);
     });
   });
@@ -4456,6 +4481,7 @@ document.getElementById('docs-search-clear').addEventListener('click', ()=>{
 // ═══════════════════════════════════════
 let currentDocDetail=null;
 let currentDocBlobUrl=null;
+let currentDocArrayBuffer=null; // pre-cached for share — avoids async gap losing gesture context
 
 async function openDocDetail(id){
   const doc=(state.docs||[]).find(d=>d.id===id); if(!doc) return;
@@ -4506,7 +4532,7 @@ async function openDocDetail(id){
 
   // Preview
   const preview=document.getElementById('docview-preview');
-  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null;
 
   const cat=docMimeCategory(doc.mimeType);
   if(cat==='pdf'){
@@ -4519,6 +4545,7 @@ async function openDocDetail(id){
     try{
       const ab=await DocsDB.loadFile(id,state.currentPIN);
       if(!ab){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
+      currentDocArrayBuffer=ab;
       currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
       preview.innerHTML=`
         <div class="doc-no-preview" style="gap:16px">
@@ -4546,6 +4573,7 @@ async function openDocDetail(id){
     try{
       const ab=await DocsDB.loadFile(id,state.currentPIN);
       if(ab===null){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
+      currentDocArrayBuffer=ab;
       currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
       preview.innerHTML=`<img src="${currentDocBlobUrl}" alt="${esc(doc.name)}"/>`;
     } catch(e){
@@ -4561,6 +4589,7 @@ async function openDocDetail(id){
   try{
     const ab=await DocsDB.loadFile(id,state.currentPIN);
     if(!ab){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
+    currentDocArrayBuffer=ab;
     currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
     const ext = doc.name.split('.').pop().toUpperCase();
     preview.innerHTML=`
@@ -4584,7 +4613,7 @@ async function openDocDetail(id){
 }
 
 document.getElementById('docview-back').addEventListener('click',()=>{
-  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null;
   const src = state.docViewSource;
   const entryId = state.docViewEntryId;
   state.docViewSource = 'docs';
@@ -4664,7 +4693,7 @@ document.getElementById('docview-delete-btn').addEventListener('click', async ()
   await saveDocsManifest();
   await DocsDB.deleteFile(id);
   await cleanStaleLinkFor(id);
-  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null;
   currentDocDetail=null;
   state.docViewSource='docs'; state.docViewEntryId=null;
   toast('Deleted');
@@ -4681,14 +4710,14 @@ document.getElementById('docview-download-btn').addEventListener('click', async 
   toast('Downloading…');
 });
 
-// Share — uses native share sheet with File built from ArrayBuffer (no fetch needed)
+// Share — uses pre-cached ArrayBuffer so no async gap between tap and share call
 document.getElementById('docview-share-btn').addEventListener('click', async ()=>{
   if(!currentDocDetail){ toast('File not ready'); return; }
   const doc=currentDocDetail;
+  // Use cached AB if available, otherwise decrypt now
+  const ab = currentDocArrayBuffer || await DocsDB.loadFile(doc.id, state.currentPIN);
+  if(!ab){ toast('Could not load file'); return; }
   try{
-    // Re-decrypt to get ArrayBuffer — avoids fetch() losing gesture context
-    const ab = await DocsDB.loadFile(doc.id, state.currentPIN);
-    if(!ab){ toast('Could not load file'); return; }
     const blob = new Blob([ab], {type:doc.mimeType||'application/octet-stream'});
     const file = new File([blob], doc.name, {type:doc.mimeType||'application/octet-stream'});
     if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
@@ -4698,7 +4727,7 @@ document.getElementById('docview-share-btn').addEventListener('click', async ()=
     toast('Share not supported on this device — use Download');
   } catch(e){
     console.error('Share failed',e);
-    toast('Share failed — use Download instead');
+    if(e.name!=='AbortError') toast('Share failed — use Download instead');
   }
 });
 

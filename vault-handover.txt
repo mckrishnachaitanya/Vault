@@ -2,9 +2,9 @@ VAULT HANDOVER
 ==============
 GitHub: https://mckrishnachaitanya.github.io/Vault/
 Stack:  Single HTML file, Web Crypto (AES-256-GCM+PBKDF2), WebAuthn,
-        localStorage, Google Fonts. No build step.
+        localStorage, IndexedDB, Google Fonts. No build step.
 Deploy: Upload index.html to GitHub Pages. Done.
-VERSION: v5.3 — 14-Jun-2026 — ~4570 lines.
+VERSION: v5.4 — 15-Jun-2026 — ~4890 lines. R6a fully tested ✓
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROZEN — Architecture & Decisions
@@ -17,28 +17,44 @@ CORE ARCHITECTURE
   vault_bio_cred, vault_lockout, vault_fails, vault_local_updated,
   vault_cloud_sync, vault_cloud_uid, vault_cloud_email, vault_last_sync,
   vault_sync_pending
-- IndexedDB "VaultDocsDB": object stores "meta" (key 'manifest' →
-  encrypted manifest array) and "files" (key = doc id → encrypted
-  {data: base64String}). See "R6a SUMMARY" below.
+- IndexedDB "VaultDocsDB" v1: two stores — "meta" (key 'manifest' →
+  Crypto.encrypt blob of manifest array) and "files" (key = doc id →
+  {salt, iv, ct} object encrypted via Crypto.encryptRaw/decryptRaw).
+  Files stored as raw ArrayBuffer — no base64/JSON wrapping, no size
+  limit issues on mobile Chrome.
 - state{} holds: entries, currentPIN, unlocked, unlockedViaBio,
   stepUpDone, pinBuffer, pinMode, pinTemp, editId, activeFilter,
   currentNav, detailSource, failCount, preLockScreen, formDraft,
   bioGen, bioPending, cloudUser, cloudSyncOn, syncStatus,
-  docsStepUpDone, docs[] (in-memory decrypted manifest)
-- Auto-lock: 2min idle. Lockout: 5 fails → timed delay.
+  docsStepUpDone, docs[], docViewSource, docViewEntryId
+- Auto-lock: 2min idle. Lockout: 5 fails → 30s delay.
 - Single file always. No build tooling. No frameworks.
 
 ENTRY SCHEMA
 ------------
-All:      id, type, name, fav, created, updated, customFields[], sensitiveOverride
+All:      id, type, name, fav, created, updated, customFields[],
+          sensitiveOverride, linkedDocIds[]
 app:      url, username, password, notes
 wifi:     ssid, password, securityType, notes
 note:     note
-card:     cardHolder, cardNumber(raw digits only), expiry(MM/YY), cvv, pin, notes
-bank:     bankName, accountNo, ifsc, accountType, netBankingId, netBankingPw, notes
+card:     cardHolder, cardNumber(raw digits), expiry(MM/YY), cvv, pin, notes
+bank:     bankName, accountNo, ifsc, accountType, netBankingId,
+          netBankingPassword, notes
 identity: docType(aadhaar/pan/passport/dl/voterid/other), docName,
           docNumber(raw digits for aadhaar), idName, dob(DD/MM/YYYY),
           expiry(DD/MM/YYYY), nationality, issuingState, notes
+
+linkedDocIds is always preserved through form edits (collectFormData
+copies from existing entry). Absent on old entries = treated as [].
+Max 10 links per entry, enforced in link picker and UI.
+
+DOC MANIFEST SCHEMA
+-------------------
+Each doc: {id, name, mimeType, size, created, updated, fav,
+           category, thumb (data: URI for images only)}
+category values: none|identity|medical|property|financial|education|
+                 travel|other (see DOC_CATEGORIES array)
+Stored encrypted in IndexedDB meta store. In-memory as state.docs[].
 
 TYPE COLOURS
 ------------
@@ -49,321 +65,204 @@ BIOMETRIC RULES
 ---------------
 - WebAuthn platform only. Credential ID stored in vault_bio_cred.
 - Fresh app open: PIN required once to seed currentPIN in memory.
-  Bio button shows but does NOT auto-trigger on fresh open.
-- After first PIN entry: bio auto-triggers on every subsequent
-  auto-lock, via state.bioPending + visibilitychange/focus listeners
-  (WebAuthn requires document focus, which isn't guaranteed at the
-  moment lockVault fires on Android Chrome).
+  Bio auto-triggers on every re-lock after first PIN, via state.bioPending
+  + visibilitychange/focus listeners.
 - unlockedViaBio=true → step-up PIN required for Card/Bank/Identity
-  view, Add/Edit/Delete/Export actions, and restoring an in-progress
-  Add/Edit form after re-auth.
+  view, Add/Edit/Delete/Export, form restore after re-auth.
 - stepUpDone=true after first step-up (resets on lockVault). Manual
-  PIN unlock ALSO sets stepUpDone=true (re-entering PIN proves PIN
-  knowledge, satisfies step-up for that session).
-- Settings security actions always prompt PIN directly (bypass
-  stepUpDone). Step-up condition: state.unlockedViaBio (not
-  isBioEnabled).
+  PIN unlock ALSO sets stepUpDone=true.
+- Docs tab: docsStepUpDone controls Docs-specific gate. Passing Docs
+  step-up also sets stepUpDone=true (satisfies general step-up).
+- Viewing a linked doc from entry detail: step-up fires if
+  unlockedViaBio && !docsStepUpDone (same gate as Docs tab).
+- "Link a document" button: NO step-up — entry detail step-up already
+  happened. Opening the linked doc viewer IS gated as above.
 
 SCREEN RESTORE AFTER RE-AUTH
 ----------------------------
-- lockVault() captures state.preLockScreen (form/detail/fav/settings)
-  before locking. For form-screen, also captures state.formDraft via
-  captureFormDraft() (formState, customFieldsData, editId, all
-  #form-body field values).
-- restoreAfterUnlock() runs after successful unlock instead of always
-  going home: form-screen requires step-up first if unlockedViaBio
-  (cancel → discard draft, go home), else restores via renderForm() +
-  restoreFormDraft(). detail-screen re-opens via openDetail() (re-checks
-  step-up itself). fav/settings just re-shown. Default: home.
-- Cold start always goes home after unlock (preLockScreen never set).
+lockVault() captures preLockScreen: form/detail/docview/fav/settings/docs.
+restoreAfterUnlock() restores each appropriately. docview-screen restores
+via openDocsTab() + openDocDetail() (step-up re-fires correctly).
 
 SECURITY TIERS
 --------------
-- Sensitive: Card, Bank, Identity (require step-up when bio unlock).
-- Non-sensitive: App, WiFi, Note.
-- Per-entry override via sensitiveOverride field.
+Sensitive: Card, Bank, Identity (step-up when bio unlock).
+Non-sensitive: App, WiFi, Note.
+Per-entry override via sensitiveOverride field.
+Docs: docsStepUpDone gate (highest tier, PIN once per session).
 
 NUMBER FORMATTING
 -----------------
-- cardNumber and Aadhaar docNumber stored as raw digits (no spaces).
-  Formatted on display only via formatCardNumber()/formatAadhaar():
-  15 digits → Amex 4-6-5, 16 → standard 4-4-4-4, 12 (Aadhaar) → 4-4-4.
-  Other lengths shown as-is. Card list subtitle reads raw digits.
+cardNumber and Aadhaar docNumber stored as raw digits.
+Formatted on display only: 16 digits → 4-4-4-4, 15 → Amex 4-6-5,
+12 (Aadhaar) → 4-4-4. Card expiry stored as MM/YY.
+
+SWIPE-TO-DELETE
+---------------
+.swipe-delete-bg always opacity:0 in CSS. Never set via class.
+Only set to opacity:1 via JS inline style during actual swipe gesture
+(snapOpen) and back to 0 on snapClose. This prevents backdrop-filter
+on glass cards from bleeding red through overflow:hidden on Android Chrome.
 
 RULED OUT — PERMANENTLY
 -----------------------
-- Password generator: not part of Vault scope, ever.
+- Password generator: not in scope.
 - Multi-page architecture: single file is intentional for security.
 - Storing PIN or decryption key in Firestore: PIN never leaves device.
 
-ROADMAP (locked sequence)
--------------------------
-R5  → SHIPPED (v4.3) & fully tested (v4.5). All 11 test categories
-       pass — Cloud Sync via Firebase Auth+Firestore, last-write-wins
-       whole-blob sync, status icons, delete-cloud-data flow. See
-       "R5 SUMMARY" below for key implementation facts that affect
-       future work.
-R6a → SHIPPED (v5.0) — Document vault: IndexedDB, Docs tab, per-file
-       encryption, viewer, step-up gating, zip export/import. NOT YET
-       BROWSER-TESTED. See "R6a SUMMARY" below.
-R6b → Document sync: Firebase Storage, offline-first.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ROADMAP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-R5 SUMMARY (facts relevant to future sync/storage work)
----------------------------------------------------------
-- Firebase loaded via CDN ES module dynamic import() (firebase-app,
-  firebase-auth, firebase-firestore v10.12.2), lazy-loaded only when
-  sync is touched — no build step. This is the pattern to follow for
-  any future CDN library (e.g. JSZip for R6a).
-- Auth: signInWithPopup, falls back to signInWithRedirect on
-  popup-blocked/cancelled (this device always uses redirect — handled
-  via vault_sync_pending flag + getRedirectResult() in restore()).
-- Firestore doc: users/{uid}/vault/data — {data: <encrypted blob>,
-  updated: <ms timestamp>}. Conflict resolution: last-write-wins by
-  `updated`, whole-blob replace, no per-entry merge (by design).
-- CRITICAL LESSON (caused real data loss, now fixed): timestamp-only
-  "newer wins" is unsafe when one side can be "newer but empty" (e.g.
-  a fresh PIN setup sets vault_local_updated to "now" with entries=[]).
-  Fix pattern used everywhere blobs are compared: empty-local +
-  non-empty-remote ALWAYS pulls down regardless of timestamps;
-  non-empty-local + empty-remote ALWAYS pushes up; an incoming update
-  that decrypts to empty while local is non-empty is IGNORED (logged).
-  Apply the same emptiness-aware guard to any new sync/replace logic
-  (R6a/R6b document blobs included).
-- confirmDelete() previously had a fixed bug (undefined `overlay` —
-  now resolved via document.getElementById('delete-overlay') at top
-  of function). No other open bugs.
-- Billing: Firebase project on Spark (free) plan, no payment method —
-  quotas far exceed personal use, no surprise-bill risk.
+R5  → SHIPPED (v4.5) — Cloud Sync (Firebase Auth+Firestore).
+R6a → SHIPPED (v5.0) & fully tested (v5.4) — Document Vault: IndexedDB,
+       Docs tab, per-file encryption, viewer, step-up gating, zip
+       export/import, categories, search, rename, linked docs, password
+       health. All R6a test cases passed. Bugs fixed across v5.1–v5.4.
+R6b → Document sync (Firebase Storage). DEFERRED — see backlog.
+R6c → SHIPPED (v5.3) — Linked Documents (entry ↔ doc).
+R6d → SHIPPED (v5.4) — Password Health, UI polish, bug fixes.
+
+BACKLOG (priority order)
+------------------------
+1. OTP/2FA storage — store TOTP secret in app entries, generate live
+   6-digit codes in detail screen. TOTP via crypto.subtle (no lib needed
+   for generation). QR scanner optional (ZXing CDN). ~1 session.
+2. Password health improvements — already shipped basic version; could
+   add "old passwords" check (updated > 1 year ago).
+3. R6b — Firebase Storage for doc sync. ~3 sessions. Lower priority
+   than OTP since vault is single-device for now.
+4. Camera capture — add capture="environment" to doc-file-input for
+   photographing physical documents directly.
+5. True folder export (showDirectoryPicker) — deferred.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R5 SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Firebase CDN ES module dynamic import() pattern — lazy-loaded only
+  when sync is touched. Same pattern used for JSZip in R6a/R6d.
+- Auth: signInWithPopup → fallback signInWithRedirect (vault_sync_pending
+  flag + getRedirectResult() in restore()).
+- Firestore: users/{uid}/vault/data {data, updated}. Last-write-wins.
+- CRITICAL: empty-local + non-empty-remote ALWAYS pulls down. Never let
+  a newer-but-empty blob overwrite real data. Apply to all future sync.
+- Spark (free) plan. No billing risk.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R6a SUMMARY — Document Vault (shipped & fully tested v5.4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STORAGE
+- DocsDB module: IndexedDB VaultDocsDB v1.
+- Manifest encrypted with Crypto.encrypt (small JSON, base64 string).
+- File blobs encrypted with Crypto.encryptRaw (ArrayBuffer → {salt,iv,ct}
+  stored natively in IndexedDB). No base64 — handles 5MB+ photos.
+- Thumbnail for images: 80px JPEG canvas resize, stored as data: URI
+  in manifest (fast list display without decrypting file).
+- PIN change: DocsDB.reencryptAll(oldPin, newPin) before saveEntries().
+
+DOCS UI
+- 5th bottom-nav slot. Lock moved to top-right .lock-top-btn on all screens.
+- Docs tab gate: _showStepUpModal() directly (bypasses requirePIN shortcut).
+  Sets docsStepUpDone=true AND stepUpDone=true on success.
+- File picker: state.importInProgress=true prevents visibilitychange lock.
+  cancel event + 'change' both clear it.
+- Add: fileToArrayBuffer → DocsDB.saveFile → manifest update → renderDocs().
+  Duplicate by filename: "File Already Exists" confirmDelete sheet with
+  Replace/Cancel. Replace preserves original fav/created.
+- Viewer: images → <img> blob URL. PDFs → "Open PDF" button →
+  window.open(blobUrl,'_blank') (new tab, no embed hijack).
+  Word/Excel/other → "Open DOCX/XLSX/etc." button same pattern.
+  Blob URLs revoked on back/delete/re-open.
+- Download: <a download> direct. Share: re-decrypts ArrayBuffer fresh
+  (no fetch()) to build File for navigator.share — preserves gesture
+  context on Android Chrome.
+- Rename: updates topbar, preview card filename, meta card, and silently
+  calls renderDocs() so list reflects new name.
+- Categories: 8 types (none/identity/medical/property/financial/education/
+  travel/other) with icons. Picker in viewer. Badge on list card.
+  Filter pills only shown when at least one doc has a real category.
+- Search: filters by filename in real time. Resets on tab re-open.
+- Swipe-to-delete: doc cards use entry-card class so addSwipeToDelete works.
+- Export: decrypts to real files → zip with files/<name> structure.
+  manifest.json preserves all fields. User can open files directly from zip.
+- Import: reads files/<name> or files/<id>.bin (backward compat).
+  Deduplicates by filename (replaces same-name). Preserves category+fav.
+  Reports "N added · N replaced · N skipped". JSZip lazy CDN import.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R6c SUMMARY — Linked Documents
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- entry.linkedDocIds: string[] (absent = [], max 10).
+- renderLinkedDocs(entry, container): appended to detail-fields-container.
+  Shows each linked doc (icon+name+size), unlink ✕, "+ Link a document".
+- openLinkPicker(entry, container): bottom-sheet overlay with search bar.
+  Filters by filename. Excludes already-linked docs. Lazy-loads manifest
+  if user hasn't visited Docs tab yet this session.
+- Back-nav from linked doc view: state.docViewSource='entry',
+  state.docViewEntryId=entry.id → docview-back returns to entry detail.
+- Stale cleanup: cleanStaleLinkFor(docId) on every doc delete.
+- Bio session: no step-up for "Link a document" (entry detail already
+  authenticated). Viewing linked doc: step-up if !docsStepUpDone.
+- docFileTypeMeta(doc): {icon,label,bg,color} — used in linked rows
+  and picker. Parallel to DOC_FILE_TYPES/docFileMeta.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R6d SUMMARY — Password Health + Polish
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PASSWORD HEALTH
+- Stats row changed from 3-card flex row → 2×2 CSS grid.
+- 4th stat card: 🛡️ PW Health (id=stat-health-card, purple accent strip).
+- healthPanelOpen state var (like catPanelOpen). Panel uses existing
+  .cat-inline-panel/.cat-inline-inner CSS — same slide-open pattern as
+  Types Used breakdown. Both panels mutually exclusive (opening one closes
+  the other).
+- checkPasswordHealth() runs on: unlock, every saveEntries() call, nav
+  to home. Re-evaluates runHealthCheck() each time.
+- runHealthCheck(): checks app/wifi/bank entries for:
+  1. Reused passwords (same non-empty pw on 2+ entries)
+  2. Weak passwords (passwordScore <= 2, not already flagged as reused)
+  3. Missing passwords (no password field set)
+- passwordScore(pw): 0-5, same algorithm as form strength bar.
+- entryPassword(e): extracts primary pw field per type (app/wifi →
+  e.password, bank → e.netBankingPassword).
+- Card shows 🛡️ All Good (green) / ⚠️ N Issues (red) / 🔔 N Issues (amber).
+- Panel rows are tappable → openDetail(id). Closes panel on nav.
+- Card is disabled (opacity .5, no click) if fewer than 2 relevant entries.
+
+BUGS FIXED IN R6d
+-----------------
+- Category pills showing "Uncategorised" when all docs uncategorised:
+  pills now only render when at least one doc has a real category (≠ none).
+- Share button: now re-decrypts ArrayBuffer fresh instead of fetch(blobUrl)
+  — preserves Android gesture context for navigator.share.
+- Import duplicates: deduplicates by filename not doc.id.
+- Import loses category: all manifest fields now preserved on import.
+- Doc search ✕ button position: wrapped in .docs-search-input-wrap div,
+  icon/clear button position relative to inner wrapper.
+- Rename in viewer: updates topbar + preview card filename + meta card +
+  silently re-renders docs list.
+- confirmDelete() extended: accepts optional {title, message, confirmLabel,
+  icon} override — used for "File Already Exists" duplicate replace dialog.
 
 WARNINGS
 --------
-- "Clear site data" wipes all vault data. "Clear cache" is safe.
+- "Clear site data" wipes ALL vault data (localStorage + IndexedDB).
+  "Clear cache" is safe.
 - Biometric needs HTTPS (GitHub Pages ✓, file:// ✗).
 - Always export before PIN change or new deploy.
 - After uploading new index.html: clear PWA cache via
   chrome://settings/siteData → github.io → delete.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6a SUMMARY — implemented, not yet browser-tested
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-- IndexedDB "VaultDocsDB" v1: stores "meta" (key 'manifest' → Crypto
-  blob of [{id,name,mimeType,size,created,updated,fav,thumb}]) and
-  "files" (key=id → Crypto blob of {data:base64String}). thumb is a
-  data: URI (only for images), stored in the manifest for fast list
-  thumbnails without decrypting the full file.
-- DocsDB module: open/get/put/delete/loadManifest/saveManifest/
-  loadFile/saveFile/deleteFile/reencryptAll(oldPin,newPin). Same
-  Crypto.encrypt/decrypt as vault_data — no separate key derivation.
-- state.docs holds the decrypted manifest in memory while unlocked;
-  loaded via loadDocsManifest() on entering the Docs tab.
-- Nav: Docs is the 5th bottom-nav slot (Home/Starred/+Add/Settings/
-  Docs) on Home, Starred, Settings, and Docs screens. Lock moved to
-  a top-right .lock-top-btn icon (id pattern lock-top-btn-{screen})
-  on Home/Starred/Settings/Docs, same lockVault() handler.
-- DOCS TAB GATE: openDocsTab() — if unlockedViaBio && !docsStepUpDone,
-  calls _showStepUpModal() directly (bypasses requirePIN's
-  stepUpDone shortcut). On success sets BOTH docsStepUpDone=true and
-  stepUpDone=true (entering Docs satisfies step-up for the rest of
-  the session, matching the "manual PIN unlock sets stepUpDone"
-  precedent). docsStepUpDone resets in lockVault() alongside
-  stepUpDone. No per-document sensitiveOverride — the tab is the gate.
-- Add: file input (no capture attribute set — add later if camera
-  capture for images is wanted) → fileToBase64() → DocsDB.saveFile()
-  → unshift into state.docs → saveDocsManifest(). Inline upload row
-  (.doc-upload-row, spinner) shown during encrypt+write.
-- Viewer (docview-screen): images render via <img> from a blob: URL
-  (base64ToBlob); PDFs via <embed type="application/pdf">; everything
-  else shows a "no preview" placeholder. blob: URLs are revoked on
-  back/delete/re-open to avoid leaks. Download/Share button uses
-  navigator.share with a File if canShare({files}) is supported,
-  else falls back to an <a download> click.
-- Delete: same confirmDelete() sheet as entries, same step-up-if-bio
-  gate as entry delete. Removes from manifest + DocsDB files store.
-- PIN change (change-confirm): captures oldPin BEFORE reassigning
-  state.currentPIN, then DocsDB.reencryptAll(oldPin, newPin) runs
-  before the existing doExport() backup-export step.
-- lockVault()/restoreAfterUnlock(): docs-screen and docview-screen
-  (via currentDocDetail) added to preLockScreen capture/restore,
-  same pattern as fav/settings/detail. Restoring into docview-screen
-  re-enters via openDocsTab()+openDocDetail() so step-up re-fires
-  correctly if needed.
-- navigator.storage.persist() called once in init() (best-effort,
-  no UI).
-- EXPORT/IMPORT (separate from .vault entry backup): JSZip lazy-
-  loaded from cdn.jsdelivr.net (same dynamic-import pattern as
-  Firebase in R5). Export zip = manifest.json (PLAINTEXT metadata
-  only — names/sizes/dates/fav, no file contents) + files/<id>.bin
-  (the raw, still-encrypted Crypto blob from IndexedDB, written
-  as-is — files are never decrypted to disk during export).
-  Settings items: s-docs-export / s-docs-import, same
-  step-up-if-bio gating as s-export.
-- IMPORT PIN CAVEAT: imported file blobs were encrypted with whatever
-  PIN was active at export time. Import only succeeds for files that
-  decrypt under the CURRENT PIN (i.e. importing back into the same
-  vault after a PIN change without re-export will silently skip
-  those files — toast says "PIN mismatch?"). If R6b or a future
-  session wants cross-PIN import, the zip would need to carry a
-  PIN-independent wrapping key, which is a real design change — flag
-  before building.
-- id collisions on import (re-importing the same zip twice) are
-  handled by generating a fresh id for any doc.id already present in
-  state.docs.
-
-NOT YET DONE / OPEN ITEMS
--------------------------
-- No browser/device testing yet (IndexedDB, WebAuthn step-up gate on
-  Docs, JSZip CDN load, PDF <embed> rendering on Android Chrome, share
-  sheet for large files).
-- Camera capture (capture="environment") not added to doc-file-input
-  — add if photographing physical documents directly is wanted.
-- True folder export (showDirectoryPicker) still deferred, as planned.
-- R6b (Firebase Storage doc sync) not started — apply the same
-  emptiness-aware empty-vs-non-empty guard from R5 to any future
-  per-document sync logic.
-
-R6c → SHIPPED (v5.3) — Linked Documents. See R6c SUMMARY below.
+- Docs export zip is plaintext — store it somewhere safe.
+- .vault file (entries backup) is NOT accepted by docs import — correct.
+  Docs backup is a .zip file from Settings → Export Documents Backup.
 
 NEXT SESSION
 ------------
 Upload: index.html + this file.
-R6b → say "Implement R6b" for Firebase Storage doc sync.
-Bug → say "Bug: [describe]" for anything found in normal use.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6c SUMMARY — Linked Documents (shipped v5.3)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-WHAT WAS BUILT
---------------
-- entry.linkedDocIds: string[] — preserved through form edits,
-  absent on old entries (treated as []). Max 10 per entry.
-- renderLinkedDocs(entry, container): appends a "Linked Documents"
-  section to the detail-fields-container after entry fields.
-  Shows each linked doc as a tappable row (icon + name + size),
-  unlink ✕ per row, and "＋ Link a document" button.
-- Link picker: bottom-sheet overlay (#link-picker-overlay) listing
-  all docs not already linked to this entry. Tapping a row adds
-  its id to entry.linkedDocIds and saves.
-- Back-nav: state.docViewSource ('docs'|'entry') + state.docViewEntryId.
-  When a linked doc is opened from an entry detail, back returns
-  to that entry detail (not the Docs tab).
-- Stale cleanup: cleanStaleLinkFor(docId) called on every doc
-  delete (swipe and viewer). Scans all entries, removes the id,
-  saves entries if changed.
-- Step-up: "Link a document" button requires PIN if unlockedViaBio
-  (same as edit button). Viewing linked docs does NOT re-prompt —
-  the entry detail step-up already happened.
-- docFileTypeMeta(doc): returns {icon, label, bg, color} for a
-  doc — used in linked doc rows and picker. Parallel to existing
-  DOC_FILE_TYPES/docFileMeta but with bg/color for icon backgrounds.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6c PLAN — Linked Documents (not yet built)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-OVERVIEW
---------
-Allow a vault entry (any type, but most useful for identity, bank,
-card) to link to 1–10 documents from the Docs vault. Links show in
-the entry detail screen; tapping a link opens the doc viewer.
-Unlinking does not delete the document.
-
-SCHEMA CHANGE
--------------
-Add optional linkedDocIds: string[] to entry schema.
-- Default: absent/undefined (treated as [])
-- Max: 10 links per entry (enforced in UI — "Link another document"
-  button hidden/disabled at 10)
-- Existing entries with no linkedDocIds are unaffected — field is
-  simply absent, no migration needed
-- On doc delete: scan state.entries for any linkedDocIds containing
-  that doc id, remove it from the array, call saveEntries(). This
-  prevents stale links.
-
-ENTRY DETAIL SCREEN CHANGES
-----------------------------
-New section rendered at the bottom of detail-fields, above the
-edit/delete buttons (if any linked docs exist, or always as a
-link-add affordance):
-
-  LINKED DOCUMENTS
-  [doc icon] HDFC_Statement_Jan.pdf    [✕]
-  [doc icon] Cheque_Leaf.jpg           [✕]
-  [+ Link a document]  (hidden when 10 links reached)
-
-- Each linked doc row shows: docIcon(doc) + doc.name + unlink ✕
-- Tapping the row (not ✕) opens the doc viewer for that doc
-- After viewing, back button returns to entry detail (not docs tab)
-  — detailSource logic needs extending: set a flag so docview-back
-  goes to detail-screen instead of docs-screen
-- Tapping ✕ unlinks (removes from linkedDocIds, saves entries,
-  re-renders detail fields)
-
-LINK PICKER
------------
-- "Link a document" opens a modal/sheet listing ALL docs (no
-  category filter — user decides what to link)
-- Docs already linked to this entry are excluded from the picker
-  (greyed out or hidden)
-- Picker shows same card style as docs list (icon, name, size, thumb)
-- Tapping a doc in picker: adds its id to entry.linkedDocIds,
-  saves entries, closes picker, re-renders linked docs section
-- Picker is a simple overlay (same pattern as delete-overlay/
-  stepup-overlay) — no new screen needed
-
-BACK-NAVIGATION FROM LINKED DOC VIEW
--------------------------------------
-When user opens a doc from an entry detail screen (not from Docs tab):
-- Set state.docViewSource = 'entry' (vs 'docs' default)
-- Also store state.docViewEntryId = entry.id
-- In docview-back handler:
-  if state.docViewSource === 'entry':
-    showScreen('detail-screen'), re-open that entry detail
-  else:
-    openDocsTab() as before
-
-STALE LINK CLEANUP
-------------------
-In docview-delete-btn handler, after deleting the doc from IndexedDB
-and manifest, run:
-  state.entries.forEach(e => {
-    if(e.linkedDocIds && e.linkedDocIds.includes(id)){
-      e.linkedDocIds = e.linkedDocIds.filter(lid => lid !== id);
-    }
-  });
-  await saveEntries();
-This keeps entries clean even if the detail screen is not currently open.
-
-DISPLAY-ONLY RULES
-------------------
-- Linked docs section always visible in detail screen if entry has
-  linkedDocIds.length > 0, even in bio-unlocked session (the doc
-  viewer will enforce its own step-up if needed via openDocsTab
-  which is NOT called in this path — doc is opened directly via
-  openDocDetail(id), which has no step-up gate of its own).
-  Decision: opening a linked doc from an entry detail does NOT
-  require additional PIN beyond what was needed to open the entry
-  detail itself. If entry was sensitive (card/bank/identity) the
-  step-up already happened to open the detail. Consistent.
-- "Link a document" button: requires step-up if unlockedViaBio
-  (same as edit button on detail screen).
-
-LIMITS
-------
-- Max 10 linked docs per entry. Enforced in picker and unlink
-  logic. Toast: "Maximum 10 documents per entry" if attempted.
-- No limit on how many entries can link to the same document
-  (a single Aadhaar scan can be linked from multiple entries).
-
-IMPLEMENTATION ORDER
---------------------
-1. Schema: add linkedDocIds to collectFormData() output (empty [])
-2. Stale cleanup: update doc delete handler in renderDocs and
-   docview-delete-btn
-3. Back-nav: add state.docViewSource + state.docViewEntryId,
-   update docview-back handler
-4. Detail screen: add renderLinkedDocs(entry, container) helper,
-   call from openDetail() after existing fields
-5. Link picker overlay: HTML + CSS + JS (openLinkPicker(entryId))
-6. Wire: "Link a document" button in detail, unlink ✕ handlers
+OTP/2FA → say "Implement OTP" to build TOTP code generation.
+R6b     → say "Implement R6b" for Firebase Storage doc sync.
+Bug     → say "Bug: [describe]" for anything found in normal use.
