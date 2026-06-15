@@ -1048,17 +1048,16 @@ select.field-input option{background:var(--bg2);color:var(--text);}
         <div class="home-greeting">Welcome back 👋</div>
         <div class="home-title">My Vault <span id="home-cloud-icon" class="cloud-status-badge" style="display:none"></span></div>
       </div>
-      <button class="lock-top-btn" id="lock-top-btn-home" title="Lock Vault">🔒</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="lock-top-btn" id="health-icon-btn" title="Password Health" style="display:none">🛡️</button>
+        <button class="lock-top-btn" id="lock-top-btn-home" title="Lock Vault">🔒</button>
+      </div>
     </div>
   </div>
   <div class="stats-row">
     <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
     <div class="stat-card tappable" id="stat-fav-card"><div class="stat-num" id="stat-fav">0</div><div class="stat-label">Favourites</div></div>
     <div class="stat-card tappable" id="stat-cats-card"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Types Used</div></div>
-  </div>
-  <div id="health-banner-wrap"></div>
-  <div class="cat-inline-panel" id="health-inline-panel">
-    <div class="cat-inline-inner" id="health-panel-inner"></div>
   </div>
   <div id="backup-nudge-wrap"></div>
   <div id="expiry-nudge-wrap"></div>
@@ -1325,6 +1324,32 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <button class="delete-sheet-confirm" id="delete-sheet-confirm">Delete</button>
       <button class="delete-sheet-cancel" id="delete-sheet-cancel">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════════ PASSWORD HEALTH OVERLAY ══════════ -->
+<div id="health-overlay" style="
+  display:none;position:fixed;
+  top:120px;left:16px;right:16px;
+  z-index:600;
+  animation:popIn .22s cubic-bezier(.34,1.56,.64,1);
+">
+  <div style="
+    background:var(--surface2);border:1.5px solid var(--border);
+    border-radius:var(--radius);padding:16px;
+    box-shadow:0 12px 40px rgba(0,0,0,.25);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  ">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:800;color:var(--text);font-family:var(--font-head)" id="health-overlay-title">Password Health</div>
+      <button id="health-overlay-close" style="
+        width:28px;height:28px;border-radius:50%;border:none;
+        background:var(--bg2);color:var(--text2);font-size:14px;
+        cursor:pointer;display:flex;align-items:center;justify-content:center;
+        font-family:var(--font);
+      ">✕</button>
+    </div>
+    <div id="health-overlay-body"></div>
   </div>
 </div>
 
@@ -1695,9 +1720,9 @@ document.querySelectorAll('[data-nav]').forEach(item => {
   item.addEventListener('click', () => {
     const nav = item.dataset.nav;
     if(nav==='home'){ state.currentNav='home'; showScreen('home-screen'); renderEntries(); updateStats(); }
-    else if(nav==='fav'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('health-inline-panel').classList.remove('open'); state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
-    else if(nav==='settings'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('health-inline-panel').classList.remove('open'); state.currentNav='settings'; showScreen('settings-screen'); }
-    else if(nav==='docs'){ catPanelOpen=false; healthPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('health-inline-panel').classList.remove('open'); openDocsTab(); }
+    else if(nav==='fav'){ catPanelOpen=false; healthPanelOpen=false; closeHealthOverlay(); document.getElementById('cat-inline-panel').classList.remove('open'); state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
+    else if(nav==='settings'){ catPanelOpen=false; healthPanelOpen=false; closeHealthOverlay(); document.getElementById('cat-inline-panel').classList.remove('open'); state.currentNav='settings'; showScreen('settings-screen'); }
+    else if(nav==='docs'){ catPanelOpen=false; healthPanelOpen=false; closeHealthOverlay(); document.getElementById('cat-inline-panel').classList.remove('open'); openDocsTab(); }
   });
 });
 ['lock-top-btn-home','lock-top-btn-fav','lock-top-btn-settings','lock-top-btn-docs'].forEach(id=>{
@@ -3366,76 +3391,72 @@ function runHealthCheck() {
 }
 
 function checkPasswordHealth() {
-  const wrap = document.getElementById('health-banner-wrap');
-  if(!wrap) return;
+  const btn = document.getElementById('health-icon-btn');
+  if(!btn) return;
 
   const relevant = state.entries.filter(e=>['app','wifi','bank'].includes(e.type));
-  if(relevant.length < 2){ wrap.innerHTML=''; return; }
+  if(relevant.length < 2){ btn.style.display='none'; closeHealthOverlay(); return; }
 
   const {reused, weak, missing} = runHealthCheck();
   const totalIssues = reused.length + weak.length + missing.length;
 
-  let cls, icon, text, sub;
-  if(totalIssues === 0){
-    cls='good'; icon='🛡️'; text='Passwords healthy'; sub='';
-  } else if(reused.length > 0){
-    cls='bad'; icon='⚠️'; text=`${totalIssues} password issue${totalIssues>1?'s':''}`;
-    const parts=[];
-    if(reused.length) parts.push(`${reused.length} reused`);
-    if(weak.length)   parts.push(`${weak.length} weak`);
-    if(missing.length)parts.push(`${missing.length} missing`);
-    sub=parts.join(' · ');
+  btn.style.display='flex';
+  if(totalIssues===0){
+    btn.textContent='🛡️'; btn.title='Password Health: Good';
+  } else if(reused.length>0){
+    btn.textContent='⚠️'; btn.title=`Password Health: ${totalIssues} issues`;
   } else {
-    cls='warn'; icon='🔔'; text=`${totalIssues} password issue${totalIssues>1?'s':''}`;
-    const parts=[];
-    if(weak.length)   parts.push(`${weak.length} weak`);
-    if(missing.length)parts.push(`${missing.length} missing`);
-    sub=parts.join(' · ');
+    btn.textContent='🔔'; btn.title=`Password Health: ${totalIssues} issues`;
   }
 
-  wrap.innerHTML=`
-    <div class="health-banner ${cls}" id="health-banner">
-      <span class="health-banner-icon">${icon}</span>
-      <span class="health-banner-text">${text}</span>
-      ${sub?`<span class="health-banner-sub">${sub}</span>`:''}
-      <span class="health-banner-chevron${healthPanelOpen?' open':''}" id="health-chevron">›</span>
-    </div>`;
-
-  document.getElementById('health-banner').addEventListener('click', ()=>{
-    healthPanelOpen=!healthPanelOpen;
-    if(healthPanelOpen){ catPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); document.getElementById('stat-cats-card').style.background=''; }
-    document.getElementById('health-inline-panel').classList.toggle('open', healthPanelOpen);
-    document.getElementById('health-chevron').classList.toggle('open', healthPanelOpen);
-    if(healthPanelOpen) renderHealthPanel(reused, weak, missing);
-  });
-
-  if(healthPanelOpen) renderHealthPanel(reused, weak, missing);
+  btn.onclick = () => {
+    const overlay = document.getElementById('health-overlay');
+    if(overlay.style.display !== 'none'){ closeHealthOverlay(); return; }
+    renderHealthOverlay(reused, weak, missing, totalIssues);
+    overlay.style.display='block';
+  };
 }
 
-function renderHealthPanel(reused, weak, missing) {
-  const inner = document.getElementById('health-panel-inner');
-  if(!inner) return;
-  let html='';
+function closeHealthOverlay(){
+  const overlay = document.getElementById('health-overlay');
+  if(overlay) overlay.style.display='none';
+}
 
-  if(!reused.length&&!weak.length&&!missing.length){
-    inner.innerHTML=`<div style="text-align:center;color:var(--green);padding:16px;font-weight:700;font-size:14px">🛡️ All passwords look healthy!</div>`;
+document.getElementById('health-overlay-close').addEventListener('click', closeHealthOverlay);
+document.addEventListener('click', e=>{
+  const overlay=document.getElementById('health-overlay');
+  const btn=document.getElementById('health-icon-btn');
+  if(overlay && overlay.style.display!=='none' && !overlay.contains(e.target) && e.target!==btn){
+    closeHealthOverlay();
+  }
+});
+
+function renderHealthOverlay(reused, weak, missing, totalIssues){
+  const title = document.getElementById('health-overlay-title');
+  const body  = document.getElementById('health-overlay-body');
+
+  if(totalIssues===0){
+    title.textContent='🛡️ Password Health';
+    body.innerHTML=`<div style="text-align:center;color:var(--green);font-weight:700;padding:8px 0 4px">All passwords look healthy!</div>`;
     return;
   }
+  title.textContent = reused.length>0 ? '⚠️ Password Health' : '🔔 Password Health';
+  let html='';
 
   if(reused.length){
-    html+=`<div class="cat-breakdown-item" style="flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:4px">
-      <div style="font-size:11px;font-weight:700;color:#ef4444;letter-spacing:.8px;text-transform:uppercase">🔁 Reused · ${reused.length}</div>
-      ${reused.map(e=>`<div class="health-entry-row" data-hid="${e.id}" style="width:100%">
+    html+=`<div style="margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;color:#ef4444;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">🔁 Reused · ${reused.length}</div>
+      ${reused.map(e=>`<div class="health-entry-row" data-hid="${e.id}">
         <span style="font-size:15px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
         <div class="health-entry-name">${esc(e.name)}</div>
-        <div class="health-entry-detail">Same pw</div>
+        <div class="health-entry-detail" style="color:#ef4444">Same pw</div>
       </div>`).join('')}
     </div>`;
   }
   if(weak.length){
-    html+=`<div class="cat-breakdown-item" style="flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:4px">
-      <div style="font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:.8px;text-transform:uppercase">💧 Weak · ${weak.length}</div>
-      ${weak.map(e=>`<div class="health-entry-row" data-hid="${e.id}" style="width:100%">
+    html+=`<div style="margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;color:#f59e0b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">💧 Weak · ${weak.length}</div>
+      ${weak.map(e=>`<div class="health-entry-row" data-hid="${e.id}">
         <span style="font-size:15px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
         <div class="health-entry-name">${esc(e.name)}</div>
         <div class="health-entry-detail">${passwordScore(entryPassword(e))}/5</div>
@@ -3443,9 +3464,9 @@ function renderHealthPanel(reused, weak, missing) {
     </div>`;
   }
   if(missing.length){
-    html+=`<div class="cat-breakdown-item" style="flex-direction:column;align-items:flex-start;gap:6px">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase">❓ No Password · ${missing.length}</div>
-      ${missing.map(e=>`<div class="health-entry-row" data-hid="${e.id}" style="width:100%">
+    html+=`<div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">❓ No Password · ${missing.length}</div>
+      ${missing.map(e=>`<div class="health-entry-row" data-hid="${e.id}">
         <span style="font-size:15px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
         <div class="health-entry-name">${esc(e.name)}</div>
         <div class="health-entry-detail">Empty</div>
@@ -3453,11 +3474,10 @@ function renderHealthPanel(reused, weak, missing) {
     </div>`;
   }
 
-  inner.innerHTML=`<div class="cat-breakdown-list" style="gap:12px">${html}</div>`;
-  inner.querySelectorAll('[data-hid]').forEach(row=>{
+  body.innerHTML=html;
+  body.querySelectorAll('[data-hid]').forEach(row=>{
     row.addEventListener('click', ()=>{
-      healthPanelOpen=false;
-      document.getElementById('health-inline-panel').classList.remove('open');
+      closeHealthOverlay();
       openDetail(row.dataset.hid);
     });
   });
@@ -4481,7 +4501,8 @@ document.getElementById('docs-search-clear').addEventListener('click', ()=>{
 // ═══════════════════════════════════════
 let currentDocDetail=null;
 let currentDocBlobUrl=null;
-let currentDocArrayBuffer=null; // pre-cached for share — avoids async gap losing gesture context
+let currentDocArrayBuffer=null;
+let currentDocFile=null; // pre-built File object for instant share — no async on tap
 
 async function openDocDetail(id){
   const doc=(state.docs||[]).find(d=>d.id===id); if(!doc) return;
@@ -4532,7 +4553,7 @@ async function openDocDetail(id){
 
   // Preview
   const preview=document.getElementById('docview-preview');
-  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null;
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null; currentDocFile=null;
 
   const cat=docMimeCategory(doc.mimeType);
   if(cat==='pdf'){
@@ -4547,6 +4568,7 @@ async function openDocDetail(id){
       if(!ab){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
       currentDocArrayBuffer=ab;
       currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
+      currentDocFile=new File([new Blob([ab],{type:doc.mimeType})],doc.name,{type:doc.mimeType||'application/octet-stream'});
       preview.innerHTML=`
         <div class="doc-no-preview" style="gap:16px">
           <span>📕</span>
@@ -4575,6 +4597,7 @@ async function openDocDetail(id){
       if(ab===null){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
       currentDocArrayBuffer=ab;
       currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
+      currentDocFile=new File([new Blob([ab],{type:doc.mimeType})],doc.name,{type:doc.mimeType||'application/octet-stream'});
       preview.innerHTML=`<img src="${currentDocBlobUrl}" alt="${esc(doc.name)}"/>`;
     } catch(e){
       console.error('Doc preview failed',e);
@@ -4591,6 +4614,7 @@ async function openDocDetail(id){
     if(!ab){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
     currentDocArrayBuffer=ab;
     currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
+    currentDocFile=new File([new Blob([ab],{type:doc.mimeType})],doc.name,{type:doc.mimeType||'application/octet-stream'});
     const ext = doc.name.split('.').pop().toUpperCase();
     preview.innerHTML=`
       <div class="doc-no-preview" style="gap:16px">
@@ -4613,7 +4637,7 @@ async function openDocDetail(id){
 }
 
 document.getElementById('docview-back').addEventListener('click',()=>{
-  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null;
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null; currentDocFile=null;
   const src = state.docViewSource;
   const entryId = state.docViewEntryId;
   state.docViewSource = 'docs';
@@ -4693,7 +4717,7 @@ document.getElementById('docview-delete-btn').addEventListener('click', async ()
   await saveDocsManifest();
   await DocsDB.deleteFile(id);
   await cleanStaleLinkFor(id);
-  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null;
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null; currentDocFile=null;
   currentDocDetail=null;
   state.docViewSource='docs'; state.docViewEntryId=null;
   toast('Deleted');
@@ -4710,23 +4734,25 @@ document.getElementById('docview-download-btn').addEventListener('click', async 
   toast('Downloading…');
 });
 
-// Share — uses pre-cached ArrayBuffer so no async gap between tap and share call
+// Share — uses pre-built File object (built when viewer loads) so
+// navigator.share() is called synchronously after tap with no async gap.
 document.getElementById('docview-share-btn').addEventListener('click', async ()=>{
   if(!currentDocDetail){ toast('File not ready'); return; }
-  const doc=currentDocDetail;
-  // Use cached AB if available, otherwise decrypt now
-  const ab = currentDocArrayBuffer || await DocsDB.loadFile(doc.id, state.currentPIN);
-  if(!ab){ toast('Could not load file'); return; }
-  try{
-    const blob = new Blob([ab], {type:doc.mimeType||'application/octet-stream'});
-    const file = new File([blob], doc.name, {type:doc.mimeType||'application/octet-stream'});
-    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:doc.name});
-      return;
-    }
+  // Use pre-built File if available
+  let file = currentDocFile;
+  if(!file){
+    // Fallback: build from cached AB or re-decrypt
+    const ab = currentDocArrayBuffer || await DocsDB.loadFile(currentDocDetail.id, state.currentPIN);
+    if(!ab){ toast('Could not load file'); return; }
+    file = new File([new Blob([ab],{type:currentDocDetail.mimeType})], currentDocDetail.name, {type:currentDocDetail.mimeType||'application/octet-stream'});
+  }
+  if(!navigator.share || !navigator.canShare || !navigator.canShare({files:[file]})){
     toast('Share not supported on this device — use Download');
+    return;
+  }
+  try{
+    await navigator.share({files:[file], title:currentDocDetail.name});
   } catch(e){
-    console.error('Share failed',e);
     if(e.name!=='AbortError') toast('Share failed — use Download instead');
   }
 });
