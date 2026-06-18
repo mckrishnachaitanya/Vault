@@ -1119,7 +1119,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
   <div class="docs-filter-row" id="docs-cat-pills"></div>
   <div class="docs-list" id="docs-list"></div>
-  <input type="file" id="doc-file-input" style="display:none"/>
+  <input type="file" id="doc-file-input" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none"/>
   <div class="bottom-nav">
     <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
@@ -1239,6 +1239,11 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-item" id="s-docs-export">
       <span class="s-icon">🗂️</span>
       <div class="s-info"><div class="s-title">Export Documents Backup</div><div class="s-desc">Save encrypted .zip of all documents</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+    <div class="settings-item" id="s-docs-export-folder" style="display:none">
+      <span class="s-icon">📁</span>
+      <div class="s-info"><div class="s-title">Export to Folder</div><div class="s-desc">Save decrypted files directly to a folder</div></div>
       <span class="s-arrow">›</span>
     </div>
     <div class="settings-item" id="s-docs-import">
@@ -3387,7 +3392,15 @@ function runHealthCheck() {
   const reusedIds = new Set(reused.map(e=>e.id));
   const weak = entries.filter(e=>{ const pw=entryPassword(e); return pw&&passwordScore(pw)<=2&&!reusedIds.has(e.id); });
   const missing = entries.filter(e=>!entryPassword(e)&&e.type!=='card');
-  return {reused, weak, missing};
+  const oneYearAgo = Date.now() - 365*24*60*60*1000;
+  const weakAndReusedIds = new Set([...reusedIds, ...weak.map(e=>e.id)]);
+  const old = entries.filter(e=>{
+    if(!entryPassword(e)) return false;
+    if(weakAndReusedIds.has(e.id)) return false;
+    const ts = e.updated || e.created || 0;
+    return ts < oneYearAgo;
+  });
+  return {reused, weak, missing, old};
 }
 
 function checkPasswordHealth() {
@@ -3397,8 +3410,8 @@ function checkPasswordHealth() {
   const relevant = state.entries.filter(e=>['app','wifi','bank'].includes(e.type));
   if(relevant.length < 2){ btn.style.display='none'; closeHealthOverlay(); return; }
 
-  const {reused, weak, missing} = runHealthCheck();
-  const totalIssues = reused.length + weak.length + missing.length;
+  const {reused, weak, missing, old} = runHealthCheck();
+  const totalIssues = reused.length + weak.length + missing.length + old.length;
 
   btn.style.display='flex';
   if(totalIssues===0){
@@ -3412,7 +3425,7 @@ function checkPasswordHealth() {
   btn.onclick = () => {
     const overlay = document.getElementById('health-overlay');
     if(overlay.style.display !== 'none'){ closeHealthOverlay(); return; }
-    renderHealthOverlay(reused, weak, missing, totalIssues);
+    renderHealthOverlay(reused, weak, missing, old, totalIssues);
     overlay.style.display='block';
   };
 }
@@ -3431,7 +3444,7 @@ document.addEventListener('click', e=>{
   }
 });
 
-function renderHealthOverlay(reused, weak, missing, totalIssues){
+function renderHealthOverlay(reused, weak, missing, old, totalIssues){
   const title = document.getElementById('health-overlay-title');
   const body  = document.getElementById('health-overlay-body');
 
@@ -3460,6 +3473,16 @@ function renderHealthOverlay(reused, weak, missing, totalIssues){
         <span style="font-size:15px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
         <div class="health-entry-name">${esc(e.name)}</div>
         <div class="health-entry-detail">${passwordScore(entryPassword(e))}/5</div>
+      </div>`).join('')}
+    </div>`;
+  }
+  if(old.length){
+    html+=`<div style="margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;color:#8b5cf6;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">🕐 Old · ${old.length}</div>
+      ${old.map(e=>`<div class="health-entry-row" data-hid="${e.id}">
+        <span style="font-size:15px">${TYPE_META[e.type]?.emoji||'🌐'}</span>
+        <div class="health-entry-name">${esc(e.name)}</div>
+        <div class="health-entry-detail" style="color:#8b5cf6">&gt;1 year</div>
       </div>`).join('')}
     </div>`;
   }
@@ -4869,6 +4892,50 @@ document.getElementById('s-docs-export').addEventListener('click', async ()=>{
   } catch(e){
     console.error('Docs export failed', e);
     toast('Documents export failed');
+  }
+});
+
+// Show folder export option only on browsers that support showDirectoryPicker
+if('showDirectoryPicker' in window){
+  const folderBtn = document.getElementById('s-docs-export-folder');
+  if(folderBtn) folderBtn.style.display='flex';
+}
+
+document.getElementById('s-docs-export-folder').addEventListener('click', async ()=>{
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to export documents');
+    if(!ok) return;
+  }
+  if(!state.currentPIN){ toast('Vault is locked — unlock first'); return; }
+  await loadDocsManifest();
+  if(!state.docs || !state.docs.length){ toast('No documents to export'); return; }
+
+  let dirHandle;
+  try{
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch(e){
+    if(e.name==='AbortError') return;
+    toast('Could not open folder picker'); return;
+  }
+
+  toast('Exporting to folder…');
+  let saved=0, failed=0;
+  try{
+    for(const doc of state.docs){
+      try{
+        const ab = await DocsDB.loadFile(doc.id, state.currentPIN);
+        if(!ab) continue;
+        const fh = await dirHandle.getFileHandle(doc.name, {create:true});
+        const writable = await fh.createWritable();
+        await writable.write(ab);
+        await writable.close();
+        saved++;
+      } catch(e){ console.warn('Skipping doc in folder export:', doc.name, e); failed++; }
+    }
+    toast(`Exported ${saved} file${saved!==1?'s':''}${failed?` · ${failed} failed`:''} ✓`);
+  } catch(e){
+    console.error('Folder export failed', e);
+    toast('Folder export failed');
   }
 });
 
