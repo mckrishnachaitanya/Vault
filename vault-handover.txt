@@ -4,7 +4,7 @@ GitHub: https://mckrishnachaitanya.github.io/Vault/
 Stack:  Single HTML file, Web Crypto (AES-256-GCM+PBKDF2), WebAuthn,
         localStorage, IndexedDB, Google Fonts. No build step.
 Deploy: Upload index.html to GitHub Pages. Done.
-VERSION: v5.4 — 15-Jun-2026 — ~4890 lines. R6a fully tested ✓
+VERSION: v5.6 — 18-Jun-2026 — ~5035 lines. R6a fully tested ✓
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROZEN — Architecture & Decisions
@@ -122,19 +122,22 @@ R6a → SHIPPED (v5.0) & fully tested (v5.4) — Document Vault: IndexedDB,
 R6b → Document sync (Firebase Storage). DEFERRED — see backlog.
 R6c → SHIPPED (v5.3) — Linked Documents (entry ↔ doc).
 R6d → SHIPPED (v5.4) — Password Health, UI polish, bug fixes.
+R6e → SHIPPED (v5.6) — Old passwords check, camera capture accept attr,
+       folder export (device-gated via showDirectoryPicker).
 
 BACKLOG (priority order)
 ------------------------
-1. OTP/2FA storage — store TOTP secret in app entries, generate live
-   6-digit codes in detail screen. TOTP via crypto.subtle (no lib needed
-   for generation). QR scanner optional (ZXing CDN). ~1 session.
-2. Password health improvements — already shipped basic version; could
-   add "old passwords" check (updated > 1 year ago).
-3. R6b — Firebase Storage for doc sync. ~3 sessions. Lower priority
-   than OTP since vault is single-device for now.
-4. Camera capture — add capture="environment" to doc-file-input for
-   photographing physical documents directly.
-5. True folder export (showDirectoryPicker) — deferred.
+1. R6b — Firebase Storage for doc sync. ~3 sessions. Low priority —
+   manual export/nudge covers the backup safety need for single-device use.
+2. PWA app icon — requires manifest.json + PNG assets added to GitHub repo
+   (first time repo has files beyond index.html). One-time setup.
+
+RULED OUT — PERMANENTLY
+-----------------------
+- Password generator: not in scope.
+- Multi-page architecture: single file is intentional for security.
+- Storing PIN or decryption key in Firestore: PIN never leaves device.
+- OTP/2FA TOTP: removed from scope.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 R5 SUMMARY
@@ -265,9 +268,38 @@ WARNINGS
   user-gesture context. Falls back to auto-download if share is
   unsupported in a given browser context.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R6e SUMMARY — Old Passwords, Camera Accept, Folder Export (v5.6)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OLD PASSWORDS CHECK
+- runHealthCheck() returns 4th bucket: old[].
+- old = app/wifi/bank entries where (e.updated||e.created) < 1 year ago,
+  has a password, and is NOT already flagged reused or weak.
+- oneYearAgo = Date.now() - 365*24*60*60*1000.
+- Rendered as "🕐 Old · N" section (purple #8b5cf6) in health overlay.
+- detail shows ">1 year". Counts toward totalIssues.
+- Section order in overlay: Reused → Weak → Old → No Password.
+
+CAMERA CAPTURE (accept attr)
+- doc-file-input now has accept="image/*,application/pdf,.doc,.docx,
+  .xls,.xlsx,.txt,.csv". No capture attribute — Android Chrome's native
+  file picker already offers Camera as an option.
+
+FOLDER EXPORT (device-gated)
+- New settings row "Export to Folder" (id=s-docs-export-folder),
+  hidden by default (style="display:none").
+- Shown only if 'showDirectoryPicker' in window — checked at runtime
+  after DOM ready.
+- Uses window.showDirectoryPicker({mode:'readwrite'}). Decrypts each
+  doc via DocsDB.loadFile and writes via FileSystemWritableFileStream.
+- AbortError (user cancelled picker) handled silently.
+- Toast reports "Exported N files ✓" with optional "· N failed".
+- Zip export (s-docs-export) unchanged — still primary path on Android.
+
 NEXT SESSION
 ------------
 Upload: index.html + this file.
-OTP/2FA → say "Implement OTP" to build TOTP code generation.
 R6b     → say "Implement R6b" for Firebase Storage doc sync.
+PWA icon → say "PWA icon" to set up manifest + icons.
 Bug     → say "Bug: [describe]" for anything found in normal use.
