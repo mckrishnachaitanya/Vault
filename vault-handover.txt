@@ -124,13 +124,14 @@ R6c → SHIPPED (v5.3) — Linked Documents (entry ↔ doc).
 R6d → SHIPPED (v5.4) — Password Health, UI polish, bug fixes.
 R6e → SHIPPED (v5.6) — Old passwords check, camera capture accept attr,
        folder export (device-gated via showDirectoryPicker).
+PWA  → SHIPPED — Glass Aurora icon (512×512, 192×192 PNGs), manifest.json,
+       apple-touch-icon.png. manifest links added to index.html <head>.
+       display:standalone + start_url is what makes app installable on Android Chrome.
 
 BACKLOG (priority order)
 ------------------------
 1. R6b — Firebase Storage for doc sync. ~3 sessions. Low priority —
    manual export/nudge covers the backup safety need for single-device use.
-2. PWA app icon — requires manifest.json + PNG assets added to GitHub repo
-   (first time repo has files beyond index.html). One-time setup.
 
 RULED OUT — PERMANENTLY
 -----------------------
@@ -300,6 +301,5 @@ FOLDER EXPORT (device-gated)
 NEXT SESSION
 ------------
 Upload: index.html + this file.
-R6b     → say "Implement R6b" for Firebase Storage doc sync.
-PWA icon → say "PWA icon" to set up manifest + icons.
-Bug     → say "Bug: [describe]" for anything found in normal use.
+R6b  → say "Implement R6b" for Firebase Storage doc sync.
+Bug  → say "Bug: [describe]" for anything found in normal use.
