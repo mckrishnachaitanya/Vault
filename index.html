@@ -5197,6 +5197,11 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
       showUpdateBanner(v);
     }
   });
+
+  // Send CHECK_UPDATE to SW on every load (once SW is ready)
+  navigator.serviceWorker.ready.then(reg => {
+    if(reg.active) reg.active.postMessage({ type: 'CHECK_UPDATE' });
+  });
 })();
 
 function showUpdateBanner(version){

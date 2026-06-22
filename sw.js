@@ -1,6 +1,5 @@
 const CACHE = 'vault-static-v1';
 const INFO_URL = './vault-info.json';
-const INFO_VERSION_KEY = 'vault-info-version';
 
 // Install — cache index.html
 self.addEventListener('install', e => {
@@ -9,11 +8,9 @@ self.addEventListener('install', e => {
   );
 });
 
-// Activate — claim clients, then check for update
+// Activate — claim clients immediately
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    self.clients.claim().then(() => checkForUpdate())
-  );
+  e.waitUntil(self.clients.claim());
 });
 
 // Fetch — stale-while-revalidate for index.html; network-first for vault-info.json
@@ -48,26 +45,29 @@ self.addEventListener('fetch', e => {
   }
 });
 
-// Check vault-info.json for version change and notify clients
-async function checkForUpdate() {
+// Page sends 'CHECK_UPDATE' on every load — we check vault-info.json version
+self.addEventListener('message', async e => {
+  if (e.data && e.data.type === 'CHECK_UPDATE') {
+    await checkForUpdate(e.source);
+  }
+});
+
+async function checkForUpdate(client) {
   try {
     const res = await fetch(INFO_URL + '?_sw=' + Date.now());
     if (!res.ok) return;
     const info = await res.json();
     const newVersion = info.version;
 
-    // Read last seen version from cache storage
     const cache = await caches.open(CACHE);
     const stored = await cache.match('__vault_info_version__');
     const lastVersion = stored ? await stored.text() : null;
 
     if (lastVersion !== newVersion) {
-      // Save new version
       await cache.put('__vault_info_version__', new Response(newVersion));
-      // Notify all clients — but only if there was a previous version (not first install)
-      if (lastVersion !== null) {
-        const clients = await self.clients.matchAll({ type: 'window' });
-        clients.forEach(client => client.postMessage({ type: 'VAULT_UPDATE', version: newVersion }));
+      // Only notify if there was a previous version (not first install)
+      if (lastVersion !== null && client) {
+        client.postMessage({ type: 'VAULT_UPDATE', version: newVersion });
       }
     }
   } catch (_) {
