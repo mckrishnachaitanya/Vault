@@ -1,5 +1,5 @@
 {
-  "version": "5.7",
+  "version": "5.7.1",
   "released": "2026-06-22",
   "whatsNew": [
     "✨ Auto-update detection — Vault now checks for updates in the background and notifies you when a new version is available",
