@@ -4,7 +4,7 @@ GitHub: https://mckrishnachaitanya.github.io/Vault/
 Stack:  Single HTML file, Web Crypto (AES-256-GCM+PBKDF2), WebAuthn,
         localStorage, IndexedDB, Google Fonts. No build step.
 Deploy: Upload index.html + sw.js + vault-info.json to GitHub Pages. Done.
-VERSION: v5.7 — 22-Jun-2026 — ~5265 lines. R6e fully tested ✓
+VERSION: v5.8 — 23-Jun-2026 — ~5370 lines. R6f fully tested ✓
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROZEN — Architecture & Decisions
@@ -143,39 +143,45 @@ RULED OUT — PERMANENTLY
 - OTP/2FA TOTP: removed from scope.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6f SUMMARY — Service Worker + Help Overlay (v5.7)
+R6f SUMMARY — Service Worker + Help Overlay (v5.8)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SERVICE WORKER (sw.js — new file, deploy alongside index.html)
-- Caches index.html on install (stale-while-revalidate).
-- vault-info.json: network-first, cache fallback.
-- On activate: fetches vault-info.json, compares version to last seen
-  (stored as '__vault_info_version__' Response in CacheStorage).
-  If version changed AND a previous version existed → postMessage
-  {type:'VAULT_UPDATE', version} to all window clients.
-- Zero-touch: sw.js never needs to change after initial deploy.
-  Updating vault-info.json version string triggers the notification.
+SERVICE WORKER (sw.js — deploy alongside index.html)
+- Precaches index.html, manifest.json, vault-info.json using cache:'no-store'
+  on each request — prevents browser HTTP cache from handing back stale
+  responses during install (critical; without this, manual cache clearing
+  was needed after every deploy).
+- Stale-while-revalidate for index.html: cached copy served instantly,
+  network fetch updates cache in background for next launch.
+- vault-info.json: always network-first (cache:'no-store'), cache fallback.
+- activate: deletes old caches by name, claims clients.
+- CACHE_NAME = 'vault-v1' — only bump this if manifest/icons change.
+- SW itself never needs changing for content deploys.
 
-VAULT-INFO.JSON (new file, deploy alongside index.html)
+VAULT-INFO.JSON (deploy alongside index.html)
 - Fields: version, released, whatsNew[], features[].
-- Fetched at runtime (not bundled). helpInfoCache in-memory once fetched.
+- version field is the sole source of truth for update detection.
+- On future deploys: bump version + update whatsNew[]. Nothing else needed.
+- helpInfoCache holds in-memory once fetched per session.
 - About version label reads from this file on init().
-- On future deploys: bump version + update whatsNew. That's all.
 
-UPDATE BANNER
-- Fixed position at top (z-index 500). body.has-banner shifts screens
-  down via CSS: .screen { top: 42px }.
-- Dismissed state: localStorage key vault_banner_dismissed_{version}.
-  Banner never re-shows for the same version after dismiss.
-- "See what's new" opens Help overlay and dismisses banner.
-- SW message arrives via navigator.serviceWorker message event.
-  Checked against dismissed key before showing.
+UPDATE NUDGE (inline card, home screen only)
+- Inline nudge card (#update-nudge) inside home screen, same style as
+  backup nudge. Shown only after unlock via checkPendingUpdateNudge().
+- Version check runs on page (not SW) via checkForUpdate() called 1.5s
+  after load. Compares vault-info.json version to vault_last_version in
+  localStorage.
+- First open = bootstrap: stores version silently, no nudge shown.
+- Subsequent opens with new version → sets window._pendingUpdateVersion.
+  checkPendingUpdateNudge() called from both PIN and bio unlock paths.
+- Dismissed state: vault_banner_dismissed_{version} in localStorage.
+- "What's new" button opens Help overlay and clears nudge.
 
 HELP OVERLAY (Settings → Help → What's New & Feature Guide)
 - Full-screen overlay (z-index 900), slides up from bottom.
-- Scrollable content: What's New section (version-specific bullets)
-  followed by Features section (icon + title + one-liner cards).
-- Content fetched from vault-info.json each open (cached in memory).
+- What's New card at top (accent gradient, NEW badge, date, bullets).
+- Features as accordion rows — tap to expand, multiple can be open.
+- Content fetched from vault-info.json, cached in memory per session.
 - s-help-guide settings row added above About section.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
