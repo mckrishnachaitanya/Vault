@@ -5186,26 +5186,36 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
    SERVICE WORKER + UPDATE BANNER
 ════════════════════════════════════════ */
 (function(){
-  if(!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('./sw.js').then(reg => {
-    console.log('[Vault SW] registered, state:', reg.active ? reg.active.state : 'no active');
-  }).catch(err => console.error('[Vault SW] register failed:', err));
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      console.log('[Vault SW] registered, state:', reg.active ? reg.active.state : 'no active');
+    }).catch(err => console.error('[Vault SW] register failed:', err));
+  }
 
-  navigator.serviceWorker.addEventListener('message', e => {
-    console.log('[Vault SW] message received:', e.data);
-    if(e.data && e.data.type === 'VAULT_UPDATE'){
-      const v = e.data.version;
-      const dismissedKey = 'vault_banner_dismissed_' + v;
-      if(Store.get(dismissedKey)) return;
-      showUpdateBanner(v);
+  // Version check runs entirely on page — no SW messaging needed
+  async function checkForUpdate(){
+    try {
+      const res = await fetch('./vault-info.json?_t=' + Date.now());
+      if(!res.ok){ console.log('[Vault SW] vault-info fetch failed:', res.status); return; }
+      const info = await res.json();
+      const newVersion = info.version;
+      const lastVersion = Store.get('vault_last_version');
+      console.log('[Vault SW] lastVersion:', lastVersion, '→ newVersion:', newVersion);
+      if(lastVersion && lastVersion !== newVersion){
+        const dismissedKey = 'vault_banner_dismissed_' + newVersion;
+        if(!Store.get(dismissedKey)){
+          console.log('[Vault SW] showing update banner for', newVersion);
+          showUpdateBanner(newVersion);
+        }
+      }
+      Store.set('vault_last_version', newVersion);
+    } catch(err){
+      console.error('[Vault SW] checkForUpdate error:', err);
     }
-  });
+  }
 
-  // Send CHECK_UPDATE to SW on every load (once SW is ready)
-  navigator.serviceWorker.ready.then(reg => {
-    console.log('[Vault SW] ready, sending CHECK_UPDATE');
-    if(reg.active) reg.active.postMessage({ type: 'CHECK_UPDATE' });
-  });
+  // Run check after page loads
+  window.addEventListener('load', () => setTimeout(checkForUpdate, 1500));
 })();
 
 function showUpdateBanner(version){
