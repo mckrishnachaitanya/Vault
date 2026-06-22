@@ -5187,9 +5187,12 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
 ════════════════════════════════════════ */
 (function(){
   if(!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    console.log('[Vault SW] registered, state:', reg.active ? reg.active.state : 'no active');
+  }).catch(err => console.error('[Vault SW] register failed:', err));
 
   navigator.serviceWorker.addEventListener('message', e => {
+    console.log('[Vault SW] message received:', e.data);
     if(e.data && e.data.type === 'VAULT_UPDATE'){
       const v = e.data.version;
       const dismissedKey = 'vault_banner_dismissed_' + v;
@@ -5200,6 +5203,7 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
 
   // Send CHECK_UPDATE to SW on every load (once SW is ready)
   navigator.serviceWorker.ready.then(reg => {
+    console.log('[Vault SW] ready, sending CHECK_UPDATE');
     if(reg.active) reg.active.postMessage({ type: 'CHECK_UPDATE' });
   });
 })();

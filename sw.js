@@ -47,6 +47,7 @@ self.addEventListener('fetch', e => {
 
 // Page sends 'CHECK_UPDATE' on every load — we check vault-info.json version
 self.addEventListener('message', async e => {
+  console.log('[Vault SW] message received in SW:', e.data);
   if (e.data && e.data.type === 'CHECK_UPDATE') {
     await checkForUpdate(e.source);
   }
@@ -58,19 +59,21 @@ async function checkForUpdate(client) {
     if (!res.ok) return;
     const info = await res.json();
     const newVersion = info.version;
+    console.log('[Vault SW] fetched version:', newVersion);
 
     const cache = await caches.open(CACHE);
     const stored = await cache.match('__vault_info_version__');
     const lastVersion = stored ? await stored.text() : null;
+    console.log('[Vault SW] lastVersion:', lastVersion, '→ newVersion:', newVersion);
 
     if (lastVersion !== newVersion) {
       await cache.put('__vault_info_version__', new Response(newVersion));
-      // Only notify if there was a previous version (not first install)
       if (lastVersion !== null && client) {
+        console.log('[Vault SW] posting VAULT_UPDATE to client');
         client.postMessage({ type: 'VAULT_UPDATE', version: newVersion });
       }
     }
-  } catch (_) {
-    // Network unavailable — silent fail
+  } catch (err) {
+    console.error('[Vault SW] checkForUpdate failed:', err);
   }
 }
