@@ -155,25 +155,30 @@ body::after{
 /* ═══════════════════════════════════
    TOP BAR
 ═══════════════════════════════════ */
-/* ── Update Banner ── */
-#update-banner{
+/* ── Update Nudge (inline, nudge style) ── */
+#update-nudge{
   display:none;
-  align-items:center;
-  gap:10px;
-  padding:9px 16px;
-  background:linear-gradient(135deg,rgba(91,95,245,0.13),rgba(139,92,246,0.13));
-  border-bottom:1px solid rgba(91,95,245,0.18);
-  font-size:13px;
-  color:var(--text);
-  position:fixed;
-  top:0; left:0; right:0;
-  z-index:500;
+  margin:0 20px 12px;padding:13px 16px;border-radius:var(--radius-sm);
+  background:rgba(91,95,245,.10);border:1.5px solid rgba(91,95,245,.28);
+  align-items:center;gap:10px;
   animation:bannerSlide .3s ease;
 }
-#update-banner.show{ display:flex; }
-/* When banner is visible, push screens down */
-body.has-banner .screen{ top:42px; }
-body.has-banner #help-overlay{ top:42px; }
+#update-nudge.show{ display:flex; }
+@keyframes bannerSlide{ from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+#update-nudge .nudge-icon{ font-size:20px; flex-shrink:0; }
+#update-nudge .nudge-text{ flex:1; font-size:13px; font-weight:600; color:var(--accent); }
+#update-nudge .nudge-text span{ display:block; font-size:11px; font-weight:500; color:var(--text2); margin-top:2px; }
+#update-nudge .nudge-btn{
+  padding:6px 13px; border-radius:9px;
+  border:1.5px solid rgba(91,95,245,.35);
+  background:rgba(91,95,245,.12);
+  color:var(--accent); font-size:12px; font-weight:700;
+  font-family:var(--font); cursor:pointer; white-space:nowrap;
+}
+#update-nudge .nudge-dismiss{
+  background:transparent; border:none; color:var(--muted);
+  font-size:18px; cursor:pointer; padding:2px 6px; line-height:1;
+}
 @keyframes bannerSlide{ from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
 #update-banner .banner-icon{ font-size:16px; flex-shrink:0; }
 #update-banner .banner-text{ flex:1; font-weight:500; }
@@ -1158,13 +1163,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 </head>
 <body>
 
-<!-- ══════════ UPDATE BANNER ══════════ -->
-<div id="update-banner">
-  <span class="banner-icon">✨</span>
-  <span class="banner-text">Vault updated — <span class="banner-link" id="banner-whats-new">See what's new</span></span>
-  <button class="banner-close" id="banner-close" aria-label="Dismiss">✕</button>
-</div>
-
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
@@ -1221,6 +1219,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
   <div id="backup-nudge-wrap"></div>
   <div id="expiry-nudge-wrap"></div>
+  <div id="update-nudge">
+    <span class="nudge-icon">✨</span>
+    <div class="nudge-text">Vault updated<span>See what's new in this version</span></div>
+    <button class="nudge-btn" id="nudge-update-btn">What's new</button>
+    <button class="nudge-dismiss" id="nudge-update-dismiss">✕</button>
+  </div>
   <div class="cat-inline-panel" id="cat-inline-panel">
     <div class="cat-inline-inner">
       <div class="cat-breakdown-list" id="cat-breakdown-list"></div>
@@ -2080,7 +2084,7 @@ function unlockSuccess() {
   if(sub) sub.textContent='Your private password vault';
   applyTheme(Store.get('vault_theme')==='dark');
   document.getElementById('bio-unlock-btn').style.display='none';
-  setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkPasswordHealth(); checkCloudOnUnlock(); },300);
+  setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkPasswordHealth(); checkCloudOnUnlock(); checkPendingUpdateNudge(); },300);
 }
 
 // WebAuthn requires document focus — visibilitychange can fire slightly
@@ -2120,7 +2124,7 @@ async function tryBiometricUnlock() {
     lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
     applyTheme(Store.get('vault_theme')==='dark');
     document.getElementById('bio-unlock-btn').style.display='none';
-    setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkPasswordHealth(); checkCloudOnUnlock(); },300);
+    setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkPasswordHealth(); checkCloudOnUnlock(); checkPendingUpdateNudge(); },300);
   } else {
     if(!state.unlocked){ lbl.textContent='Use PIN instead'; lbl.className='pin-label'; }
   }
@@ -3410,6 +3414,13 @@ function toggleCatPanel() {
 // ═══════════════════════════════════════
 //  BACKUP NUDGE
 // ═══════════════════════════════════════
+function checkPendingUpdateNudge(){
+  if(window._pendingUpdateVersion){
+    showUpdateBanner(window._pendingUpdateVersion);
+    window._pendingUpdateVersion = null;
+  }
+}
+
 function checkBackupNudge() {
   const lastExport = parseInt(Store.get('vault_last_export')||'0');
   const lastDismiss = parseInt(Store.get('vault_nudge_dismissed')||'0');
@@ -5205,7 +5216,13 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
         const dismissedKey = 'vault_banner_dismissed_' + newVersion;
         if(!Store.get(dismissedKey)){
           console.log('[Vault SW] showing update banner for', newVersion);
-          showUpdateBanner(newVersion);
+          // If already unlocked and on home screen, show immediately
+          // Otherwise store pending — shown when home screen loads
+          window._pendingUpdateVersion = newVersion;
+          if(state && state.unlocked && state.currentNav === 'home'){
+            showUpdateBanner(newVersion);
+            window._pendingUpdateVersion = null;
+          }
         }
       }
       Store.set('vault_last_version', newVersion);
@@ -5214,22 +5231,22 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
     }
   }
 
-  // Run check after page loads
-  window.addEventListener('load', () => setTimeout(checkForUpdate, 1500));
+  // Run check after unlock, not on page load
+  window._vaultUpdatePending = false;
+  window.addEventListener('load', () => setTimeout(async () => {
+    await checkForUpdate();
+  }, 1500));
 })();
 
 function showUpdateBanner(version){
-  const banner = document.getElementById('update-banner');
-  banner.classList.add('show');
-  document.body.classList.add('has-banner');
-  document.getElementById('banner-close').onclick = () => {
-    banner.classList.remove('show');
-    document.body.classList.remove('has-banner');
+  const nudge = document.getElementById('update-nudge');
+  nudge.classList.add('show');
+  document.getElementById('nudge-update-dismiss').onclick = () => {
+    nudge.classList.remove('show');
     Store.set('vault_banner_dismissed_' + version, '1');
   };
-  document.getElementById('banner-whats-new').onclick = () => {
-    banner.classList.remove('show');
-    document.body.classList.remove('has-banner');
+  document.getElementById('nudge-update-btn').onclick = () => {
+    nudge.classList.remove('show');
     Store.set('vault_banner_dismissed_' + version, '1');
     openHelpOverlay();
   };
