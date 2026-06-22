@@ -155,6 +155,99 @@ body::after{
 /* ═══════════════════════════════════
    TOP BAR
 ═══════════════════════════════════ */
+/* ── Update Banner ── */
+#update-banner{
+  display:none;
+  align-items:center;
+  gap:10px;
+  padding:9px 16px;
+  background:linear-gradient(135deg,rgba(91,95,245,0.13),rgba(139,92,246,0.13));
+  border-bottom:1px solid rgba(91,95,245,0.18);
+  font-size:13px;
+  color:var(--text);
+  position:fixed;
+  top:0; left:0; right:0;
+  z-index:500;
+  animation:bannerSlide .3s ease;
+}
+#update-banner.show{ display:flex; }
+/* When banner is visible, push screens down */
+body.has-banner .screen{ top:42px; }
+body.has-banner #help-overlay{ top:42px; }
+@keyframes bannerSlide{ from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+#update-banner .banner-icon{ font-size:16px; flex-shrink:0; }
+#update-banner .banner-text{ flex:1; font-weight:500; }
+#update-banner .banner-link{
+  color:var(--accent); font-weight:600; cursor:pointer;
+  text-decoration:underline; white-space:nowrap;
+}
+#update-banner .banner-close{
+  background:none; border:none; font-size:16px; cursor:pointer;
+  color:var(--muted); padding:2px 4px; flex-shrink:0;
+}
+
+/* ── Help Overlay ── */
+#help-overlay{
+  position:fixed; inset:0; z-index:900;
+  background:var(--bg);
+  display:flex; flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .32s cubic-bezier(.4,0,.2,1);
+  overflow:hidden;
+}
+#help-overlay.open{ transform:translateY(0); }
+#help-overlay .help-topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px 12px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+#help-overlay .help-topbar h2{
+  font-size:20px; font-weight:800; color:var(--text);
+  font-family:var(--font-head); margin:0;
+}
+#help-overlay .help-close{
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:50%; width:32px; height:32px;
+  font-size:16px; cursor:pointer; display:flex;
+  align-items:center; justify-content:center; color:var(--text2);
+}
+#help-overlay .help-body{
+  flex:1; overflow-y:auto; padding:20px 16px 32px;
+}
+.help-section-title{
+  font-size:11px; font-weight:700; color:var(--muted);
+  letter-spacing:.9px; text-transform:uppercase;
+  margin:0 0 12px;
+}
+.help-whats-new-list{
+  list-style:none; margin:0 0 28px; padding:0;
+  display:flex; flex-direction:column; gap:8px;
+}
+.help-whats-new-list li{
+  font-size:14px; color:var(--text); line-height:1.5;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:11px 14px;
+}
+.help-feature-card{
+  display:flex; gap:12px; align-items:flex-start;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:13px 14px;
+  margin-bottom:8px;
+}
+.help-feature-icon{ font-size:22px; flex-shrink:0; margin-top:1px; }
+.help-feature-title{ font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
+.help-feature-desc{ font-size:13px; color:var(--text2); line-height:1.45; }
+.help-version-badge{
+  display:inline-block; font-size:11px; font-weight:700;
+  color:var(--accent); background:rgba(91,95,245,0.1);
+  border-radius:20px; padding:2px 10px; margin-left:8px;
+  vertical-align:middle;
+}
+#help-loading{
+  text-align:center; padding:40px 0; color:var(--muted); font-size:14px;
+}
+
 .topbar{
   display:flex;align-items:center;justify-content:space-between;
   padding:52px 20px 14px;
@@ -1021,6 +1114,24 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 </head>
 <body>
 
+<!-- ══════════ UPDATE BANNER ══════════ -->
+<div id="update-banner">
+  <span class="banner-icon">✨</span>
+  <span class="banner-text">Vault updated — <span class="banner-link" id="banner-whats-new">See what's new</span></span>
+  <button class="banner-close" id="banner-close" aria-label="Dismiss">✕</button>
+</div>
+
+<!-- ══════════ HELP OVERLAY ══════════ -->
+<div id="help-overlay">
+  <div class="help-topbar">
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v5.7</span></h2>
+    <button class="help-close" id="help-close">✕</button>
+  </div>
+  <div class="help-body" id="help-body">
+    <div id="help-loading">Loading…</div>
+  </div>
+</div>
+
 <!-- ══════════ PIN SCREEN ══════════ -->
 <div class="screen" id="pin-screen">
   <button id="pin-back-btn" style="display:none;position:absolute;top:52px;left:20px;background:transparent;border:none;color:var(--accent);font-size:22px;cursor:pointer;width:40px;height:40px;display:none;align-items:center;justify-content:center;border-radius:50%"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -1274,10 +1385,17 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <span class="s-arrow">›</span>
     </div>
 
+    <div class="settings-section-label">Help</div>
+    <div class="settings-item" id="s-help-guide">
+      <span class="s-icon">📖</span>
+      <div class="s-info"><div class="s-title">What's New &amp; Feature Guide</div><div class="s-desc">Latest updates and how to use Vault</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title">Vault v5.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v5.7</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -5020,6 +5138,111 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
   }
 });
 
+/* ════════════════════════════════════════
+   SERVICE WORKER + UPDATE BANNER
+════════════════════════════════════════ */
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+  navigator.serviceWorker.addEventListener('message', e => {
+    if(e.data && e.data.type === 'VAULT_UPDATE'){
+      const v = e.data.version;
+      const dismissedKey = 'vault_banner_dismissed_' + v;
+      if(Store.get(dismissedKey)) return;
+      showUpdateBanner(v);
+    }
+  });
+})();
+
+function showUpdateBanner(version){
+  const banner = document.getElementById('update-banner');
+  banner.classList.add('show');
+  document.body.classList.add('has-banner');
+  document.getElementById('banner-close').onclick = () => {
+    banner.classList.remove('show');
+    document.body.classList.remove('has-banner');
+    Store.set('vault_banner_dismissed_' + version, '1');
+  };
+  document.getElementById('banner-whats-new').onclick = () => {
+    banner.classList.remove('show');
+    document.body.classList.remove('has-banner');
+    Store.set('vault_banner_dismissed_' + version, '1');
+    openHelpOverlay();
+  };
+}
+
+/* ════════════════════════════════════════
+   HELP OVERLAY
+════════════════════════════════════════ */
+let helpInfoCache = null;
+
+async function fetchVaultInfo(){
+  if(helpInfoCache) return helpInfoCache;
+  try {
+    const res = await fetch('./vault-info.json?_t=' + Date.now());
+    if(!res.ok) throw new Error('fetch failed');
+    helpInfoCache = await res.json();
+    return helpInfoCache;
+  } catch(_){
+    return null;
+  }
+}
+
+function openHelpOverlay(){
+  const overlay = document.getElementById('help-overlay');
+  overlay.classList.add('open');
+  renderHelpContent();
+}
+
+function closeHelpOverlay(){
+  document.getElementById('help-overlay').classList.remove('open');
+}
+
+async function renderHelpContent(){
+  const body = document.getElementById('help-body');
+  body.innerHTML = '<div id="help-loading">Loading…</div>';
+  const info = await fetchVaultInfo();
+  if(!info){
+    body.innerHTML = '<div id="help-loading">Unable to load — check your connection.</div>';
+    return;
+  }
+  // Update version badge
+  const badge = document.getElementById('help-version-badge');
+  if(badge) badge.textContent = 'v' + info.version;
+  // Update about version
+  const aboutV = document.getElementById('about-version');
+  if(aboutV) aboutV.textContent = 'Vault v' + info.version;
+
+  let html = '';
+  // What's New
+  html += '<div class="help-section-title">What\'s New in v' + info.version + '</div>';
+  html += '<ul class="help-whats-new-list">';
+  (info.whatsNew || []).forEach(item => {
+    html += '<li>' + escHtml(item) + '</li>';
+  });
+  html += '</ul>';
+
+  // Feature Guide
+  html += '<div class="help-section-title">Features</div>';
+  (info.features || []).forEach(f => {
+    html += '<div class="help-feature-card">';
+    html += '<div class="help-feature-icon">' + escHtml(f.icon) + '</div>';
+    html += '<div><div class="help-feature-title">' + escHtml(f.title) + '</div>';
+    html += '<div class="help-feature-desc">' + escHtml(f.desc) + '</div></div>';
+    html += '</div>';
+  });
+
+  body.innerHTML = html;
+}
+
+function escHtml(str){
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('help-close').addEventListener('click', closeHelpOverlay);
+document.getElementById('s-help-guide').addEventListener('click', openHelpOverlay);
+
 function init() {
   applyTheme(Store.get('vault_theme')==='dark');
   updateBioToggleUI();
@@ -5032,6 +5255,12 @@ function init() {
   const hasPin=!!Store.get('vault_pin');
   initPINScreen(hasPin?'unlock':'setup');
   showScreen('pin-screen');
+  // Fetch vault-info to keep About version current
+  fetchVaultInfo().then(info => {
+    if(!info) return;
+    const aboutV = document.getElementById('about-version');
+    if(aboutV) aboutV.textContent = 'Vault v' + info.version;
+  });
 }
 init();
 </script>

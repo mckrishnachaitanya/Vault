@@ -1,0 +1,53 @@
+{
+  "version": "5.7",
+  "released": "2026-06-22",
+  "whatsNew": [
+    "✨ Auto-update detection — Vault now checks for updates in the background and notifies you when a new version is available",
+    "📋 Help & What's New — this overlay, accessible anytime from Settings → Help",
+    "🔔 Update banner — a slim notification appears below the header when a new version is deployed, no manual refresh needed",
+    "⚙️ Service Worker — Vault now installs a service worker for faster loads and reliable background update checks",
+    "🏷️ Dynamic version — app version is now sourced from a live file, always accurate"
+  ],
+  "features": [
+    {
+      "icon": "🔐",
+      "title": "Passwords & Credentials",
+      "desc": "Store logins, app credentials, WiFi passwords, and notes. All entries are AES-256 encrypted on your device before anything is saved."
+    },
+    {
+      "icon": "🏷️",
+      "title": "Categories & Search",
+      "desc": "Entries are organised by type — App, WiFi, Note, Card, Bank, Identity. Filter by category or search across all entries instantly."
+    },
+    {
+      "icon": "⭐",
+      "title": "Favourites",
+      "desc": "Star frequently used entries to pin them in the Starred tab for quick access."
+    },
+    {
+      "icon": "🛡️",
+      "title": "Password Health",
+      "desc": "Tap the shield icon on the home screen to review weak, duplicate, or old passwords. Helps you stay on top of security hygiene."
+    },
+    {
+      "icon": "📄",
+      "title": "Documents",
+      "desc": "Store encrypted files — PDFs, images, and more. Files are encrypted in IndexedDB on your device. Export as a zip backup anytime."
+    },
+    {
+      "icon": "👆",
+      "title": "Biometric Unlock",
+      "desc": "Enable fingerprint unlock from Settings → Security. Falls back to PIN if biometrics fail."
+    },
+    {
+      "icon": "☁️",
+      "title": "Cloud Sync",
+      "desc": "Sign in with Google to back up your encrypted vault to Firestore. Your data is encrypted before it leaves your device — the cloud never sees plaintext."
+    },
+    {
+      "icon": "📤",
+      "title": "Backup & Export",
+      "desc": "Export an encrypted .vault file anytime from Settings → Backup. Import it on any device to restore. Documents can be exported separately as a .zip."
+    }
+  ]
+}
