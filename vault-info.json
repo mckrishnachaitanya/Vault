@@ -1,12 +1,12 @@
 {
-  "version": "5.7.1",
+  "version": "5.8",
   "released": "2026-06-22",
   "whatsNew": [
-    "✨ Auto-update detection — Vault now checks for updates in the background and notifies you when a new version is available",
-    "📋 Help & What's New — this overlay, accessible anytime from Settings → Help",
-    "🔔 Update banner — a slim notification appears below the header when a new version is deployed, no manual refresh needed",
-    "⚙️ Service Worker — Vault now installs a service worker for faster loads and reliable background update checks",
-    "🏷️ Dynamic version — app version is now sourced from a live file, always accurate"
+    "🎨 Redesigned Help overlay — expandable feature sections, cleaner layout",
+    "✨ Auto-update detection — Vault checks for updates in the background and notifies you when a new version is deployed",
+    "🔔 Update banner — slim notification below the header when a new version is available",
+    "⚙️ Service Worker — faster loads and reliable background update checks",
+    "🏷️ Dynamic version — app version sourced from a live file, always accurate"
   ],
   "features": [
     {
