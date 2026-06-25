@@ -1440,6 +1440,13 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <span class="s-arrow">›</span>
     </div>
 
+    <div class="settings-section-label">Advanced</div>
+    <div class="settings-item" id="s-force-update">
+      <span class="s-icon">🔄</span>
+      <div class="s-info"><div class="s-title">Force Update</div><div class="s-desc">Clear cache &amp; reload to get latest version</div></div>
+      <span class="s-arrow" id="force-update-arrow">›</span>
+    </div>
+
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
@@ -5338,6 +5345,44 @@ function escHtml(str){
 
 document.getElementById('help-close').addEventListener('click', closeHelpOverlay);
 document.getElementById('s-help-guide').addEventListener('click', openHelpOverlay);
+
+let _forceUpdateArmed = false;
+let _forceUpdateTimer = null;
+document.getElementById('s-force-update').addEventListener('click', async () => {
+  const arrow = document.getElementById('force-update-arrow');
+  const desc = document.querySelector('#s-force-update .s-desc');
+  if (!_forceUpdateArmed) {
+    _forceUpdateArmed = true;
+    arrow.textContent = '⚠️';
+    desc.textContent = 'Tap again to confirm reload';
+    _forceUpdateTimer = setTimeout(() => {
+      _forceUpdateArmed = false;
+      arrow.textContent = '›';
+      desc.textContent = 'Clear cache & reload to get latest version';
+    }, 3000);
+    return;
+  }
+  clearTimeout(_forceUpdateTimer);
+  _forceUpdateArmed = false;
+  arrow.textContent = '⏳';
+  desc.textContent = 'Clearing cache…';
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+    desc.textContent = 'Done! Reloading…';
+    arrow.textContent = '✓';
+  } catch (err) {
+    console.error('[Vault] Force update error:', err);
+    desc.textContent = 'Error — see console';
+    arrow.textContent = '!';
+    return;
+  }
+  setTimeout(() => location.reload(true), 400);
+});
 
 function init() {
   applyTheme(Store.get('vault_theme')==='dark');
