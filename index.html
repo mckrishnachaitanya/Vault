@@ -679,26 +679,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 /* Type picker */
 .type-picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;}
 
-/* ── Secure Share Modal (matches working sheet pattern) ── */
-.share-modal-overlay{
-  position:fixed;inset:0;z-index:500;
-  background:rgba(0,0,0,.5);
-  display:flex;align-items:flex-end;
-  opacity:0;pointer-events:none;
-  transition:opacity .2s;
-}
-.share-modal-overlay.show{opacity:1;pointer-events:auto;}
-.share-modal{
-  width:100%;background:var(--bg2);border-radius:24px 24px 0 0;
-  padding:16px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,.3);
-  display:flex;flex-direction:column;
-  overflow-y:auto;overscroll-behavior:contain;
-  max-height:92vh;
-}
-.share-modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
-.share-modal-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:4px;}
-.share-modal-sub{font-size:12px;color:var(--muted);margin-bottom:20px;}
-.share-modal-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;}
+/* ── Secure Share Screen ── */
 .share-pin-row{display:flex;gap:14px;justify-content:center;margin-bottom:16px;}
 .sp-dot{
   width:52px;height:52px;border-radius:14px;
@@ -2203,7 +2184,7 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 // ═══════════════════════════════════════
 //  SCREENS & NAV
 // ═══════════════════════════════════════
-const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen','docs-screen','docview-screen','template-screen','camera-screen'];
+const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen','docs-screen','docview-screen','template-screen','camera-screen','share-setup-screen'];
 function showScreen(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
 }
@@ -6257,42 +6238,16 @@ document.getElementById('s-force-update').addEventListener('click', async () => 
 //  SECURE SHARE
 // ═══════════════════════════════════════
 
-// ── Debug overlay ─────────────────────────────────────────────────────────
-function dbg(msg) {
-  const overlay = document.getElementById('dbg-overlay');
-  const lines = document.getElementById('dbg-lines');
-  if(!overlay || !lines) return;
-  overlay.style.display = 'block';
-  const t = new Date().toLocaleTimeString('en-GB',{hour12:false});
-  const el = document.createElement('div');
-  el.textContent = `[${t}] ${msg}`;
-  lines.prepend(el);
-  if(lines.children.length > 30) lines.lastChild.remove();
-}
-window.onerror = (msg, src, line, col, err) => dbg(`ERROR: ${msg} (${line}:${col})`);
-window.addEventListener('unhandledrejection', e => dbg(`PROMISE: ${e.reason}`));
-
-// ── Share modal (sender side) ─────────────────────────────────────────────
+// ── Secure Share (sender side, full screen) ────────────────────────────────
 let _shareTargetEntry = null;
 let _shareSelectedTTL = 86400000;
 let _spPin = '';
 
 function spUpdateDots() {
-  dbg(`spUpdateDots: pin="${_spPin}" len=${_spPin.length}`);
   document.querySelectorAll('#sp-dots .sp-dot').forEach((dot, i) => {
     dot.textContent = i < _spPin.length ? '•' : '–';
     dot.classList.toggle('filled', i < _spPin.length);
   });
-}
-
-function showShareModal() {
-  document.getElementById('share-modal-overlay').classList.add('show');
-  dbg('share modal opened');
-}
-
-function hideShareModal() {
-  document.getElementById('share-modal-overlay').classList.remove('show');
-  dbg('share modal closed');
 }
 
 function openShareModal(entry) {
@@ -6305,32 +6260,28 @@ function openShareModal(entry) {
   document.querySelectorAll('.share-expiry-btn').forEach(b => {
     b.classList.toggle('selected', b.dataset.ttl === '86400000');
   });
-  showShareModal();
+  showScreen('share-setup-screen');
 }
 
-function spHandleNum(n) {
-  dbg(`spHandleNum: n=${n} pin=${_spPin}`);
-  if(_spPin.length < 4) { _spPin += n; spUpdateDots(); }
-}
+document.getElementById('share-setup-back').addEventListener('click', () => {
+  showScreen('detail-screen');
+});
 
 document.querySelectorAll('.num-btn[data-sp]').forEach(b => b.addEventListener('click', () => {
-  dbg(`sp click: ${b.dataset.sp} pin=${_spPin}`);
   if(_spPin.length < 4) { _spPin += b.dataset.sp; spUpdateDots(); }
 }));
 document.getElementById('sp-del').addEventListener('click', () => {
-  _spPin = _spPin.slice(0,-1); spUpdateDots(); dbg('del');
+  _spPin = _spPin.slice(0,-1); spUpdateDots();
 });
 
 document.querySelectorAll('.share-expiry-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    dbg(`expiry: ${btn.dataset.ttl}`);
     _shareSelectedTTL = Number(btn.dataset.ttl);
     document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b === btn));
   });
 });
 
 document.getElementById('share-generate-btn').addEventListener('click', async () => {
-  dbg(`generate: pin=${_spPin}`);
   const pin = _spPin;
   if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
   if(!_shareTargetEntry) return;
@@ -6341,7 +6292,6 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
   document.getElementById('share-link-box').textContent = link;
   document.getElementById('share-step-setup').style.display = 'none';
   document.getElementById('share-step-link').style.display = '';
-  dbg('link generated OK');
   document.getElementById('share-copy-btn').onclick = async () => {
     try { await navigator.clipboard.writeText(link); toast('Link copied ✓'); } catch { toast('Copy failed'); }
   };
@@ -6351,10 +6301,8 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
   };
 });
 
-document.getElementById('share-cancel-btn').addEventListener('click', () => { dbg('cancel'); hideShareModal(); });
-document.getElementById('share-done-btn').addEventListener('click', () => { dbg('done'); hideShareModal(); });
-document.getElementById('share-modal-overlay').addEventListener('click', e => {
-  if(e.target === document.getElementById('share-modal-overlay')) hideShareModal();
+document.getElementById('share-done-btn').addEventListener('click', () => {
+  showScreen('detail-screen');
 });
 
 // Share button is wired dynamically in openDetail()
@@ -6537,7 +6485,6 @@ window.addEventListener('hashchange', () => { checkShareLink(); });
 
 function init() {
   applyTheme(Store.get('vault_theme')==='dark');
-  dbg(`init: hash="${location.hash}" share-view-hidden=${document.getElementById('share-view').classList.contains('hidden')}`);
   if(checkShareLink()) return; // share view takes over entire screen
   updateBioToggleUI();
   CloudSync.restore();
@@ -6556,51 +6503,45 @@ init();
 </script>
 <!-- ══════════ SECURE SHARE MODAL ══════════ -->
 <!-- ══════════ DEBUG OVERLAY ══════════ -->
-<div id="dbg-overlay" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px 10px;max-height:45vh;overflow-y:auto;">
-  <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-    <b style="color:#ff0">🐛 Debug Log</b>
-    <button onclick="document.getElementById('dbg-overlay').style.display='none'" style="background:none;border:none;color:#f66;font-size:14px;cursor:pointer">✕</button>
+<!-- ══════════ SECURE SHARE SCREEN ══════════ -->
+<div class="screen hidden" id="share-setup-screen">
+  <div class="topbar">
+    <div class="icon-btn" id="share-setup-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+    <h2>🔗 Secure Share</h2>
+    <div style="width:40px"></div>
   </div>
-  <div id="dbg-lines"></div>
-</div>
-
-<!-- ══════════ SECURE SHARE MODAL ══════════ -->
-<div class="share-modal-overlay" id="share-modal-overlay">
-  <div class="share-modal" id="share-modal">
-    <div class="share-modal-handle"></div>
-    <div class="share-modal-title">🔗 Secure Share</div>
-    <div class="share-modal-sub">Set a PIN and expiry — the recipient will need the PIN to view.</div>
+  <div class="form-body">
     <div id="share-step-setup">
-      <div class="share-modal-label">4-digit PIN</div>
+      <p style="font-size:13px;color:var(--muted);margin:0 0 20px;">Set a PIN and expiry — the recipient will need the PIN to view.</p>
+      <div class="field-label" style="margin-bottom:10px">4-digit PIN</div>
       <div class="share-pin-row" id="sp-dots">
         <div class="sp-dot">–</div>
         <div class="sp-dot">–</div>
         <div class="sp-dot">–</div>
         <div class="sp-dot">–</div>
       </div>
-      <div class="numpad" id="sp-numpad" style="max-width:100%;margin:0 0 16px;position:relative;z-index:1;">
+      <div class="numpad" style="max-width:280px;margin:0 auto 24px">
         <button class="num-btn" data-sp="1">1</button><button class="num-btn" data-sp="2">2</button><button class="num-btn" data-sp="3">3</button>
         <button class="num-btn" data-sp="4">4</button><button class="num-btn" data-sp="5">5</button><button class="num-btn" data-sp="6">6</button>
         <button class="num-btn" data-sp="7">7</button><button class="num-btn" data-sp="8">8</button><button class="num-btn" data-sp="9">9</button>
         <button class="num-btn empty"></button><button class="num-btn" data-sp="0">0</button>
         <button class="num-btn del" id="sp-del">⌫</button>
       </div>
-      <div class="share-modal-label">Link expires after</div>
+      <div class="field-label" style="margin-bottom:10px">Link expires after</div>
       <div class="share-expiry-row">
         <button class="share-expiry-btn" data-ttl="3600000">1 hour</button>
         <button class="share-expiry-btn selected" data-ttl="86400000">24 hours</button>
         <button class="share-expiry-btn" data-ttl="604800000">7 days</button>
       </div>
       <button class="share-generate-btn" id="share-generate-btn">Generate Link</button>
-      <button class="share-cancel-btn" id="share-cancel-btn">Cancel</button>
     </div>
     <div id="share-step-link" style="display:none">
-      <div class="share-modal-label">Share this link</div>
+      <div class="field-label" style="margin-bottom:10px">Share this link</div>
       <div class="share-link-row">
         <div class="share-link-box" id="share-link-box"></div>
         <button class="share-copy-btn" id="share-copy-btn">Copy</button>
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Send the PIN separately — the link alone reveals nothing.</div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 20px;">Send the PIN separately — the link alone reveals nothing.</p>
       <button class="share-generate-btn" id="share-native-btn">↗️ Share…</button>
       <button class="share-cancel-btn" id="share-done-btn">Done</button>
     </div>
