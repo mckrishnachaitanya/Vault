@@ -6313,48 +6313,24 @@ function spHandleNum(n) {
   if(_spPin.length < 4) { _spPin += n; spUpdateDots(); }
 }
 
-document.querySelectorAll('#sp-numpad [data-n]').forEach(btn => {
-  let _touched = false;
-  btn.addEventListener('touchend', e => {
-    e.preventDefault();
-    _touched = true;
-    dbg(`touchend data-n=${btn.dataset.n}`);
-    spHandleNum(btn.dataset.n);
-  }, { passive: false });
-  btn.addEventListener('click', e => {
-    if(_touched) { _touched = false; return; }
-    dbg(`click data-n=${btn.dataset.n}`);
-    spHandleNum(btn.dataset.n);
-  });
-});
-
-document.getElementById('sp-del').addEventListener('touchend', e => {
-  e.preventDefault(); _spPin = _spPin.slice(0,-1); spUpdateDots(); dbg('del');
-}, { passive: false });
+document.querySelectorAll('.num-btn[data-sp]').forEach(b => b.addEventListener('click', () => {
+  dbg(`sp click: ${b.dataset.sp} pin=${_spPin}`);
+  if(_spPin.length < 4) { _spPin += b.dataset.sp; spUpdateDots(); }
+}));
 document.getElementById('sp-del').addEventListener('click', () => {
-  _spPin = _spPin.slice(0,-1); spUpdateDots(); dbg('del-click');
-});
-
-document.getElementById('sp-clear').addEventListener('touchend', e => {
-  e.preventDefault(); _spPin = ''; spUpdateDots(); dbg('clear');
-}, { passive: false });
-document.getElementById('sp-clear').addEventListener('click', () => {
-  _spPin = ''; spUpdateDots(); dbg('clear-click');
+  _spPin = _spPin.slice(0,-1); spUpdateDots(); dbg('del');
 });
 
 document.querySelectorAll('.share-expiry-btn').forEach(btn => {
-  const handler = () => {
+  btn.addEventListener('click', () => {
     dbg(`expiry: ${btn.dataset.ttl}`);
     _shareSelectedTTL = Number(btn.dataset.ttl);
     document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b === btn));
-  };
-  let _touched = false;
-  btn.addEventListener('touchend', e => { e.preventDefault(); _touched = true; handler(); }, { passive: false });
-  btn.addEventListener('click', () => { if(_touched){_touched=false;return;} handler(); });
+  });
 });
 
-const _generateHandler = async () => {
-  dbg(`generate: pin=${_spPin} ttl=${_shareSelectedTTL}`);
+document.getElementById('share-generate-btn').addEventListener('click', async () => {
+  dbg(`generate: pin=${_spPin}`);
   const pin = _spPin;
   if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
   if(!_shareTargetEntry) return;
@@ -6373,21 +6349,10 @@ const _generateHandler = async () => {
     if(navigator.share) { navigator.share({ url: link, title: 'Shared from Vault' }).catch(()=>{}); }
     else { navigator.clipboard.writeText(link).then(() => toast('Link copied ✓')); }
   };
-};
-let _genTouched = false;
-document.getElementById('share-generate-btn').addEventListener('touchend', e => {
-  e.preventDefault(); _genTouched = true; _generateHandler();
-}, { passive: false });
-document.getElementById('share-generate-btn').addEventListener('click', () => {
-  if(_genTouched){_genTouched=false;return;} _generateHandler();
 });
 
-['share-cancel-btn','share-done-btn'].forEach(id => {
-  let _t = false;
-  const el = document.getElementById(id);
-  el.addEventListener('touchend', e => { e.preventDefault(); _t=true; dbg(id); hideShareModal(); }, { passive:false });
-  el.addEventListener('click', () => { if(_t){_t=false;return;} hideShareModal(); });
-});
+document.getElementById('share-cancel-btn').addEventListener('click', () => { dbg('cancel'); hideShareModal(); });
+document.getElementById('share-done-btn').addEventListener('click', () => { dbg('done'); hideShareModal(); });
 document.getElementById('share-modal-overlay').addEventListener('click', e => {
   if(e.target === document.getElementById('share-modal-overlay')) hideShareModal();
 });
@@ -6613,19 +6578,12 @@ init();
         <div class="sp-dot">–</div>
         <div class="sp-dot">–</div>
       </div>
-      <div class="sv-numpad" id="sp-numpad">
-        <button class="sv-num" data-n="1">1</button>
-        <button class="sv-num" data-n="2">2</button>
-        <button class="sv-num" data-n="3">3</button>
-        <button class="sv-num" data-n="4">4</button>
-        <button class="sv-num" data-n="5">5</button>
-        <button class="sv-num" data-n="6">6</button>
-        <button class="sv-num" data-n="7">7</button>
-        <button class="sv-num" data-n="8">8</button>
-        <button class="sv-num" data-n="9">9</button>
-        <button class="sv-num sv-num--clear" id="sp-clear">✕</button>
-        <button class="sv-num" data-n="0">0</button>
-        <button class="sv-num sv-num--del" id="sp-del">⌫</button>
+      <div class="numpad" id="sp-numpad" style="max-width:100%;margin:0 0 16px;position:relative;z-index:1;">
+        <button class="num-btn" data-sp="1">1</button><button class="num-btn" data-sp="2">2</button><button class="num-btn" data-sp="3">3</button>
+        <button class="num-btn" data-sp="4">4</button><button class="num-btn" data-sp="5">5</button><button class="num-btn" data-sp="6">6</button>
+        <button class="num-btn" data-sp="7">7</button><button class="num-btn" data-sp="8">8</button><button class="num-btn" data-sp="9">9</button>
+        <button class="num-btn empty"></button><button class="num-btn" data-sp="0">0</button>
+        <button class="num-btn del" id="sp-del">⌫</button>
       </div>
       <div class="share-modal-label">Link expires after</div>
       <div class="share-expiry-row">
