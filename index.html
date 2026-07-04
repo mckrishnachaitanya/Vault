@@ -126,31 +126,27 @@ body::after{
 
 .pin-dots{display:flex;gap:16px;justify-content:center;position:relative;z-index:1;}
 .pin-dot{
-  width:15px;height:15px;border-radius:50%;
+  width:14px;height:14px;border-radius:50%;
   border:2px solid var(--border);background:transparent;
-  transition:background .15s,border-color .15s,transform .15s cubic-bezier(.34,1.56,.64,1),box-shadow .15s;
-  will-change:transform;
+  transition:background .15s,border-color .15s;
 }
 .pin-dot.filled{
   background:var(--accent);border-color:var(--accent);
-  box-shadow:0 0 0 4px rgba(91,95,245,.18),0 0 16px rgba(91,95,245,.5);
-  transform:scale(1.15);
 }
-.pin-dot.error{background:var(--red);border-color:var(--red);box-shadow:0 0 12px rgba(239,68,68,.4);animation:shake .3s;}
+.pin-dot.error{background:var(--red);border-color:var(--red);animation:shake .3s;}
 
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:264px;position:relative;z-index:1;}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:100%;max-width:280px;position:relative;z-index:1;}
 .num-btn{
-  aspect-ratio:1;border-radius:50%;border:1.5px solid var(--border);
-  background:var(--surface);color:var(--text);font-size:22px;
-  font-family:var(--font-head);font-weight:700;cursor:pointer;
+  aspect-ratio:1;border-radius:50%;border:none;
+  background:transparent;color:var(--text);font-size:26px;
+  font-family:var(--font-head);font-weight:500;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  transition:transform .12s cubic-bezier(.34,1.56,.64,1),background .12s;user-select:none;
-  box-shadow:var(--shadow-sm);
+  transition:background .1s;user-select:none;
 }
-.num-btn:active{transform:scale(.84);background:var(--surface2);box-shadow:0 0 0 3px rgba(91,95,245,.15);}
-.num-btn.del{font-size:18px;background:transparent;border-color:transparent;box-shadow:none;color:var(--muted);}
-.num-btn.del:active{color:var(--text);transform:scale(.88);}
-.num-btn.empty{background:transparent;border:none;pointer-events:none;box-shadow:none;}
+.num-btn:active{background:var(--surface2);}
+.num-btn.del{font-size:18px;color:var(--muted);}
+.num-btn.del:active{background:transparent;color:var(--text);}
+.num-btn.empty{background:transparent;border:none;pointer-events:none;}
 
 /* ═══════════════════════════════════
    TOP BAR
@@ -680,6 +676,22 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .type-picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;}
 
 /* ── Secure Share Screen ── */
+/* ── Secure Share Sheet ── */
+.share-sheet-overlay{
+  position:fixed;inset:0;z-index:850;
+  background:rgba(0,0,0,.5);
+  display:flex;align-items:flex-end;
+  opacity:0;pointer-events:none;
+  transition:opacity .2s;
+}
+.share-sheet-overlay.show{opacity:1;pointer-events:auto;}
+.share-sheet{
+  width:100%;background:var(--bg2);border-radius:24px 24px 0 0;
+  padding:12px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.3);
+  max-height:88vh;overflow-y:auto;overscroll-behavior:contain;
+}
+.share-sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.share-sheet-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:4px;}
 .share-pin-row{display:flex;gap:14px;justify-content:center;margin-bottom:16px;}
 .sp-dot{
   width:52px;height:52px;border-radius:14px;
@@ -1475,8 +1487,8 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item active" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn">+</button>
-    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
     <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
+    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
   </div>
 </div>
 
@@ -1488,8 +1500,8 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
     <div class="nav-item active" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn-fav">+</button>
-    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
     <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
+    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
   </div>
 </div>
 
@@ -1511,8 +1523,8 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn-docs">+</button>
-    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
     <div class="nav-item active" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
+    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
   </div>
 </div>
 
@@ -1753,8 +1765,8 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn-settings">+</button>
-    <div class="nav-item active" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
     <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
+    <div class="nav-item active" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
   </div>
 </div>
 
@@ -1862,13 +1874,10 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 </div>
 
 <!-- ══════════ SECURE SHARE SCREEN ══════════ -->
-<div class="screen hidden" id="share-setup-screen">
-  <div class="topbar">
-    <div class="icon-btn" id="share-setup-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
-    <h2>🔗 Secure Share</h2>
-    <div style="width:40px"></div>
-  </div>
-  <div class="form-body">
+<div class="share-sheet-overlay" id="share-sheet-overlay">
+  <div class="share-sheet" id="share-sheet">
+    <div class="share-sheet-handle"></div>
+    <div class="share-sheet-title">🔗 Secure Share</div>
     <div id="share-step-setup">
       <p style="font-size:13px;color:var(--muted);margin:0 0 20px;">Set a PIN and expiry — the recipient will need the PIN to view.</p>
       <div class="field-label" style="margin-bottom:10px">4-digit PIN</div>
@@ -1892,6 +1901,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
         <button class="share-expiry-btn" data-ttl="604800000">7 days</button>
       </div>
       <button class="share-generate-btn" id="share-generate-btn">Generate Link</button>
+      <button class="share-cancel-btn" id="share-cancel-btn">Cancel</button>
     </div>
     <div id="share-step-link" style="display:none">
       <div class="field-label" style="margin-bottom:10px">Share this link</div>
@@ -2263,7 +2273,7 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 // ═══════════════════════════════════════
 //  SCREENS & NAV
 // ═══════════════════════════════════════
-const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen','docs-screen','docview-screen','template-screen','camera-screen','share-setup-screen'];
+const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen','docs-screen','docview-screen','template-screen','camera-screen'];
 function showScreen(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
 }
@@ -2511,6 +2521,8 @@ function lockVault() {
     state.preLockScreen='docview-screen';
   } else if(visibleScreen==='fav-screen' || visibleScreen==='settings-screen' || visibleScreen==='docs-screen'){
     state.preLockScreen=visibleScreen;
+  } else if(document.getElementById('share-sheet-overlay').classList.contains('show') && _shareTargetEntry){
+    state.preLockScreen='share-sheet';
   } else {
     state.preLockScreen=null; state.formDraft=null;
   }
@@ -2733,6 +2745,12 @@ async function restoreAfterUnlock() {
     const id = currentDocDetail.id;
     openDocsTab();
     openDocDetail(id);
+    return;
+  }
+
+  if(target==='share-sheet' && _shareTargetEntry){
+    if(currentDetail){ showScreen('home-screen'); renderEntries(true); updateStats(); openDetail(currentDetail.id); }
+    showShareSheet();
     return;
   }
 
@@ -6329,6 +6347,13 @@ function spUpdateDots() {
   });
 }
 
+function showShareSheet() {
+  document.getElementById('share-sheet-overlay').classList.add('show');
+}
+function hideShareSheet() {
+  document.getElementById('share-sheet-overlay').classList.remove('show');
+}
+
 function openShareModal(entry) {
   _shareTargetEntry = entry;
   _shareSelectedTTL = 86400000;
@@ -6339,11 +6364,12 @@ function openShareModal(entry) {
   document.querySelectorAll('.share-expiry-btn').forEach(b => {
     b.classList.toggle('selected', b.dataset.ttl === '86400000');
   });
-  showScreen('share-setup-screen');
+  showShareSheet();
 }
 
-document.getElementById('share-setup-back').addEventListener('click', () => {
-  showScreen('detail-screen');
+document.getElementById('share-cancel-btn').addEventListener('click', hideShareSheet);
+document.getElementById('share-sheet-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('share-sheet-overlay')) hideShareSheet();
 });
 
 document.querySelectorAll('.num-btn[data-sp]').forEach(b => b.addEventListener('click', () => {
@@ -6375,14 +6401,17 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
     try { await navigator.clipboard.writeText(link); toast('Link copied ✓'); } catch { toast('Copy failed'); }
   };
   document.getElementById('share-native-btn').onclick = () => {
-    if(navigator.share) { navigator.share({ url: link, title: 'Shared from Vault' }).catch(()=>{}); }
-    else { navigator.clipboard.writeText(link).then(() => toast('Link copied ✓')); }
+    state.importInProgress = true;
+    const resetFlag = () => { state.importInProgress = false; };
+    if(navigator.share) {
+      navigator.share({ url: link, title: 'Shared from Vault' }).catch(()=>{}).finally(resetFlag);
+    } else {
+      navigator.clipboard.writeText(link).then(() => toast('Link copied ✓')).finally(resetFlag);
+    }
   };
 });
 
-document.getElementById('share-done-btn').addEventListener('click', () => {
-  showScreen('detail-screen');
-});
+document.getElementById('share-done-btn').addEventListener('click', hideShareSheet);
 
 // Share button is wired dynamically in openDetail()
 
