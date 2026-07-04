@@ -1,12 +1,12 @@
 {
-  "version": "5.9.6",
-  "released": "2026-06-22",
+  "version": "5.9",
+  "released": "2026-07-04",
   "whatsNew": [
-    "🎨 Redesigned Help overlay — expandable feature sections, cleaner layout",
-    "✨ Auto-update detection — Vault checks for updates in the background and notifies you when a new version is deployed",
-    "🔔 Update banner — slim notification below the header when a new version is available",
-    "⚙️ Service Worker — faster loads and reliable background update checks",
-    "🏷️ Dynamic version — app version sourced from a live file, always accurate"
+    "📋 Entry Templates — tap + to choose a template, with fields pre-labelled per category",
+    "✏️ Secure Notes — rich text editor for Note entries: bold, italic, headings, bullet lists",
+    "📅 Document Expiry — set expiry dates on documents; nudge on unlock + badge on Docs tab",
+    "📷 Document Scanner — tap + in Docs to use your camera or pick from files",
+    "🔗 Secure Share — share any entry via a PIN-protected link; expires in 1h, 24h, or 7 days"
   ],
   "features": [
     {

@@ -4,7 +4,7 @@ GitHub: https://mckrishnachaitanya.github.io/Vault/
 Stack:  Single HTML file, Web Crypto (AES-256-GCM+PBKDF2), WebAuthn,
         localStorage, IndexedDB, Google Fonts. No build step.
 Deploy: Upload index.html + sw.js + vault-info.json to GitHub Pages. Done.
-VERSION: v5.8 — 23-Jun-2026 — ~5370 lines. R6f fully tested ✓
+VERSION: v5.9 — 04-Jul-2026 — ~6100 lines. Five features shipped this session.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROZEN — Architecture & Decisions

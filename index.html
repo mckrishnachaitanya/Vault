@@ -334,6 +334,43 @@ body::after{
 .nav-item .nav-label{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.3px;transition:color .15s;}
 .nav-item.active .nav-label{color:var(--accent);}
 .nav-item.active .nav-icon{transform:scale(1.12);}
+
+/* Docs tab expiry badge */
+.nav-item{position:relative;}
+.nav-expiry-badge{
+  position:absolute;top:2px;right:6px;
+  min-width:16px;height:16px;border-radius:8px;
+  background:var(--red);color:#fff;
+  font-size:10px;font-weight:800;line-height:16px;
+  text-align:center;padding:0 4px;
+  display:none;
+}
+.nav-expiry-badge.visible{display:block;}
+
+/* Doc expiry date input row in docview */
+.docview-expiry-row{display:flex;flex-direction:column;gap:6px;padding:0 4px 4px;}
+.docview-expiry-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;}
+.docview-expiry-inner{display:flex;gap:8px;align-items:center;}
+.docview-expiry-input{
+  flex:1;padding:10px 14px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--border);
+  color:var(--text);font-family:var(--font);font-size:14px;outline:none;
+}
+.docview-expiry-input:focus{border-color:var(--accent);}
+.docview-expiry-save{
+  padding:9px 16px;border-radius:var(--radius-sm);border:none;
+  background:var(--accent-g);color:#fff;font-family:var(--font);
+  font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.docview-expiry-clear{
+  padding:9px 12px;border-radius:var(--radius-sm);
+  border:1.5px solid var(--border);background:transparent;
+  color:var(--muted);font-size:13px;cursor:pointer;
+}
+.docview-expiry-status{font-size:12px;font-weight:600;}
+.docview-expiry-status.ok{color:var(--green);}
+.docview-expiry-status.warn{color:var(--yellow);}
+.docview-expiry-status.expired{color:var(--red);}
 .nav-add{
   width:52px;height:52px;border-radius:17px;
   background:var(--accent-g);border:none;color:#fff;
@@ -610,8 +647,161 @@ body::after{
 select.field-input{cursor:pointer;}
 select.field-input option{background:var(--bg2);color:var(--text);}
 
+/* ── Rich Note Editor ── */
+.note-editor-wrap{display:flex;flex-direction:column;gap:0;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--surface);overflow:hidden;box-shadow:var(--shadow-sm);}
+.note-editor-wrap:focus-within{border-color:var(--accent);}
+.note-toolbar{display:flex;gap:2px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface2);flex-wrap:wrap;}
+.note-tb-btn{
+  min-width:32px;height:30px;padding:0 8px;border-radius:6px;
+  border:1px solid transparent;background:transparent;
+  color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;
+  font-family:var(--font);transition:all .12s;display:flex;align-items:center;justify-content:center;
+}
+.note-tb-btn:hover{background:var(--border);color:var(--text);}
+.note-tb-btn.active{background:rgba(91,95,245,.15);color:var(--accent);border-color:rgba(91,95,245,.3);}
+.note-tb-sep{width:1px;height:22px;background:var(--border);margin:4px 4px;align-self:center;}
+.note-editor{
+  min-height:160px;max-height:340px;overflow-y:auto;
+  padding:14px 16px;outline:none;
+  font-family:var(--font);font-size:15px;color:var(--text);line-height:1.6;
+}
+.note-editor:empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none;}
+.note-editor h1{font-size:17px;font-weight:700;margin:6px 0 2px;color:var(--text);}
+.note-editor ul{padding-left:20px;margin:4px 0;}
+.note-editor li{margin:2px 0;}
+/* Note detail view */
+.note-rendered{white-space:normal;line-height:1.6;}
+.note-rendered h1{font-size:16px;font-weight:700;margin:8px 0 2px;}
+.note-rendered ul{padding-left:18px;margin:4px 0;}
+.note-rendered li{margin:2px 0;}
+
+
 /* Type picker */
 .type-picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;}
+
+/* ── Secure Share Modal ── */
+.share-modal-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;}
+.share-modal-overlay.hidden{display:none;}
+.share-modal{width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:16px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,.3);}
+.share-modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.share-modal-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:4px;}
+.share-modal-sub{font-size:12px;color:var(--muted);margin-bottom:20px;}
+.share-modal-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;}
+.share-pin-row{display:flex;gap:10px;margin-bottom:18px;}
+.share-pin-digit{
+  flex:1;height:52px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--border);
+  font-size:24px;font-weight:800;color:var(--text);
+  text-align:center;font-family:var(--font);outline:none;
+  -webkit-appearance:none;
+}
+.share-pin-digit:focus{border-color:var(--accent);}
+.share-expiry-row{display:flex;gap:8px;margin-bottom:20px;}
+.share-expiry-btn{
+  flex:1;padding:10px 8px;border-radius:10px;
+  border:1.5px solid var(--border);background:var(--surface);
+  font-size:13px;font-weight:600;color:var(--text2);
+  cursor:pointer;font-family:var(--font);transition:all .14s;
+}
+.share-expiry-btn.selected{border-color:var(--accent);background:rgba(91,95,245,.12);color:var(--accent);}
+.share-generate-btn{width:100%;padding:15px;border-radius:var(--radius);border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;}
+.share-cancel-btn{width:100%;padding:13px;border-radius:var(--radius);border:none;background:var(--surface2);color:var(--text2);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;}
+.share-link-row{display:flex;gap:8px;margin-bottom:10px;}
+.share-link-box{flex:1;padding:12px 14px;border-radius:var(--radius-sm);background:var(--surface);border:1.5px solid var(--border);font-size:12px;color:var(--text2);word-break:break-all;line-height:1.5;}
+.share-copy-btn{padding:12px 16px;border-radius:var(--radius-sm);border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;align-self:flex-start;}
+
+/* ── Share View (recipient side) ── */
+#share-view{position:fixed;inset:0;z-index:9000;background:var(--bg);display:flex;flex-direction:column;align-items:center;overflow-y:auto;padding:40px 20px 60px;}
+#share-view.hidden{display:none;}
+.share-view-logo{font-size:28px;font-weight:900;font-family:var(--font-head);color:var(--accent);margin-bottom:6px;letter-spacing:-1px;}
+.share-view-tagline{font-size:12px;color:var(--muted);margin-bottom:32px;}
+.share-pin-prompt{width:100%;max-width:360px;}
+.share-pin-prompt-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px;text-align:center;}
+.share-pin-prompt-sub{font-size:13px;color:var(--muted);margin-bottom:20px;text-align:center;}
+.share-view-pin-row{display:flex;gap:10px;margin-bottom:16px;}
+.share-view-pin-digit{flex:1;height:52px;border-radius:var(--radius-sm);background:var(--surface);border:1.5px solid var(--border);font-size:24px;font-weight:800;color:var(--text);text-align:center;font-family:var(--font);outline:none;-webkit-appearance:none;}
+.share-view-pin-digit:focus{border-color:var(--accent);}
+.share-view-unlock-btn{width:100%;padding:14px;border-radius:var(--radius);border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;}
+.share-view-error{font-size:13px;color:var(--red);text-align:center;margin-top:10px;min-height:20px;}
+/* Digital card styles */
+.share-card{width:100%;max-width:360px;margin-top:24px;}
+.share-card-widget{border-radius:20px;padding:24px;position:relative;overflow:hidden;margin-bottom:16px;box-shadow:0 8px 32px rgba(0,0,0,.25);}
+.share-card-title{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;opacity:.75;margin-bottom:16px;}
+.share-card-avatar{width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:12px;}
+.share-card-name{font-size:20px;font-weight:800;margin-bottom:4px;}
+.share-card-sub{font-size:13px;opacity:.75;margin-bottom:16px;}
+.share-card-fields{display:flex;flex-direction:column;gap:10px;}
+.share-card-field{background:rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;}
+.share-card-field-label{font-size:10px;font-weight:600;opacity:.65;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;}
+.share-card-field-value{font-size:14px;font-weight:700;}
+.share-card-chip{width:36px;height:26px;background:linear-gradient(135deg,#f6c90e,#f0a500);border-radius:5px;margin-bottom:12px;}
+.share-card-number{font-size:18px;font-weight:700;letter-spacing:3px;margin-bottom:8px;}
+.share-card-row{display:flex;justify-content:space-between;align-items:flex-end;}
+/* ID card specific */
+.share-id-card{background:linear-gradient(135deg,#1e293b,#334155);}
+.share-bank-card{background:linear-gradient(135deg,#064e3b,#065f46);}
+.share-credit-card{background:linear-gradient(135deg,#312e81,#4c1d95);}
+.share-app-card{background:linear-gradient(135deg,#1e3a5f,#1e4d7b);}
+.share-wifi-card{background:linear-gradient(135deg,#0c4a6e,#075985);}
+.share-note-card{background:linear-gradient(135deg,#451a03,#78350f);}
+.share-card-footer{font-size:11px;color:var(--muted);text-align:center;margin-top:20px;}
+
+/* ── Doc Add Sheet ── */
+.bottom-sheet-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;}
+.bottom-sheet-overlay.hidden{display:none;}
+.bottom-sheet{width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:12px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.3);}
+.bottom-sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.bottom-sheet-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:16px;}
+.doc-add-options{display:flex;flex-direction:column;gap:10px;}
+.doc-add-option{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface);cursor:pointer;text-align:left;width:100%;transition:all .14s;}
+.doc-add-option:active{transform:scale(.97);}
+.doc-add-option-icon{font-size:26px;width:40px;text-align:center;flex-shrink:0;}
+.doc-add-option-info{flex:1;}
+.doc-add-option-title{font-size:15px;font-weight:700;color:var(--text);}
+.doc-add-option-desc{font-size:12px;color:var(--muted);margin-top:2px;}
+.doc-add-option-arrow{font-size:18px;color:var(--muted);}
+.doc-add-cancel{width:100%;margin-top:12px;padding:14px;border-radius:var(--radius);border:none;background:var(--surface2);color:var(--text2);font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;}
+
+/* ── Camera Screen ── */
+#camera-screen{background:#000;display:flex;flex-direction:column;}
+.camera-topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;flex-shrink:0;background:rgba(0,0,0,.6);position:relative;z-index:2;}
+.camera-close-btn{background:rgba(255,255,255,.15);border:none;border-radius:50%;width:36px;height:36px;font-size:18px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.camera-title{font-size:16px;font-weight:700;color:#fff;}
+.camera-body{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.camera-body video,.camera-body canvas,.camera-body img{max-width:100%;max-height:100%;object-fit:contain;}
+.camera-body video{width:100%;height:100%;object-fit:cover;}
+.camera-viewfinder-guide{position:absolute;inset:24px;border:2px solid rgba(255,255,255,.5);border-radius:12px;pointer-events:none;}
+.camera-toolbar{display:flex;align-items:center;justify-content:space-between;padding:16px 24px 24px;background:rgba(0,0,0,.6);flex-shrink:0;gap:12px;}
+.camera-capture-btn{width:68px;height:68px;border-radius:50%;border:4px solid #fff;background:rgba(255,255,255,.2);color:#fff;font-size:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s;}
+.camera-capture-btn:active{transform:scale(.92);}
+.camera-action-btn{padding:10px 14px;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);min-width:72px;text-align:center;}
+.camera-action-btn--right{min-width:72px;}
+.camera-confirm-bar{display:flex;gap:10px;padding:12px 16px 24px;background:rgba(0,0,0,.75);align-items:center;flex-shrink:0;}
+.camera-confirm-bar.hidden{display:none;}
+.camera-filename-input{flex:1;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.25);color:#fff;font-family:var(--font);font-size:14px;outline:none;}
+.camera-filename-input::placeholder{color:rgba(255,255,255,.5);}
+.camera-save-btn{padding:10px 18px;border-radius:10px;border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;}
+
+.template-body{flex:1;overflow-y:auto;padding:16px 16px 32px;display:flex;flex-direction:column;gap:10px;}
+.template-card{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 16px;border-radius:var(--radius);
+  border:1.5px solid var(--border);background:var(--surface);
+  cursor:pointer;transition:all .15s;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  text-align:left;width:100%;
+}
+.template-card:active{transform:scale(.97);}
+.template-card-icon{
+  width:48px;height:48px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;
+}
+.template-card-info{flex:1;min-width:0;}
+.template-card-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.template-card-desc{font-size:12px;color:var(--muted);line-height:1.4;}
+.template-card-arrow{font-size:18px;color:var(--muted);flex-shrink:0;}
+
 .type-pick-btn{
   display:flex;flex-direction:column;align-items:center;gap:6px;
   padding:14px 8px;border-radius:var(--radius-sm);
@@ -1254,7 +1444,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn">+</button>
     <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
-    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-label">DOCS</div></div>
+    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
   </div>
 </div>
 
@@ -1267,7 +1457,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item active" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn-fav">+</button>
     <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
-    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-label">DOCS</div></div>
+    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
   </div>
 </div>
 
@@ -1284,12 +1474,13 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   <div class="docs-filter-row" id="docs-cat-pills"></div>
   <div class="docs-list" id="docs-list"></div>
   <input type="file" id="doc-file-input" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none"/>
+  <input type="file" id="doc-camera-input" accept="image/*" capture="environment" style="display:none"/>
   <div class="bottom-nav">
     <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn-docs">+</button>
     <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
-    <div class="nav-item active" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-label">DOCS</div></div>
+    <div class="nav-item active" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
   </div>
 </div>
 
@@ -1316,12 +1507,80 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Category</div>
       <div class="doc-cat-picker" id="docview-cat-picker"></div>
     </div>
+    <div class="docview-expiry-row" id="docview-expiry-panel">
+      <div class="docview-expiry-label">Expiry Date</div>
+      <div class="docview-expiry-inner">
+        <input class="docview-expiry-input" id="docview-expiry-input" placeholder="DD/MM/YYYY" inputmode="numeric" autocomplete="off"/>
+        <button class="docview-expiry-save" id="docview-expiry-save">Save</button>
+        <button class="docview-expiry-clear" id="docview-expiry-clear" title="Clear">✕</button>
+      </div>
+      <div class="docview-expiry-status" id="docview-expiry-status"></div>
+    </div>
     <div class="docview-meta-card" id="docview-meta"></div>
     <div style="display:flex;gap:10px">
       <button class="btn-primary" id="docview-download-btn" style="flex:1;font-size:15px;padding:14px 10px">⬇️ Download</button>
       <button class="btn-primary" id="docview-share-btn" style="flex:1;font-size:15px;padding:14px 10px;background:linear-gradient(135deg,#10b981,#06b6d4)">↗️ Share</button>
     </div>
   </div>
+</div>
+
+<!-- ══════════ DOC ADD SHEET ══════════ -->
+<div class="bottom-sheet-overlay hidden" id="doc-add-sheet-overlay">
+  <div class="bottom-sheet" id="doc-add-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-title">Add Document</div>
+    <div class="doc-add-options">
+      <button class="doc-add-option" id="doc-add-camera">
+        <span class="doc-add-option-icon">📷</span>
+        <div class="doc-add-option-info">
+          <div class="doc-add-option-title">Use Camera</div>
+          <div class="doc-add-option-desc">Capture a photo of a document</div>
+        </div>
+        <span class="doc-add-option-arrow">›</span>
+      </button>
+      <button class="doc-add-option" id="doc-add-files">
+        <span class="doc-add-option-icon">📁</span>
+        <div class="doc-add-option-info">
+          <div class="doc-add-option-title">Choose from Files</div>
+          <div class="doc-add-option-desc">Import PDF, image, or other file</div>
+        </div>
+        <span class="doc-add-option-arrow">›</span>
+      </button>
+    </div>
+    <button class="doc-add-cancel" id="doc-add-cancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ══════════ CAMERA PREVIEW SCREEN ══════════ -->
+<div class="screen hidden" id="camera-screen">
+  <div class="camera-topbar">
+    <button class="camera-close-btn" id="camera-close">✕</button>
+    <span class="camera-title">Capture Document</span>
+    <div style="width:40px"></div>
+  </div>
+  <div class="camera-body" id="camera-body">
+    <!-- viewfinder or preview rendered here -->
+  </div>
+  <div class="camera-toolbar" id="camera-toolbar">
+    <button class="camera-action-btn" id="camera-pick-files-btn">📁 Files</button>
+    <button class="camera-capture-btn" id="camera-capture-btn">⬤</button>
+    <button class="camera-action-btn camera-action-btn--right" id="camera-retake-btn" style="display:none">↩ Retake</button>
+    <div class="camera-action-btn" style="visibility:hidden" id="camera-right-spacer"></div>
+  </div>
+  <div class="camera-confirm-bar hidden" id="camera-confirm-bar">
+    <input class="camera-filename-input" id="camera-filename-input" placeholder="Filename…" autocomplete="off"/>
+    <button class="camera-save-btn" id="camera-save-btn">Save to Vault</button>
+  </div>
+</div>
+
+<!-- ══════════ TEMPLATE PICKER SCREEN ══════════ -->
+<div class="screen hidden" id="template-screen">
+  <div class="topbar">
+    <div class="icon-btn" id="template-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+    <h2>Choose Template</h2>
+    <div style="width:40px"></div>
+  </div>
+  <div class="template-body" id="template-body"></div>
 </div>
 
 <!-- ══════════ FORM SCREEN ══════════ -->
@@ -1347,6 +1606,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   <div class="detail-hero">
     <div class="detail-top-actions">
       <button class="detail-icon-btn" id="detail-delete-btn" title="Delete" style="color:var(--red)">🗑️</button>
+      <button class="detail-icon-btn" id="detail-share-btn" title="Share">🔗</button>
       <button class="detail-icon-btn" id="detail-edit" title="Edit">✏️</button>
       <button class="detail-icon-btn" id="detail-fav-btn" title="Star">☆</button>
     </div>
@@ -1463,7 +1723,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn-settings">+</button>
     <div class="nav-item active" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
-    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-label">DOCS</div></div>
+    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
   </div>
 </div>
 
@@ -1893,7 +2153,7 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 // ═══════════════════════════════════════
 //  SCREENS & NAV
 // ═══════════════════════════════════════
-const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen','docs-screen','docview-screen'];
+const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen','docs-screen','docview-screen','template-screen','camera-screen'];
 function showScreen(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
 }
@@ -1914,20 +2174,192 @@ document.querySelectorAll('[data-nav]').forEach(item => {
 });
 document.getElementById('add-btn').addEventListener('click', async () => {
   if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to add entry'); if(!ok) return; }
-  openForm();
+  openTemplatePicker('home');
 });
 document.getElementById('add-btn-fav').addEventListener('click', async () => {
   if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to add entry'); if(!ok) return; }
-  openForm();
+  openTemplatePicker('fav');
 });
 document.getElementById('add-btn-settings').addEventListener('click', async () => {
   if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to add entry'); if(!ok) return; }
-  openForm();
+  openTemplatePicker('settings');
 });
-document.getElementById('add-btn-docs').addEventListener('click', () => {
-  state.importInProgress=true; // prevent visibilitychange from locking vault during file picker
+// ── Doc Add: action sheet ─────────────────────────────────────────────────
+function showDocAddSheet() {
+  document.getElementById('doc-add-sheet-overlay').classList.remove('hidden');
+}
+function hideDocAddSheet() {
+  document.getElementById('doc-add-sheet-overlay').classList.add('hidden');
+}
+document.getElementById('add-btn-docs').addEventListener('click', () => { showDocAddSheet(); });
+document.getElementById('doc-add-cancel').addEventListener('click', hideDocAddSheet);
+document.getElementById('doc-add-sheet-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('doc-add-sheet-overlay')) hideDocAddSheet();
+});
+document.getElementById('doc-add-files').addEventListener('click', () => {
+  hideDocAddSheet();
+  state.importInProgress = true;
   document.getElementById('doc-file-input').click();
 });
+document.getElementById('doc-add-camera').addEventListener('click', () => {
+  hideDocAddSheet();
+  openCameraScreen();
+});
+
+// Also wire the camera input (fallback for devices where getUserMedia unavailable)
+document.getElementById('doc-camera-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  await saveDocFromFile(file);
+});
+
+// ── Camera Screen ─────────────────────────────────────────────────────────
+let _cameraStream = null;
+let _capturedBlob = null;
+let _capturedFilename = '';
+
+async function openCameraScreen() {
+  _capturedBlob = null;
+  _capturedFilename = '';
+  showScreen('camera-screen');
+  const body = document.getElementById('camera-body');
+  const toolbar = document.getElementById('camera-toolbar');
+  const confirmBar = document.getElementById('camera-confirm-bar');
+  const captureBtn = document.getElementById('camera-capture-btn');
+  const retakeBtn = document.getElementById('camera-retake-btn');
+  const pickBtn = document.getElementById('camera-pick-files-btn');
+  confirmBar.classList.add('hidden');
+  retakeBtn.style.display = 'none';
+  pickBtn.style.display = '';
+
+  // Try getUserMedia
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    });
+    _cameraStream = stream;
+    const video = document.createElement('video');
+    video.autoplay = true; video.playsInline = true; video.muted = true;
+    video.srcObject = stream;
+    const guide = document.createElement('div');
+    guide.className = 'camera-viewfinder-guide';
+    body.innerHTML = '';
+    body.appendChild(video);
+    body.appendChild(guide);
+    captureBtn.style.display = '';
+
+    captureBtn.onclick = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      canvas.toBlob(blob => {
+        _capturedBlob = blob;
+        _capturedFilename = `scan_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.jpg`;
+        stopCameraStream();
+        // Show preview
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(blob);
+        img.style.maxWidth = '100%'; img.style.maxHeight = '100%';
+        body.innerHTML = ''; body.appendChild(img);
+        retakeBtn.style.display = '';
+        pickBtn.style.display = 'none';
+        confirmBar.classList.remove('hidden');
+        document.getElementById('camera-filename-input').value = _capturedFilename;
+      }, 'image/jpeg', 0.92);
+    };
+
+    retakeBtn.onclick = () => {
+      _capturedBlob = null;
+      openCameraScreen();
+    };
+  } catch(err) {
+    // getUserMedia unavailable — fall back to native camera input
+    console.warn('[Camera] getUserMedia failed, falling back to input capture:', err);
+    stopCameraStream();
+    body.innerHTML = `<div style="color:#fff;text-align:center;padding:40px 24px;font-size:15px;opacity:.7">
+      <div style="font-size:48px;margin-bottom:16px">📷</div>
+      Camera access unavailable.<br>Use the Files button to select an image.
+    </div>`;
+    captureBtn.style.display = 'none';
+    pickBtn.style.display = '';
+    pickBtn.onclick = () => {
+      state.importInProgress = true;
+      document.getElementById('doc-camera-input').click();
+      showScreen('docs-screen');
+    };
+  }
+
+  pickBtn.onclick = pickBtn.onclick || (() => {
+    stopCameraStream();
+    state.importInProgress = true;
+    document.getElementById('doc-file-input').click();
+    showScreen('docs-screen');
+  });
+}
+
+function stopCameraStream() {
+  if(_cameraStream){ _cameraStream.getTracks().forEach(t => t.stop()); _cameraStream = null; }
+}
+
+document.getElementById('camera-close').addEventListener('click', () => {
+  stopCameraStream();
+  _capturedBlob = null;
+  showScreen('docs-screen');
+});
+
+document.getElementById('camera-save-btn').addEventListener('click', async () => {
+  if(!_capturedBlob) return;
+  const name = document.getElementById('camera-filename-input').value.trim() || _capturedFilename;
+  const file = new File([_capturedBlob], name.endsWith('.jpg') ? name : name + '.jpg', { type: 'image/jpeg' });
+  showScreen('docs-screen');
+  _capturedBlob = null;
+  await saveDocFromFile(file);
+});
+
+// Shared save-from-file helper (used by file picker and camera save paths)
+async function saveDocFromFile(file) {
+  if(!state.currentPIN){ toast('Vault is locked — unlock first'); return; }
+  const list = document.getElementById('docs-list');
+  const row = document.createElement('div');
+  row.className = 'doc-upload-row';
+  row.innerHTML = `<div class="doc-upload-spinner"></div><div>Encrypting "${esc(file.name)}"…</div>`;
+  if(list.firstChild && list.firstChild.classList && list.firstChild.classList.contains('docs-empty-wrap')) list.innerHTML = '';
+  list.prepend(row);
+  try {
+    if(!state.docs) state.docs = [];
+    const existing = state.docs.find(d => d.name === file.name);
+    if(existing) {
+      const replace = await confirmDelete(file.name, {
+        title: 'File Already Exists',
+        message: `<span class="delete-sheet-entry-name">"${file.name}"</span> is already in your vault. Replace it with the new file?`,
+        confirmLabel: 'Replace', icon: '🔄',
+      });
+      if(!replace) { state.currentNav='docs'; showScreen('docs-screen'); renderDocs(); return; }
+      await DocsDB.deleteFile(existing.id);
+      state.docs = state.docs.filter(d => d.id !== existing.id);
+    }
+    const arrayBuffer = await fileToArrayBuffer(file);
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    let thumb = null;
+    if(file.type.startsWith('image/')) thumb = await arrayBufferToThumb(arrayBuffer, file.type);
+    await DocsDB.saveFile(id, arrayBuffer, state.currentPIN);
+    state.docs.unshift({
+      id, name: file.name, mimeType: file.type || 'application/octet-stream',
+      size: file.size, created: existing?.created || Date.now(), updated: Date.now(),
+      fav: existing?.fav || false, thumb,
+    });
+    await saveDocsManifest();
+    toast(existing ? 'Document replaced ✓' : 'Document added ✓');
+    state.currentNav = 'docs'; showScreen('docs-screen'); renderDocs();
+  } catch(err) {
+    console.error('Doc save failed', err);
+    toast('Failed to save document');
+    showScreen('docs-screen'); renderDocs();
+  }
+}
 
 // Safety net — if the file picker is cancelled (no 'change' fires on some
 // browsers), make sure importInProgress doesn't get stuck true and
@@ -1957,6 +2389,7 @@ function resetAutoLock() {
 }
 function lockVault() {
   state.bioPending = false;
+  stopCameraStream(); // kill live camera if open
   // Capture which screen we were on, so we can restore it after re-auth
   const visibleScreen = SCREENS.find(s => !document.getElementById(s).classList.contains('hidden'));
   if(visibleScreen==='form-screen'){
@@ -2208,6 +2641,9 @@ function captureFormDraft() {
   document.querySelectorAll('#form-body .field-input').forEach(el=>{
     if(el.id) draft.fields[el.id] = el.value;
   });
+  // Capture rich note editor value as markdown
+  const noteEditor = document.getElementById('f-note');
+  if(noteEditor && noteEditor.contentEditable) draft.fields['f-note'] = getNoteEditorValue();
   return draft;
 }
 
@@ -2215,7 +2651,12 @@ function captureFormDraft() {
 function restoreFormDraft(draft) {
   Object.entries(draft.fields).forEach(([id,val])=>{
     const el=document.getElementById(id);
-    if(el) el.value = val;
+    if(!el) return;
+    if(id==='f-note' && el.contentEditable==='true'){
+      el.innerHTML = noteMarkdownToHTML(val);
+    } else {
+      el.value = val;
+    }
   });
   // Recompute password strength bar if applicable
   const pwField=document.getElementById('f-pass')||document.getElementById('f-netbankingpw');
@@ -2504,7 +2945,7 @@ async function openDetail(id) {
     if(f.type==='note'){
       return `<div class="detail-field">
         <div class="detail-field-label">${esc(f.label)}</div>
-        <div class="detail-field-value" style="white-space:pre-wrap;line-height:1.5">${esc(f.value)}</div>
+        <div class="detail-field-value">${renderNoteMarkdown(f.value)}</div>
       </div>`;
     }
     if(f.type==='sensitive'){
@@ -3034,7 +3475,7 @@ const TYPE_FIELDS = {
   ],
   note: [
     {id:'f-name',    label:'Title',               placeholder:'e.g. Recovery codes', required:true},
-    {id:'f-note',    label:'Note',                placeholder:'Type your note here...', inputType:'textarea', required:true},
+    {id:'f-note',    label:'Note',                placeholder:'Write your note here...', inputType:'richtext', required:true},
   ],
   card: [
     {id:'f-name',       label:'Card Name',        placeholder:'e.g. HDFC Debit',    required:true},
@@ -3153,6 +3594,11 @@ function renderForm() {
   }
   attachDateFormatters();
   renderCustomFields();
+  // Init rich note editor if this is a note entry
+  if(formState.type === 'note') {
+    const noteVal = editEntry ? (editEntry.note||'') : '';
+    initRichNoteEditor(noteVal);
+  }
 }
 
 // ═══════════════════════════════════════
@@ -3207,6 +3653,147 @@ function attachDateFormatters() {
   }
 }
 
+// ── Rich Note Editor: markdown ↔ HTML ──────────────────────────────────────
+// Storage format: lightweight markdown (**, *, #, - bullet). HTML is only
+// ever used in the editor DOM and detail view — markdown is what's encrypted.
+function noteMarkdownToHTML(md) {
+  if(!md) return '';
+  return md
+    .split('\n')
+    .map(line => {
+      if(line.startsWith('# '))  return `<h1>${escNote(line.slice(2))}</h1>`;
+      if(line.startsWith('- '))  return `<ul><li>${escNote(line.slice(2))}</li></ul>`;
+      // inline bold/italic
+      let l = escNote(line);
+      l = l.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      l = l.replace(/\*(.+?)\*/g,   '<i>$1</i>');
+      return l ? `<p>${l}</p>` : '<br>';
+    })
+    .join('')
+    // merge adjacent <ul> blocks into one
+    .replace(/<\/ul><ul>/g, '');
+}
+
+function noteHTMLToMarkdown(html) {
+  if(!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const lines = [];
+  function walk(node) {
+    if(node.nodeType === 3){ // text
+      lines.push(node.textContent);
+      return;
+    }
+    const tag = node.tagName && node.tagName.toLowerCase();
+    if(tag === 'h1'){
+      lines.push('# ' + node.textContent);
+    } else if(tag === 'li'){
+      lines.push('- ' + nodeInlineMarkdown(node));
+    } else if(tag === 'ul'){
+      node.childNodes.forEach(ch=>{ if(ch.tagName&&ch.tagName.toLowerCase()==='li') lines.push('- '+nodeInlineMarkdown(ch)); });
+    } else if(tag === 'br'){
+      lines.push('');
+    } else if(tag === 'p'){
+      const inner = nodeInlineMarkdown(node);
+      lines.push(inner);
+    } else if(tag === 'div'){
+      if(node.innerHTML === '<br>') lines.push('');
+      else lines.push(nodeInlineMarkdown(node));
+    } else {
+      node.childNodes.forEach(walk);
+    }
+  }
+  tmp.childNodes.forEach(walk);
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function nodeInlineMarkdown(node) {
+  let out = '';
+  node.childNodes.forEach(ch=>{
+    if(ch.nodeType===3){ out += ch.textContent; }
+    else if(ch.tagName){
+      const t = ch.tagName.toLowerCase();
+      if(t==='b'||t==='strong') out += `**${ch.textContent}**`;
+      else if(t==='i'||t==='em') out += `*${ch.textContent}*`;
+      else out += ch.textContent;
+    }
+  });
+  return out;
+}
+
+function escNote(str){ return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function initRichNoteEditor(currentValue) {
+  const editor = document.getElementById('f-note');
+  if(!editor) return;
+  if(currentValue) editor.innerHTML = noteMarkdownToHTML(currentValue);
+
+  const toolbar = document.getElementById('note-toolbar');
+  if(!toolbar) return;
+
+  // Toolbar button handler
+  toolbar.addEventListener('mousedown', e=>{
+    const btn = e.target.closest('[data-cmd]');
+    if(!btn) return;
+    e.preventDefault(); // keep focus in editor
+    const cmd = btn.dataset.cmd;
+    editor.focus();
+    if(cmd==='bold')    document.execCommand('bold');
+    if(cmd==='italic')  document.execCommand('italic');
+    if(cmd==='heading'){
+      const sel = window.getSelection();
+      if(!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const block = range.commonAncestorContainer.nodeType===3
+        ? range.commonAncestorContainer.parentElement
+        : range.commonAncestorContainer;
+      const inH1 = block.tagName==='H1' || block.closest('h1');
+      document.execCommand('formatBlock', false, inH1 ? 'p' : 'h1');
+    }
+    if(cmd==='bullet')  document.execCommand('insertUnorderedList');
+    updateToolbarState();
+  });
+
+  // Update active state on selection change
+  editor.addEventListener('keyup', updateToolbarState);
+  editor.addEventListener('mouseup', updateToolbarState);
+
+  function updateToolbarState(){
+    toolbar.querySelectorAll('[data-cmd]').forEach(btn=>{
+      const cmd = btn.dataset.cmd;
+      let active = false;
+      if(cmd==='bold')    active = document.queryCommandState('bold');
+      if(cmd==='italic')  active = document.queryCommandState('italic');
+      if(cmd==='bullet')  active = document.queryCommandState('insertUnorderedList');
+      if(cmd==='heading'){
+        const sel=window.getSelection();
+        if(sel&&sel.rangeCount){
+          const block=sel.getRangeAt(0).commonAncestorContainer;
+          const el=block.nodeType===3?block.parentElement:block;
+          active=!!(el.tagName==='H1'||el.closest&&el.closest('h1'));
+        }
+      }
+      btn.classList.toggle('active', active);
+    });
+  }
+}
+
+// Read the note editor value as markdown (called from saveEntry)
+function getNoteEditorValue() {
+  const editor = document.getElementById('f-note');
+  if(!editor) return '';
+  return noteHTMLToMarkdown(editor.innerHTML);
+}
+
+// Render stored markdown note for detail view
+function renderNoteMarkdown(md) {
+  if(!md) return '';
+  // Merge consecutive <ul> items
+  let html = noteMarkdownToHTML(md);
+  return `<div class="note-rendered">${html}</div>`;
+}
+
+
 function renderFieldHTML(f, editEntry) {
   const val = editEntry ? (getEntryFieldValue(editEntry, f.id)||'') : '';
   if(f.inputType==='select'){
@@ -3214,6 +3801,21 @@ function renderFieldHTML(f, editEntry) {
       <select class="field-input" id="${f.id}">
         ${f.options.map(o=>`<option value="${o.v}"${val===o.v?' selected':''}>${o.l}</option>`).join('')}
       </select></div>`;
+  }
+  if(f.inputType==='richtext'){
+    return `<div class="field-group">
+      <div class="field-label">${f.label}</div>
+      <div class="note-editor-wrap">
+        <div class="note-toolbar" id="note-toolbar">
+          <button class="note-tb-btn" data-cmd="bold" title="Bold" type="button"><b>B</b></button>
+          <button class="note-tb-btn" data-cmd="italic" title="Italic" type="button"><i>I</i></button>
+          <div class="note-tb-sep"></div>
+          <button class="note-tb-btn" data-cmd="heading" title="Heading" type="button">H</button>
+          <button class="note-tb-btn" data-cmd="bullet" title="Bullet list" type="button">• List</button>
+        </div>
+        <div class="note-editor" id="${f.id}" contenteditable="true" data-placeholder="${f.placeholder||''}"></div>
+      </div>
+    </div>`;
   }
   if(f.inputType==='textarea'){
     return `<div class="field-group"><div class="field-label">${f.label}</div>
@@ -3288,7 +3890,7 @@ function collectFormData() {
   switch(type){
     case 'app':    return {...base, url:g('f-url'), username:g('f-user'), password:g('f-pass'), notes:g('f-notes')};
     case 'wifi':   return {...base, ssid:g('f-ssid'), password:g('f-pass'), securityType:g('f-sectype'), notes:g('f-notes')};
-    case 'note':   return {...base, note:g('f-note')};
+    case 'note':   return {...base, note: getNoteEditorValue() };
     case 'card':   return {...base, cardHolder:g('f-cardholder'), cardNumber:(g('f-cardnumber')||'').replace(/\D/g,''), expiry:g('f-expiry'), cvv:g('f-cvv'), pin:g('f-pin'), notes:g('f-notes')};
     case 'bank':   return {...base, bankName:g('f-bankname'), accountNo:g('f-accountno'), ifsc:g('f-ifsc'), accountType:g('f-accounttype'), netBankingId:g('f-netbankingid'), netBankingPassword:g('f-netbankingpw'), notes:g('f-notes')};
     case 'identity': {
@@ -3334,6 +3936,47 @@ function renderCustomFields() {
 
 window.removeCustomField=function(i){ customFieldsData.splice(i,1); renderCustomFields(); };
 window.toggleCFSensitive=function(i){ customFieldsData[i].sensitive=!customFieldsData[i].sensitive; renderCustomFields(); };
+
+const TYPE_TEMPLATE_DESC = {
+  app:      'Username, password, URL, notes',
+  wifi:     'Network name, password, security type',
+  note:     'Title and free-form secure text',
+  card:     'Card number, expiry, CVV, ATM PIN',
+  bank:     'Account no., IFSC, net banking credentials',
+  identity: 'Aadhaar, PAN, Passport, Driving Licence & more',
+};
+
+function openTemplatePicker(fromScreen) {
+  state._templateFrom = fromScreen || state.currentNav || 'home';
+  const body = document.getElementById('template-body');
+  body.innerHTML = Object.entries(TYPE_META).map(([key, meta]) => `
+    <button class="template-card" onclick="selectTemplate('${key}')">
+      <div class="template-card-icon" style="background:${meta.bg};">${meta.emoji}</div>
+      <div class="template-card-info">
+        <div class="template-card-title">${meta.label}</div>
+        <div class="template-card-desc">${TYPE_TEMPLATE_DESC[key]||''}</div>
+      </div>
+      <span class="template-card-arrow">›</span>
+    </button>`).join('');
+  showScreen('template-screen');
+}
+
+window.selectTemplate = function(type) {
+  formState.type = type;
+  formState.docType = 'aadhaar';
+  state.editId = null;
+  customFieldsData = [];
+  document.getElementById('form-title').textContent = 'Add Entry';
+  renderForm();
+  showScreen('form-screen');
+};
+
+document.getElementById('template-back').addEventListener('click', () => {
+  const from = state._templateFrom || 'home';
+  if(from === 'fav') showScreen('fav-screen');
+  else if(from === 'settings') showScreen('settings-screen');
+  else { showScreen('home-screen'); }
+});
 
 function openForm(editId=null) {
   state.editId=editId;
@@ -3489,6 +4132,52 @@ function parseExpiry(str) {
   return null;
 }
 
+// ── Document expiry helpers ─────────────────────────────────────────────────
+const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
+
+function parseDocExpiry(str) {
+  // Expects DD/MM/YYYY
+  if(!str) return null;
+  const parts = str.split('/');
+  if(parts.length !== 3) return null;
+  const [d,m,y] = parts.map(Number);
+  if(!d||!m||!y||y<2000) return null;
+  const dt = new Date(y, m-1, d);
+  if(isNaN(dt.getTime())) return null;
+  return dt;
+}
+
+function renderDocExpiryStatus(doc, statusEl) {
+  if(!statusEl) return;
+  if(!doc.expiryDate){ statusEl.textContent = ''; statusEl.className='docview-expiry-status'; return; }
+  const dt = parseDocExpiry(doc.expiryDate);
+  if(!dt){ statusEl.textContent = 'Invalid date'; statusEl.className='docview-expiry-status expired'; return; }
+  const now = Date.now();
+  const diff = dt.getTime() - now;
+  if(diff <= 0){
+    statusEl.textContent = '⚠️ Expired'; statusEl.className='docview-expiry-status expired';
+  } else if(diff <= SIXTY_DAYS_MS){
+    const days = Math.ceil(diff/(24*60*60*1000));
+    statusEl.textContent = `⚠️ Expires in ${days} day${days===1?'':'s'}`; statusEl.className='docview-expiry-status warn';
+  } else {
+    const days = Math.ceil(diff/(24*60*60*1000));
+    statusEl.textContent = `✓ Valid — ${days} days remaining`; statusEl.className='docview-expiry-status ok';
+  }
+}
+
+function updateDocExpiryBadge() {
+  const now = Date.now();
+  const count = (state.docs||[]).filter(d=>{
+    if(!d.expiryDate) return false;
+    const dt = parseDocExpiry(d.expiryDate);
+    return dt && dt.getTime() - now <= SIXTY_DAYS_MS;
+  }).length;
+  document.querySelectorAll('[data-docsbadge]').forEach(el=>{
+    el.textContent = count > 0 ? (count > 9 ? '9+' : String(count)) : '';
+    el.classList.toggle('visible', count > 0);
+  });
+}
+
 function checkExpiryAlerts() {
   const wrap = document.getElementById('expiry-nudge-wrap');
   wrap.innerHTML = '';
@@ -3497,7 +4186,6 @@ function checkExpiryAlerts() {
   const expiring = [];
 
   state.entries.forEach(e => {
-    // Card expiry
     if(e.type === 'card' && e.expiry) {
       const d = parseExpiry(e.expiry);
       if(d && d.getTime() > now && d.getTime() - now <= THIRTY_DAYS)
@@ -3505,7 +4193,6 @@ function checkExpiryAlerts() {
       else if(d && d.getTime() <= now)
         expiring.push({ name: e.name, label: 'Card', expiry: e.expiry, expired: true });
     }
-    // Passport expiry
     if(e.type === 'identity' && e.docType === 'passport' && e.expiry) {
       const d = parseExpiry(e.expiry);
       if(d && d.getTime() > now && d.getTime() - now <= THIRTY_DAYS)
@@ -3513,7 +4200,6 @@ function checkExpiryAlerts() {
       else if(d && d.getTime() <= now)
         expiring.push({ name: e.name, label: 'Passport', expiry: e.expiry, expired: true });
     }
-    // Driving Licence expiry
     if(e.type === 'identity' && e.docType === 'dl' && e.expiry) {
       const d = parseExpiry(e.expiry);
       if(d && d.getTime() > now && d.getTime() - now <= THIRTY_DAYS)
@@ -3523,17 +4209,29 @@ function checkExpiryAlerts() {
     }
   });
 
+  // Document vault expiry — 60-day threshold
+  (state.docs||[]).forEach(d => {
+    if(!d.expiryDate) return;
+    const dt = parseDocExpiry(d.expiryDate);
+    if(!dt) return;
+    const diff = dt.getTime() - now;
+    if(diff <= 0)
+      expiring.push({ name: d.name, label: 'Document', expiry: d.expiryDate, expired: true });
+    else if(diff <= SIXTY_DAYS_MS)
+      expiring.push({ name: d.name, label: 'Document', expiry: d.expiryDate });
+  });
+
+  // Update Docs tab badge
+  updateDocExpiryBadge();
+
   if(!expiring.length) return;
 
   expiring.forEach((item, idx) => {
     const id = `expiry-nudge-${idx}`;
-    const msg = item.expired
-      ? `${item.label} expired`
-      : `${item.label} expiring soon`;
+    const msg = item.expired ? `${item.label} expired` : `${item.label} expiring soon`;
     const sub = `${item.name} · Expiry: ${item.expiry}`;
     const div = document.createElement('div');
-    div.className = 'expiry-nudge';
-    div.id = id;
+    div.className = 'expiry-nudge'; div.id = id;
     div.innerHTML = `
       <div>⚠️</div>
       <div class="expiry-nudge-text">${msg}<span>${sub}</span></div>
@@ -3703,7 +4401,7 @@ function updateStrength(pw) {
 }
 document.getElementById('form-back').addEventListener('click',()=>{
   if(state.editId) showScreen('detail-screen');
-  else { showScreen('home-screen'); renderEntries(); }
+  else openTemplatePicker(state._templateFrom||'home');
 });
 
 // ═══════════════════════════════════════
@@ -4631,64 +5329,7 @@ document.getElementById('doc-file-input').addEventListener('change', async (e)=>
   const file=e.target.files[0];
   e.target.value='';
   if(!file) return;
-  if(!state.currentPIN){ toast('Vault is locked — unlock first'); return; }
-
-  // Show inline upload progress row at top of list
-  const list=document.getElementById('docs-list');
-  const row=document.createElement('div');
-  row.className='doc-upload-row';
-  row.innerHTML=`<div class="doc-upload-spinner"></div><div>Encrypting "${esc(file.name)}"…</div>`;
-  if(list.firstChild && list.firstChild.classList && list.firstChild.classList.contains('docs-empty-wrap')) list.innerHTML='';
-  list.prepend(row);
-
-  try{
-    // Check for duplicate filename — ask user what to do
-    if(!state.docs) state.docs=[];
-    const existing = state.docs.find(d => d.name === file.name);
-    if(existing){
-      const replace = await confirmDelete(file.name, {
-        title: 'File Already Exists',
-        message: `<span class="delete-sheet-entry-name">"${file.name}"</span> is already in your vault. Replace it with the new file?`,
-        confirmLabel: 'Replace',
-        icon: '🔄',
-      });
-      if(!replace){
-        // User cancelled — keep existing, go back to docs screen
-        state.currentNav='docs';
-        showScreen('docs-screen');
-        renderDocs();
-        return;
-      }
-      // Delete old file blob before replacing
-      await DocsDB.deleteFile(existing.id);
-      state.docs = state.docs.filter(d => d.id !== existing.id);
-    }
-
-    const arrayBuffer = await fileToArrayBuffer(file);
-    const id = Date.now().toString(36)+Math.random().toString(36).slice(2);
-    // Small thumbnail from canvas for list display — generated before encryption,
-    // stored in manifest (tiny JPEG data: URI, safe to keep there).
-    let thumb=null;
-    if(file.type.startsWith('image/')) thumb = await arrayBufferToThumb(arrayBuffer, file.type);
-
-    await DocsDB.saveFile(id, arrayBuffer, state.currentPIN);
-
-    state.docs.unshift({
-      id, name:file.name, mimeType:file.type||'application/octet-stream',
-      size:file.size, created:existing?.created||Date.now(), updated:Date.now(), fav:existing?.fav||false,
-      thumb,
-    });
-    await saveDocsManifest();
-    toast(existing ? 'Document replaced ✓' : 'Document added ✓');
-    state.currentNav='docs';
-    showScreen('docs-screen');
-    renderDocs();
-  } catch(err){
-    console.error('Doc add failed', err);
-    toast('Failed to add document');
-    showScreen('docs-screen');
-    renderDocs();
-  }
+  await saveDocFromFile(file);
 });
 
 // Docs search
@@ -4748,6 +5389,33 @@ async function openDocDetail(id){
     });
     toast('Category updated');
   }));
+
+  // Expiry date panel
+  const expiryInput = document.getElementById('docview-expiry-input');
+  const expiryStatus = document.getElementById('docview-expiry-status');
+  expiryInput.value = doc.expiryDate || '';
+  renderDocExpiryStatus(doc, expiryStatus);
+  applyDateAutoFormat(expiryInput, 'ddmmyyyy');
+
+  document.getElementById('docview-expiry-save').onclick = async () => {
+    const val = expiryInput.value.trim();
+    if(val && !parseDocExpiry(val)){ toast('Invalid date — use DD/MM/YYYY'); return; }
+    doc.expiryDate = val || undefined;
+    doc.updated = Date.now();
+    await saveDocsManifest();
+    renderDocExpiryStatus(doc, expiryStatus);
+    updateDocExpiryBadge();
+    toast(val ? 'Expiry date saved' : 'Expiry date cleared');
+  };
+  document.getElementById('docview-expiry-clear').onclick = async () => {
+    expiryInput.value = '';
+    doc.expiryDate = undefined;
+    doc.updated = Date.now();
+    await saveDocsManifest();
+    renderDocExpiryStatus(doc, expiryStatus);
+    updateDocExpiryBadge();
+    toast('Expiry date cleared');
+  };
 
   // Meta card
   const meta=document.getElementById('docview-meta');
@@ -5384,19 +6052,249 @@ document.getElementById('s-force-update').addEventListener('click', async () => 
   setTimeout(() => location.reload(true), 400);
 });
 
+// ═══════════════════════════════════════
+//  SECURE SHARE
+// ═══════════════════════════════════════
+
+// ── Share modal (sender side) ─────────────────────────────────────────────
+let _shareTargetEntry = null;
+let _shareSelectedTTL = 86400000; // default 24h
+
+function openShareModal(entry) {
+  _shareTargetEntry = entry;
+  _shareSelectedTTL = 86400000;
+  document.getElementById('share-step-setup').style.display = '';
+  document.getElementById('share-step-link').style.display = 'none';
+  ['sp-d1','sp-d2','sp-d3','sp-d4'].forEach(id => { document.getElementById(id).value = ''; });
+  document.querySelectorAll('.share-expiry-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.ttl === '86400000');
+  });
+  document.getElementById('share-modal-overlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('sp-d1').focus(), 100);
+}
+
+// PIN digit auto-advance
+['sp-d1','sp-d2','sp-d3','sp-d4'].forEach((id, i, arr) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    el.value = el.value.replace(/\D/g, '').slice(0,1);
+    if(el.value && i < arr.length - 1) document.getElementById(arr[i+1]).focus();
+  });
+  el.addEventListener('keydown', e => {
+    if(e.key === 'Backspace' && !el.value && i > 0) document.getElementById(arr[i-1]).focus();
+  });
+});
+
+document.querySelectorAll('.share-expiry-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    _shareSelectedTTL = Number(btn.dataset.ttl);
+    document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b === btn));
+  });
+});
+
+document.getElementById('share-generate-btn').addEventListener('click', async () => {
+  const pin = ['sp-d1','sp-d2','sp-d3','sp-d4'].map(id => document.getElementById(id).value).join('');
+  if(pin.length !== 4 || !/^\d{4}$/.test(pin)) { toast('Enter a 4-digit PIN'); return; }
+  if(!_shareTargetEntry) return;
+
+  const payload = {
+    entry: _shareTargetEntry,
+    expiresAt: Date.now() + _shareSelectedTTL,
+  };
+  const encrypted = await Crypto.encrypt(payload, pin);
+  // URL-safe base64 (+ → -, / → _, remove =)
+  const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  const link = `${location.origin}${location.pathname}#share/${urlSafe}`;
+
+  document.getElementById('share-link-box').textContent = link;
+  document.getElementById('share-step-setup').style.display = 'none';
+  document.getElementById('share-step-link').style.display = '';
+
+  document.getElementById('share-copy-btn').onclick = async () => {
+    try { await navigator.clipboard.writeText(link); toast('Link copied ✓'); }
+    catch { toast('Copy failed'); }
+  };
+  document.getElementById('share-native-btn').onclick = () => {
+    if(navigator.share) { navigator.share({ url: link, title: 'Shared from Vault' }).catch(()=>{}); }
+    else { navigator.clipboard.writeText(link).then(() => toast('Link copied ✓')); }
+  };
+});
+
+document.getElementById('share-cancel-btn').addEventListener('click', () => {
+  document.getElementById('share-modal-overlay').classList.add('hidden');
+});
+document.getElementById('share-done-btn').addEventListener('click', () => {
+  document.getElementById('share-modal-overlay').classList.add('hidden');
+});
+document.getElementById('share-modal-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('share-modal-overlay'))
+    document.getElementById('share-modal-overlay').classList.add('hidden');
+});
+
+document.getElementById('detail-share-btn').addEventListener('click', () => {
+  if(!currentDetail) return;
+  openShareModal(currentDetail);
+});
+
+// ── Share view (recipient side) ───────────────────────────────────────────
+
+// PIN digit auto-advance (recipient)
+['sv-d1','sv-d2','sv-d3','sv-d4'].forEach((id, i, arr) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    el.value = el.value.replace(/\D/g,'').slice(0,1);
+    if(el.value && i < arr.length - 1) document.getElementById(arr[i+1]).focus();
+    if(i === arr.length - 1 && el.value) document.getElementById('sv-unlock-btn').click();
+  });
+  el.addEventListener('keydown', e => {
+    if(e.key === 'Backspace' && !el.value && i > 0) document.getElementById(arr[i-1]).focus();
+  });
+});
+
+document.getElementById('sv-unlock-btn').addEventListener('click', async () => {
+  const pin = ['sv-d1','sv-d2','sv-d3','sv-d4'].map(id => document.getElementById(id).value).join('');
+  if(pin.length !== 4) { document.getElementById('sv-error').textContent = 'Enter all 4 digits'; return; }
+  const fragment = location.hash.slice(1); // remove #
+  const b64 = fragment.replace(/^share\//,'').replace(/-/g,'+').replace(/_/g,'/');
+  try {
+    const payload = await Crypto.decrypt(b64, pin);
+    if(!payload || !payload.entry || !payload.expiresAt) throw new Error('Invalid payload');
+    if(Date.now() > payload.expiresAt) {
+      document.getElementById('sv-error').textContent = '⚠️ This link has expired';
+      return;
+    }
+    document.getElementById('sv-error').textContent = '';
+    document.getElementById('share-view-pin-wrap').style.display = 'none';
+    const card = document.getElementById('share-view-card');
+    card.style.display = '';
+    card.innerHTML = renderShareCard(payload.entry);
+  } catch(e) {
+    document.getElementById('sv-error').textContent = 'Incorrect PIN — try again';
+    ['sv-d1','sv-d2','sv-d3','sv-d4'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('sv-d1').focus();
+  }
+});
+
+function renderShareCard(entry) {
+  const tm = {
+    app:      { label:'App / Website',  cls:'share-app-card',    color:'#fff' },
+    wifi:     { label:'WiFi',           cls:'share-wifi-card',   color:'#fff' },
+    note:     { label:'Secure Note',    cls:'share-note-card',   color:'#fff' },
+    card:     { label:'Card',           cls:'share-credit-card', color:'#fff' },
+    bank:     { label:'Bank Account',   cls:'share-bank-card',   color:'#fff' },
+    identity: { label:'Identity',       cls:'share-id-card',     color:'#fff' },
+  }[entry.type] || { label:'Entry', cls:'share-app-card', color:'#fff' };
+
+  const emoji = {app:'🌐',wifi:'📶',note:'📝',card:'💳',bank:'🏦',identity:'🪪'}[entry.type]||'🔐';
+
+  let inner = '';
+
+  if(entry.type === 'card') {
+    // Credit card style
+    inner = `
+      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
+        <div class="share-card-title">${esc(entry.name)}</div>
+        <div class="share-card-chip"></div>
+        <div class="share-card-number">${esc(entry.cardNumber ? entry.cardNumber.replace(/(\d{4})(?=\d)/g,'$1 ') : '•••• •••• •••• ••••')}</div>
+        <div class="share-card-row">
+          <div><div style="font-size:10px;opacity:.6;margin-bottom:2px">CARDHOLDER</div><div style="font-size:14px;font-weight:700">${esc(entry.cardHolder||'—')}</div></div>
+          <div><div style="font-size:10px;opacity:.6;margin-bottom:2px">EXPIRY</div><div style="font-size:14px;font-weight:700">${esc(entry.expiry||'—')}</div></div>
+        </div>
+        ${entry.cvv ? `<div class="share-card-fields" style="margin-top:14px"><div class="share-card-field"><div class="share-card-field-label">CVV</div><div class="share-card-field-value">${esc(entry.cvv)}</div></div></div>` : ''}
+        ${entry.pin ? `<div class="share-card-fields" style="margin-top:8px"><div class="share-card-field"><div class="share-card-field-label">ATM PIN</div><div class="share-card-field-value">${esc(entry.pin)}</div></div></div>` : ''}
+      </div>`;
+  } else if(entry.type === 'identity') {
+    const docLabel = {aadhaar:'Aadhaar',pan:'PAN',passport:'Passport',dl:'Driving Licence',voterid:'Voter ID',other:'Identity'}[entry.docType]||'Identity';
+    inner = `
+      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
+        <div class="share-card-title">${docLabel}</div>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div class="share-card-avatar">👤</div>
+          <div><div style="font-size:18px;font-weight:800">${esc(entry.idName||entry.name)}</div>${entry.dob?`<div style="font-size:12px;opacity:.7">DOB: ${esc(entry.dob)}</div>`:''}
+          </div>
+        </div>
+        <div class="share-card-fields">
+          ${entry.docNumber?`<div class="share-card-field"><div class="share-card-field-label">Document Number</div><div class="share-card-field-value">${esc(entry.docNumber)}</div></div>`:''}
+          ${entry.expiry?`<div class="share-card-field"><div class="share-card-field-label">Expiry</div><div class="share-card-field-value">${esc(entry.expiry)}</div></div>`:''}
+          ${entry.nationality?`<div class="share-card-field"><div class="share-card-field-label">Nationality</div><div class="share-card-field-value">${esc(entry.nationality)}</div></div>`:''}
+          ${entry.issuingState?`<div class="share-card-field"><div class="share-card-field-label">Issuing State</div><div class="share-card-field-value">${esc(entry.issuingState)}</div></div>`:''}
+        </div>
+      </div>`;
+  } else if(entry.type === 'bank') {
+    inner = `
+      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
+        <div class="share-card-title">${tm.label}</div>
+        <div class="share-card-avatar">${emoji}</div>
+        <div class="share-card-name">${esc(entry.bankName||entry.name)}</div>
+        <div class="share-card-sub">${esc(entry.accountType||'')}</div>
+        <div class="share-card-fields">
+          ${entry.accountNo?`<div class="share-card-field"><div class="share-card-field-label">Account Number</div><div class="share-card-field-value">${esc(entry.accountNo)}</div></div>`:''}
+          ${entry.ifsc?`<div class="share-card-field"><div class="share-card-field-label">IFSC Code</div><div class="share-card-field-value">${esc(entry.ifsc)}</div></div>`:''}
+          ${entry.netBankingId?`<div class="share-card-field"><div class="share-card-field-label">Net Banking ID</div><div class="share-card-field-value">${esc(entry.netBankingId)}</div></div>`:''}
+          ${entry.netBankingPassword?`<div class="share-card-field"><div class="share-card-field-label">Net Banking Password</div><div class="share-card-field-value">${esc(entry.netBankingPassword)}</div></div>`:''}
+        </div>
+      </div>`;
+  } else if(entry.type === 'wifi') {
+    inner = `
+      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
+        <div class="share-card-title">${tm.label}</div>
+        <div class="share-card-avatar">${emoji}</div>
+        <div class="share-card-name">${esc(entry.ssid||entry.name)}</div>
+        <div class="share-card-sub">${esc(entry.securityType||'')}</div>
+        <div class="share-card-fields">
+          <div class="share-card-field"><div class="share-card-field-label">Password</div><div class="share-card-field-value">${esc(entry.password||'—')}</div></div>
+        </div>
+      </div>`;
+  } else if(entry.type === 'note') {
+    inner = `
+      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
+        <div class="share-card-title">${tm.label}</div>
+        <div class="share-card-name">${esc(entry.name)}</div>
+        <div class="share-card-fields" style="margin-top:12px">
+          <div class="share-card-field"><div class="share-card-field-value" style="white-space:pre-wrap;font-weight:500">${esc(entry.note||'')}</div></div>
+        </div>
+      </div>`;
+  } else {
+    // app
+    inner = `
+      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
+        <div class="share-card-title">${tm.label}</div>
+        <div class="share-card-avatar">${emoji}</div>
+        <div class="share-card-name">${esc(entry.name)}</div>
+        ${entry.url?`<div class="share-card-sub">${esc(entry.url)}</div>`:''}
+        <div class="share-card-fields">
+          ${entry.username?`<div class="share-card-field"><div class="share-card-field-label">Username / Email</div><div class="share-card-field-value">${esc(entry.username)}</div></div>`:''}
+          ${entry.password?`<div class="share-card-field"><div class="share-card-field-label">Password</div><div class="share-card-field-value">${esc(entry.password)}</div></div>`:''}
+          ${entry.notes?`<div class="share-card-field"><div class="share-card-field-label">Notes</div><div class="share-card-field-value" style="font-weight:500">${esc(entry.notes)}</div></div>`:''}
+        </div>
+      </div>`;
+  }
+  return inner;
+}
+
+// ── Detect share link on load ─────────────────────────────────────────────
+function checkShareLink() {
+  const hash = location.hash;
+  if(!hash.startsWith('#share/')) return false;
+  // Show share view, hide everything else
+  document.getElementById('share-view').classList.remove('hidden');
+  // Apply theme from localStorage
+  applyTheme(Store.get('vault_theme') === 'dark');
+  // Check expiry from URL (we can't without decrypting, so just show PIN prompt)
+  setTimeout(() => document.getElementById('sv-d1').focus(), 200);
+  return true;
+}
+
 function init() {
   applyTheme(Store.get('vault_theme')==='dark');
+  if(checkShareLink()) return; // share view takes over entire screen
   updateBioToggleUI();
   CloudSync.restore();
   updateCloudUI();
-  // R6a — request persistent storage so IndexedDB (document blobs) is
-  // less likely to be evicted under storage pressure. Best-effort; no
-  // user-facing prompt on most browsers when already installed/bookmarked.
   if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
   const hasPin=!!Store.get('vault_pin');
   initPINScreen(hasPin?'unlock':'setup');
   showScreen('pin-screen');
-  // Fetch vault-info to keep About version current
   fetchVaultInfo().then(info => {
     if(!info) return;
     const aboutV = document.getElementById('about-version');
@@ -5405,5 +6303,61 @@ function init() {
 }
 init();
 </script>
+<!-- ══════════ SECURE SHARE MODAL ══════════ -->
+<div class="share-modal-overlay hidden" id="share-modal-overlay">
+  <div class="share-modal" id="share-modal">
+    <div class="share-modal-handle"></div>
+    <div class="share-modal-title">🔗 Secure Share</div>
+    <div class="share-modal-sub">Set a PIN and expiry — the recipient will need the PIN to view.</div>
+    <div id="share-step-setup">
+      <div class="share-modal-label">4-digit PIN</div>
+      <div class="share-pin-row">
+        <input class="share-pin-digit" id="sp-d1" type="password" inputmode="numeric" maxlength="1"/>
+        <input class="share-pin-digit" id="sp-d2" type="password" inputmode="numeric" maxlength="1"/>
+        <input class="share-pin-digit" id="sp-d3" type="password" inputmode="numeric" maxlength="1"/>
+        <input class="share-pin-digit" id="sp-d4" type="password" inputmode="numeric" maxlength="1"/>
+      </div>
+      <div class="share-modal-label">Link expires after</div>
+      <div class="share-expiry-row">
+        <button class="share-expiry-btn" data-ttl="3600000">1 hour</button>
+        <button class="share-expiry-btn selected" data-ttl="86400000">24 hours</button>
+        <button class="share-expiry-btn" data-ttl="604800000">7 days</button>
+      </div>
+      <button class="share-generate-btn" id="share-generate-btn">Generate Link</button>
+      <button class="share-cancel-btn" id="share-cancel-btn">Cancel</button>
+    </div>
+    <div id="share-step-link" style="display:none">
+      <div class="share-modal-label">Share this link</div>
+      <div class="share-link-row">
+        <div class="share-link-box" id="share-link-box"></div>
+        <button class="share-copy-btn" id="share-copy-btn">Copy</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Send the PIN separately — the link alone reveals nothing.</div>
+      <button class="share-generate-btn" id="share-native-btn">↗️ Share…</button>
+      <button class="share-cancel-btn" id="share-done-btn">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SHARE VIEW (recipient) ══════════ -->
+<div id="share-view" class="hidden">
+  <div class="share-view-logo">🔐 Vault</div>
+  <div class="share-view-tagline">Secure Share</div>
+  <div id="share-view-pin-wrap" class="share-pin-prompt">
+    <div class="share-pin-prompt-title">Enter PIN to view</div>
+    <div class="share-pin-prompt-sub">The sender shared a PIN with you separately.</div>
+    <div class="share-view-pin-row">
+      <input class="share-view-pin-digit" id="sv-d1" type="password" inputmode="numeric" maxlength="1"/>
+      <input class="share-view-pin-digit" id="sv-d2" type="password" inputmode="numeric" maxlength="1"/>
+      <input class="share-view-pin-digit" id="sv-d3" type="password" inputmode="numeric" maxlength="1"/>
+      <input class="share-view-pin-digit" id="sv-d4" type="password" inputmode="numeric" maxlength="1"/>
+    </div>
+    <button class="share-view-unlock-btn" id="sv-unlock-btn">View Details</button>
+    <div class="share-view-error" id="sv-error"></div>
+  </div>
+  <div id="share-view-card" class="share-card" style="display:none"></div>
+  <div class="share-card-footer">Shared via Vault · End-to-end encrypted</div>
+</div>
+
 </body>
 </html>
