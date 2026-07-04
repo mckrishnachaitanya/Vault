@@ -6309,10 +6309,10 @@ function hideShareModal() {
 }
 document.getElementById('share-cancel-btn').addEventListener('click', hideShareModal);
 document.getElementById('share-done-btn').addEventListener('click', hideShareModal);
-// Stop taps inside the sheet from bubbling to overlay (which would close it)
-document.getElementById('share-modal').addEventListener('click', e => e.stopPropagation());
-document.getElementById('share-modal').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
-document.getElementById('share-modal-overlay').addEventListener('click', hideShareModal);
+// Close only when tapping the dark backdrop, not anything inside the sheet
+document.getElementById('share-modal-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('share-modal-overlay')) hideShareModal();
+});
 
 // Share button is wired dynamically in openDetail()
 
