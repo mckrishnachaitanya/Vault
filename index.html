@@ -6245,16 +6245,44 @@ document.getElementById('s-force-update').addEventListener('click', async () => 
 //  SECURE SHARE
 // ═══════════════════════════════════════
 
+// ── Debug overlay ─────────────────────────────────────────────────────────
+function dbg(msg) {
+  const overlay = document.getElementById('dbg-overlay');
+  const lines = document.getElementById('dbg-lines');
+  if(!overlay || !lines) return;
+  overlay.style.display = 'block';
+  const t = new Date().toLocaleTimeString('en-GB',{hour12:false});
+  const el = document.createElement('div');
+  el.textContent = `[${t}] ${msg}`;
+  lines.prepend(el);
+  if(lines.children.length > 30) lines.lastChild.remove();
+}
+window.onerror = (msg, src, line, col, err) => dbg(`ERROR: ${msg} (${line}:${col})`);
+window.addEventListener('unhandledrejection', e => dbg(`PROMISE: ${e.reason}`));
+
 // ── Share modal (sender side) ─────────────────────────────────────────────
 let _shareTargetEntry = null;
 let _shareSelectedTTL = 86400000;
 let _spPin = '';
 
 function spUpdateDots() {
+  dbg(`spUpdateDots: pin="${_spPin}" len=${_spPin.length}`);
   document.querySelectorAll('#sp-dots .sp-dot').forEach((dot, i) => {
     dot.textContent = i < _spPin.length ? '•' : '–';
     dot.classList.toggle('filled', i < _spPin.length);
   });
+}
+
+function showShareModal() {
+  document.getElementById('share-backdrop').style.display = 'block';
+  document.getElementById('share-modal').style.display = 'block';
+  dbg('share modal opened');
+}
+
+function hideShareModal() {
+  document.getElementById('share-backdrop').style.display = 'none';
+  document.getElementById('share-modal').style.display = 'none';
+  dbg('share modal closed');
 }
 
 function openShareModal(entry) {
@@ -6267,24 +6295,33 @@ function openShareModal(entry) {
   document.querySelectorAll('.share-expiry-btn').forEach(b => {
     b.classList.toggle('selected', b.dataset.ttl === '86400000');
   });
-  document.getElementById('share-modal-overlay').classList.remove('hidden');
+  showShareModal();
 }
 
 document.getElementById('sp-numpad').addEventListener('click', e => {
   const btn = e.target.closest('[data-n]');
+  dbg(`numpad click: target=${e.target.tagName} data-n=${btn?.dataset?.n} pin=${_spPin}`);
   if(btn && _spPin.length < 4) { _spPin += btn.dataset.n; spUpdateDots(); }
 });
-document.getElementById('sp-del').addEventListener('click', () => { _spPin = _spPin.slice(0,-1); spUpdateDots(); });
-document.getElementById('sp-clear').addEventListener('click', () => { _spPin = ''; spUpdateDots(); });
+document.getElementById('sp-del').addEventListener('click', () => {
+  dbg(`sp-del: before=${_spPin}`);
+  _spPin = _spPin.slice(0,-1); spUpdateDots();
+});
+document.getElementById('sp-clear').addEventListener('click', () => {
+  dbg('sp-clear');
+  _spPin = ''; spUpdateDots();
+});
 
 document.querySelectorAll('.share-expiry-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    dbg(`expiry btn: ${btn.dataset.ttl}`);
     _shareSelectedTTL = Number(btn.dataset.ttl);
     document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b === btn));
   });
 });
 
 document.getElementById('share-generate-btn').addEventListener('click', async () => {
+  dbg(`generate: pin=${_spPin} ttl=${_shareSelectedTTL}`);
   const pin = _spPin;
   if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
   if(!_shareTargetEntry) return;
@@ -6295,6 +6332,7 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
   document.getElementById('share-link-box').textContent = link;
   document.getElementById('share-step-setup').style.display = 'none';
   document.getElementById('share-step-link').style.display = '';
+  dbg('link generated OK');
   document.getElementById('share-copy-btn').onclick = async () => {
     try { await navigator.clipboard.writeText(link); toast('Link copied ✓'); } catch { toast('Copy failed'); }
   };
@@ -6304,15 +6342,9 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
   };
 });
 
-function hideShareModal() {
-  document.getElementById('share-modal-overlay').classList.add('hidden');
-}
-document.getElementById('share-cancel-btn').addEventListener('click', hideShareModal);
-document.getElementById('share-done-btn').addEventListener('click', hideShareModal);
-// Close only when tapping the dark backdrop, not anything inside the sheet
-document.getElementById('share-modal-overlay').addEventListener('click', e => {
-  if(e.target === document.getElementById('share-modal-overlay')) hideShareModal();
-});
+document.getElementById('share-cancel-btn').addEventListener('click', () => { dbg('cancel'); hideShareModal(); });
+document.getElementById('share-done-btn').addEventListener('click', () => { dbg('done'); hideShareModal(); });
+document.getElementById('share-backdrop').addEventListener('click', () => { dbg('backdrop tap'); hideShareModal(); });
 
 // Share button is wired dynamically in openDetail()
 
@@ -6511,8 +6543,20 @@ function init() {
 init();
 </script>
 <!-- ══════════ SECURE SHARE MODAL ══════════ -->
-<div class="share-modal-overlay hidden" id="share-modal-overlay">
-  <div class="share-modal" id="share-modal">
+<!-- ══════════ DEBUG OVERLAY ══════════ -->
+<div id="dbg-overlay" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px 10px;max-height:45vh;overflow-y:auto;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+    <b style="color:#ff0">🐛 Debug Log</b>
+    <button onclick="document.getElementById('dbg-overlay').style.display='none'" style="background:none;border:none;color:#f66;font-size:14px;cursor:pointer">✕</button>
+  </div>
+  <div id="dbg-lines"></div>
+</div>
+
+<!-- ══════════ SECURE SHARE BACKDROP ══════════ -->
+<div id="share-backdrop" style="display:none;position:fixed;inset:0;z-index:499;background:rgba(0,0,0,.5);"></div>
+
+<!-- ══════════ SECURE SHARE SHEET ══════════ -->
+<div id="share-modal" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--bg2);border-radius:24px 24px 0 0;padding:16px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,.3);overflow-y:auto;max-height:92vh;">
     <div class="share-modal-handle"></div>
     <div class="share-modal-title">🔗 Secure Share</div>
     <div class="share-modal-sub">Set a PIN and expiry — the recipient will need the PIN to view.</div>
@@ -6557,7 +6601,6 @@ init();
       <button class="share-generate-btn" id="share-native-btn">↗️ Share…</button>
       <button class="share-cancel-btn" id="share-done-btn">Done</button>
     </div>
-  </div>
 </div>
 
 <!-- ══════════ SHARE VIEW (recipient) ══════════ -->
