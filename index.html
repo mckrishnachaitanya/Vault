@@ -687,28 +687,14 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .share-sheet-overlay.show{opacity:1;pointer-events:auto;}
 .share-sheet{
   width:100%;background:var(--bg2);border-radius:24px 24px 0 0;
-  padding:12px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.3);
-  max-height:88vh;overflow-y:auto;overscroll-behavior:contain;
+  padding:10px 20px 24px;box-shadow:0 -8px 40px rgba(0,0,0,.3);
+  max-height:92vh;overflow-y:auto;overscroll-behavior:contain;
 }
-.share-sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
-.share-sheet-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:4px;}
-.share-pin-row{display:flex;gap:14px;justify-content:center;margin-bottom:16px;}
-.sp-dot{
-  width:52px;height:52px;border-radius:14px;
-  background:var(--surface2);border:1.5px solid var(--border);
-  font-size:22px;font-weight:800;color:var(--text2);
-  display:flex;align-items:center;justify-content:center;
-  transition:border-color .15s;
-}
-.sp-dot.filled{border-color:var(--accent);color:var(--accent);}
-.share-pin-digit{
-  flex:1;height:52px;border-radius:var(--radius-sm);
-  background:var(--surface);border:1.5px solid var(--border);
-  font-size:24px;font-weight:800;color:var(--text);
-  text-align:center;font-family:var(--font);outline:none;
-  -webkit-appearance:none;
-}
-.share-pin-digit:focus{border-color:var(--accent);}
+.share-sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 12px;}
+.share-sheet-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:8px;}
+.share-numpad-compact.numpad{gap:0;}
+.share-numpad-compact .num-btn{height:50px;font-size:22px;}
+.share-numpad-compact .num-btn.del{font-size:16px;}
 .share-expiry-row{display:flex;gap:8px;margin-bottom:20px;}
 .share-expiry-btn{
   flex:1;padding:10px 8px;border-radius:10px;
@@ -732,30 +718,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .share-pin-prompt-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px;text-align:center;}
 .share-pin-prompt-sub{font-size:13px;color:var(--muted);margin-bottom:20px;text-align:center;}
 .share-view-pin-row{display:flex;gap:10px;margin-bottom:16px;}
-.share-view-pin-digit{flex:1;height:52px;border-radius:var(--radius-sm);background:var(--surface);border:1.5px solid var(--border);font-size:24px;font-weight:800;color:var(--text);text-align:center;font-family:var(--font);outline:none;-webkit-appearance:none;}
-.share-view-pin-digit:focus{border-color:var(--accent);}
-.share-view-unlock-btn{width:100%;padding:14px;border-radius:var(--radius);border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;}
 .share-view-error{font-size:13px;color:var(--red);text-align:center;margin-top:10px;min-height:20px;}
-/* Share view numpad */
-.share-view-pin-row{display:flex;gap:14px;justify-content:center;margin-bottom:20px;}
-.sv-dot{
-  width:52px;height:52px;border-radius:14px;
-  background:var(--surface);border:1.5px solid var(--border);
-  font-size:22px;font-weight:800;color:var(--text);
-  display:flex;align-items:center;justify-content:center;
-  letter-spacing:0;transition:border-color .15s;
-}
-.sv-dot.filled{border-color:var(--accent);color:var(--accent);}
-.sv-numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;width:100%;}
-.sv-num{
-  padding:16px 8px;border-radius:var(--radius-sm);
-  border:1.5px solid var(--border);background:var(--surface);
-  font-size:20px;font-weight:700;color:var(--text);
-  cursor:pointer;font-family:var(--font);transition:all .1s;
-}
-.sv-num:active{background:var(--surface2);transform:scale(.94);}
-.sv-num--clear{color:var(--muted);font-size:16px;}
-.sv-num--del{color:var(--muted);font-size:18px;}
 /* Digital card styles */
 .share-card{width:100%;max-width:360px;margin-top:24px;}
 .share-card-widget{border-radius:20px;padding:24px;position:relative;overflow:hidden;margin-bottom:16px;box-shadow:0 8px 32px rgba(0,0,0,.25);}
@@ -1879,29 +1842,27 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="share-sheet-handle"></div>
     <div class="share-sheet-title">🔗 Secure Share</div>
     <div id="share-step-setup">
-      <p style="font-size:13px;color:var(--muted);margin:0 0 20px;">Set a PIN and expiry — the recipient will need the PIN to view.</p>
-      <div class="field-label" style="margin-bottom:10px">4-digit PIN</div>
-      <div class="share-pin-row" id="sp-dots">
-        <div class="sp-dot">–</div>
-        <div class="sp-dot">–</div>
-        <div class="sp-dot">–</div>
-        <div class="sp-dot">–</div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.4;">Set a PIN and expiry — the recipient will need the PIN to view.</p>
+      <div class="pin-dots" id="sp-dots" style="margin-bottom:10px">
+        <div class="pin-dot"></div>
+        <div class="pin-dot"></div>
+        <div class="pin-dot"></div>
+        <div class="pin-dot"></div>
       </div>
-      <div class="numpad" style="max-width:280px;margin:0 auto 24px">
+      <div class="numpad share-numpad-compact" style="max-width:260px;margin:0 auto 12px">
         <button class="num-btn" data-sp="1">1</button><button class="num-btn" data-sp="2">2</button><button class="num-btn" data-sp="3">3</button>
         <button class="num-btn" data-sp="4">4</button><button class="num-btn" data-sp="5">5</button><button class="num-btn" data-sp="6">6</button>
         <button class="num-btn" data-sp="7">7</button><button class="num-btn" data-sp="8">8</button><button class="num-btn" data-sp="9">9</button>
         <button class="num-btn empty"></button><button class="num-btn" data-sp="0">0</button>
         <button class="num-btn del" id="sp-del">⌫</button>
       </div>
-      <div class="field-label" style="margin-bottom:10px">Link expires after</div>
-      <div class="share-expiry-row">
+      <div class="field-label" style="margin-bottom:8px">Link expires after</div>
+      <div class="share-expiry-row" style="margin-bottom:14px">
         <button class="share-expiry-btn" data-ttl="3600000">1 hour</button>
         <button class="share-expiry-btn selected" data-ttl="86400000">24 hours</button>
         <button class="share-expiry-btn" data-ttl="604800000">7 days</button>
       </div>
-      <button class="share-generate-btn" id="share-generate-btn">Generate Link</button>
-      <button class="share-cancel-btn" id="share-cancel-btn">Cancel</button>
+      <button class="share-generate-btn" id="share-generate-btn" style="margin-bottom:0">Generate Link</button>
     </div>
     <div id="share-step-link" style="display:none">
       <div class="field-label" style="margin-bottom:10px">Share this link</div>
@@ -1923,27 +1884,26 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   <div id="share-view-pin-wrap" class="share-pin-prompt">
     <div class="share-pin-prompt-title">Enter PIN to view</div>
     <div class="share-pin-prompt-sub">The sender shared a PIN with you separately.</div>
-    <div class="share-view-pin-row" id="sv-dots">
-      <div class="sv-dot" data-pos="0">–</div>
-      <div class="sv-dot" data-pos="1">–</div>
-      <div class="sv-dot" data-pos="2">–</div>
-      <div class="sv-dot" data-pos="3">–</div>
+    <div class="pin-dots" id="sv-dots" style="margin-bottom:28px">
+      <div class="pin-dot" data-pos="0"></div>
+      <div class="pin-dot" data-pos="1"></div>
+      <div class="pin-dot" data-pos="2"></div>
+      <div class="pin-dot" data-pos="3"></div>
     </div>
-    <div class="sv-numpad" id="sv-numpad">
-      <button class="sv-num" data-n="1">1</button>
-      <button class="sv-num" data-n="2">2</button>
-      <button class="sv-num" data-n="3">3</button>
-      <button class="sv-num" data-n="4">4</button>
-      <button class="sv-num" data-n="5">5</button>
-      <button class="sv-num" data-n="6">6</button>
-      <button class="sv-num" data-n="7">7</button>
-      <button class="sv-num" data-n="8">8</button>
-      <button class="sv-num" data-n="9">9</button>
-      <button class="sv-num sv-num--clear" id="sv-clear">✕</button>
-      <button class="sv-num" data-n="0">0</button>
-      <button class="sv-num sv-num--del" id="sv-del">⌫</button>
+    <div class="numpad" id="sv-numpad" style="max-width:280px;margin:0 auto 8px">
+      <button class="num-btn" data-sv="1">1</button>
+      <button class="num-btn" data-sv="2">2</button>
+      <button class="num-btn" data-sv="3">3</button>
+      <button class="num-btn" data-sv="4">4</button>
+      <button class="num-btn" data-sv="5">5</button>
+      <button class="num-btn" data-sv="6">6</button>
+      <button class="num-btn" data-sv="7">7</button>
+      <button class="num-btn" data-sv="8">8</button>
+      <button class="num-btn" data-sv="9">9</button>
+      <button class="num-btn empty"></button>
+      <button class="num-btn" data-sv="0">0</button>
+      <button class="num-btn del" id="sv-del">⌫</button>
     </div>
-    <button class="share-view-unlock-btn" id="sv-unlock-btn">View Details</button>
     <div class="share-view-error" id="sv-error"></div>
   </div>
   <div id="share-view-card" class="share-card" style="display:none"></div>
@@ -2523,6 +2483,7 @@ function lockVault() {
     state.preLockScreen=visibleScreen;
   } else if(document.getElementById('share-sheet-overlay').classList.contains('show') && _shareTargetEntry){
     state.preLockScreen='share-sheet';
+    document.getElementById('share-sheet-overlay').classList.remove('show'); // don't block unlock numpad
   } else {
     state.preLockScreen=null; state.formDraft=null;
   }
@@ -6341,17 +6302,18 @@ let _shareSelectedTTL = 86400000;
 let _spPin = '';
 
 function spUpdateDots() {
-  document.querySelectorAll('#sp-dots .sp-dot').forEach((dot, i) => {
-    dot.textContent = i < _spPin.length ? '•' : '–';
+  document.querySelectorAll('#sp-dots .pin-dot').forEach((dot, i) => {
     dot.classList.toggle('filled', i < _spPin.length);
   });
 }
 
 function showShareSheet() {
   document.getElementById('share-sheet-overlay').classList.add('show');
+  state.importInProgress = true; // guard against auto-lock for the whole sheet lifetime
 }
 function hideShareSheet() {
   document.getElementById('share-sheet-overlay').classList.remove('show');
+  state.importInProgress = false;
 }
 
 function openShareModal(entry) {
@@ -6367,7 +6329,6 @@ function openShareModal(entry) {
   showShareSheet();
 }
 
-document.getElementById('share-cancel-btn').addEventListener('click', hideShareSheet);
 document.getElementById('share-sheet-overlay').addEventListener('click', e => {
   if(e.target === document.getElementById('share-sheet-overlay')) hideShareSheet();
 });
@@ -6401,12 +6362,10 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
     try { await navigator.clipboard.writeText(link); toast('Link copied ✓'); } catch { toast('Copy failed'); }
   };
   document.getElementById('share-native-btn').onclick = () => {
-    state.importInProgress = true;
-    const resetFlag = () => { state.importInProgress = false; };
     if(navigator.share) {
-      navigator.share({ url: link, title: 'Shared from Vault' }).catch(()=>{}).finally(resetFlag);
+      navigator.share({ url: link, title: 'Shared from Vault' }).catch(()=>{});
     } else {
-      navigator.clipboard.writeText(link).then(() => toast('Link copied ✓')).finally(resetFlag);
+      navigator.clipboard.writeText(link).then(() => toast('Link copied ✓'));
     }
   };
 });
@@ -6417,38 +6376,18 @@ document.getElementById('share-done-btn').addEventListener('click', hideShareShe
 
 // ── Share view (recipient side) ───────────────────────────────────────────
 
-// PIN digit auto-advance (recipient)
-// ── Share view numpad PIN ─────────────────────────────────────────────────
+// ── Share view numpad PIN (recipient) ───────────────────────────────────────
 let _svPin = '';
 
 function svUpdateDots() {
-  document.querySelectorAll('.sv-dot').forEach((dot, i) => {
-    dot.textContent = i < _svPin.length ? '•' : '–';
+  document.querySelectorAll('#sv-dots .pin-dot').forEach((dot, i) => {
     dot.classList.toggle('filled', i < _svPin.length);
   });
 }
 
-document.getElementById('sv-numpad').addEventListener('click', e => {
-  const btn = e.target.closest('[data-n]');
-  if(btn && _svPin.length < 4) {
-    _svPin += btn.dataset.n;
-    svUpdateDots();
-    if(_svPin.length === 4) document.getElementById('sv-unlock-btn').click();
-  }
-});
-
-document.getElementById('sv-del').addEventListener('click', () => {
-  _svPin = _svPin.slice(0, -1); svUpdateDots();
-});
-
-document.getElementById('sv-clear').addEventListener('click', () => {
-  _svPin = ''; svUpdateDots();
-});
-
-
-document.getElementById('sv-unlock-btn').addEventListener('click', async () => {
+async function svAttemptUnlock() {
   const pin = _svPin;
-  if(pin.length !== 4) { document.getElementById('sv-error').textContent = 'Enter all 4 digits'; return; }
+  if(pin.length !== 4) return;
   const rawHash = location.hash;
   const sharePrefix = '#share/';
   if(!rawHash.startsWith(sharePrefix)) {
@@ -6473,6 +6412,21 @@ document.getElementById('sv-unlock-btn').addEventListener('click', async () => {
     document.getElementById('sv-error').textContent = 'Incorrect PIN — try again';
     _svPin = ''; svUpdateDots();
   }
+}
+
+document.querySelectorAll('#sv-numpad [data-sv]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if(_svPin.length < 4) {
+      _svPin += btn.dataset.sv;
+      svUpdateDots();
+      if(_svPin.length === 4) svAttemptUnlock();
+    }
+  });
+});
+
+document.getElementById('sv-del').addEventListener('click', () => {
+  _svPin = _svPin.slice(0, -1); svUpdateDots();
+  document.getElementById('sv-error').textContent = '';
 });
 
 function renderShareCard(entry) {
