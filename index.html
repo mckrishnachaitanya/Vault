@@ -687,7 +687,15 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .share-modal-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:4px;}
 .share-modal-sub{font-size:12px;color:var(--muted);margin-bottom:20px;}
 .share-modal-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;}
-.share-pin-row{display:flex;gap:10px;margin-bottom:18px;}
+.share-pin-row{display:flex;gap:14px;justify-content:center;margin-bottom:16px;}
+.sp-dot{
+  width:52px;height:52px;border-radius:14px;
+  background:var(--surface2);border:1.5px solid var(--border);
+  font-size:22px;font-weight:800;color:var(--text2);
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s;
+}
+.sp-dot.filled{border-color:var(--accent);color:var(--accent);}
 .share-pin-digit{
   flex:1;height:52px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);
@@ -6239,32 +6247,35 @@ document.getElementById('s-force-update').addEventListener('click', async () => 
 
 // ── Share modal (sender side) ─────────────────────────────────────────────
 let _shareTargetEntry = null;
-let _shareSelectedTTL = 86400000; // default 24h
+let _shareSelectedTTL = 86400000;
+let _spPin = '';
+
+function spUpdateDots() {
+  document.querySelectorAll('#sp-dots .sp-dot').forEach((dot, i) => {
+    dot.textContent = i < _spPin.length ? '•' : '–';
+    dot.classList.toggle('filled', i < _spPin.length);
+  });
+}
 
 function openShareModal(entry) {
   _shareTargetEntry = entry;
   _shareSelectedTTL = 86400000;
+  _spPin = '';
+  spUpdateDots();
   document.getElementById('share-step-setup').style.display = '';
   document.getElementById('share-step-link').style.display = 'none';
-  ['sp-d1','sp-d2','sp-d3','sp-d4'].forEach(id => { document.getElementById(id).value = ''; });
   document.querySelectorAll('.share-expiry-btn').forEach(b => {
     b.classList.toggle('selected', b.dataset.ttl === '86400000');
   });
   document.getElementById('share-modal-overlay').classList.remove('hidden');
-  setTimeout(() => document.getElementById('sp-d1').focus(), 100);
 }
 
-// PIN digit auto-advance
-['sp-d1','sp-d2','sp-d3','sp-d4'].forEach((id, i, arr) => {
-  const el = document.getElementById(id);
-  el.addEventListener('input', () => {
-    el.value = el.value.replace(/\D/g, '').slice(0,1);
-    if(el.value && i < arr.length - 1) document.getElementById(arr[i+1]).focus();
-  });
-  el.addEventListener('keydown', e => {
-    if(e.key === 'Backspace' && !el.value && i > 0) document.getElementById(arr[i-1]).focus();
-  });
+document.getElementById('sp-numpad').addEventListener('click', e => {
+  const btn = e.target.closest('[data-n]');
+  if(btn && _spPin.length < 4) { _spPin += btn.dataset.n; spUpdateDots(); }
 });
+document.getElementById('sp-del').addEventListener('click', () => { _spPin = _spPin.slice(0,-1); spUpdateDots(); });
+document.getElementById('sp-clear').addEventListener('click', () => { _spPin = ''; spUpdateDots(); });
 
 document.querySelectorAll('.share-expiry-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -6274,26 +6285,18 @@ document.querySelectorAll('.share-expiry-btn').forEach(btn => {
 });
 
 document.getElementById('share-generate-btn').addEventListener('click', async () => {
-  const pin = ['sp-d1','sp-d2','sp-d3','sp-d4'].map(id => document.getElementById(id).value).join('');
-  if(pin.length !== 4 || !/^\d{4}$/.test(pin)) { toast('Enter a 4-digit PIN'); return; }
+  const pin = _spPin;
+  if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
   if(!_shareTargetEntry) return;
-
-  const payload = {
-    entry: _shareTargetEntry,
-    expiresAt: Date.now() + _shareSelectedTTL,
-  };
+  const payload = { entry: _shareTargetEntry, expiresAt: Date.now() + _shareSelectedTTL };
   const encrypted = await Crypto.encrypt(payload, pin);
-  // URL-safe base64 (+ → -, / → _, remove =)
   const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   const link = `${location.origin}${location.pathname}#share/${urlSafe}`;
-
   document.getElementById('share-link-box').textContent = link;
   document.getElementById('share-step-setup').style.display = 'none';
   document.getElementById('share-step-link').style.display = '';
-
   document.getElementById('share-copy-btn').onclick = async () => {
-    try { await navigator.clipboard.writeText(link); toast('Link copied ✓'); }
-    catch { toast('Copy failed'); }
+    try { await navigator.clipboard.writeText(link); toast('Link copied ✓'); } catch { toast('Copy failed'); }
   };
   document.getElementById('share-native-btn').onclick = () => {
     if(navigator.share) { navigator.share({ url: link, title: 'Shared from Vault' }).catch(()=>{}); }
@@ -6301,16 +6304,15 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
   };
 });
 
-document.getElementById('share-cancel-btn').addEventListener('click', () => {
+function hideShareModal() {
   document.getElementById('share-modal-overlay').classList.add('hidden');
-});
-document.getElementById('share-done-btn').addEventListener('click', () => {
-  document.getElementById('share-modal-overlay').classList.add('hidden');
-});
-document.getElementById('share-modal-overlay').addEventListener('click', e => {
-  if(e.target === document.getElementById('share-modal-overlay'))
-    document.getElementById('share-modal-overlay').classList.add('hidden');
-});
+}
+document.getElementById('share-cancel-btn').addEventListener('click', hideShareModal);
+document.getElementById('share-done-btn').addEventListener('click', hideShareModal);
+// Stop taps inside the sheet from bubbling to overlay (which would close it)
+document.getElementById('share-modal').addEventListener('click', e => e.stopPropagation());
+document.getElementById('share-modal').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+document.getElementById('share-modal-overlay').addEventListener('click', hideShareModal);
 
 // Share button is wired dynamically in openDetail()
 
@@ -6516,11 +6518,25 @@ init();
     <div class="share-modal-sub">Set a PIN and expiry — the recipient will need the PIN to view.</div>
     <div id="share-step-setup">
       <div class="share-modal-label">4-digit PIN</div>
-      <div class="share-pin-row">
-        <input class="share-pin-digit" id="sp-d1" type="password" inputmode="numeric" maxlength="1"/>
-        <input class="share-pin-digit" id="sp-d2" type="password" inputmode="numeric" maxlength="1"/>
-        <input class="share-pin-digit" id="sp-d3" type="password" inputmode="numeric" maxlength="1"/>
-        <input class="share-pin-digit" id="sp-d4" type="password" inputmode="numeric" maxlength="1"/>
+      <div class="share-pin-row" id="sp-dots">
+        <div class="sp-dot">–</div>
+        <div class="sp-dot">–</div>
+        <div class="sp-dot">–</div>
+        <div class="sp-dot">–</div>
+      </div>
+      <div class="sv-numpad" id="sp-numpad">
+        <button class="sv-num" data-n="1">1</button>
+        <button class="sv-num" data-n="2">2</button>
+        <button class="sv-num" data-n="3">3</button>
+        <button class="sv-num" data-n="4">4</button>
+        <button class="sv-num" data-n="5">5</button>
+        <button class="sv-num" data-n="6">6</button>
+        <button class="sv-num" data-n="7">7</button>
+        <button class="sv-num" data-n="8">8</button>
+        <button class="sv-num" data-n="9">9</button>
+        <button class="sv-num sv-num--clear" id="sp-clear">✕</button>
+        <button class="sv-num" data-n="0">0</button>
+        <button class="sv-num sv-num--del" id="sp-del">⌫</button>
       </div>
       <div class="share-modal-label">Link expires after</div>
       <div class="share-expiry-row">
