@@ -1861,6 +1861,85 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   "></div>
 </div>
 
+<!-- ══════════ SECURE SHARE SCREEN ══════════ -->
+<div class="screen hidden" id="share-setup-screen">
+  <div class="topbar">
+    <div class="icon-btn" id="share-setup-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+    <h2>🔗 Secure Share</h2>
+    <div style="width:40px"></div>
+  </div>
+  <div class="form-body">
+    <div id="share-step-setup">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 20px;">Set a PIN and expiry — the recipient will need the PIN to view.</p>
+      <div class="field-label" style="margin-bottom:10px">4-digit PIN</div>
+      <div class="share-pin-row" id="sp-dots">
+        <div class="sp-dot">–</div>
+        <div class="sp-dot">–</div>
+        <div class="sp-dot">–</div>
+        <div class="sp-dot">–</div>
+      </div>
+      <div class="numpad" style="max-width:280px;margin:0 auto 24px">
+        <button class="num-btn" data-sp="1">1</button><button class="num-btn" data-sp="2">2</button><button class="num-btn" data-sp="3">3</button>
+        <button class="num-btn" data-sp="4">4</button><button class="num-btn" data-sp="5">5</button><button class="num-btn" data-sp="6">6</button>
+        <button class="num-btn" data-sp="7">7</button><button class="num-btn" data-sp="8">8</button><button class="num-btn" data-sp="9">9</button>
+        <button class="num-btn empty"></button><button class="num-btn" data-sp="0">0</button>
+        <button class="num-btn del" id="sp-del">⌫</button>
+      </div>
+      <div class="field-label" style="margin-bottom:10px">Link expires after</div>
+      <div class="share-expiry-row">
+        <button class="share-expiry-btn" data-ttl="3600000">1 hour</button>
+        <button class="share-expiry-btn selected" data-ttl="86400000">24 hours</button>
+        <button class="share-expiry-btn" data-ttl="604800000">7 days</button>
+      </div>
+      <button class="share-generate-btn" id="share-generate-btn">Generate Link</button>
+    </div>
+    <div id="share-step-link" style="display:none">
+      <div class="field-label" style="margin-bottom:10px">Share this link</div>
+      <div class="share-link-row">
+        <div class="share-link-box" id="share-link-box"></div>
+        <button class="share-copy-btn" id="share-copy-btn">Copy</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 20px;">Send the PIN separately — the link alone reveals nothing.</p>
+      <button class="share-generate-btn" id="share-native-btn">↗️ Share…</button>
+      <button class="share-cancel-btn" id="share-done-btn">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SHARE VIEW (recipient) ══════════ -->
+<div id="share-view" class="hidden">
+  <div class="share-view-logo">🔐 Vault</div>
+  <div class="share-view-tagline">Secure Share</div>
+  <div id="share-view-pin-wrap" class="share-pin-prompt">
+    <div class="share-pin-prompt-title">Enter PIN to view</div>
+    <div class="share-pin-prompt-sub">The sender shared a PIN with you separately.</div>
+    <div class="share-view-pin-row" id="sv-dots">
+      <div class="sv-dot" data-pos="0">–</div>
+      <div class="sv-dot" data-pos="1">–</div>
+      <div class="sv-dot" data-pos="2">–</div>
+      <div class="sv-dot" data-pos="3">–</div>
+    </div>
+    <div class="sv-numpad" id="sv-numpad">
+      <button class="sv-num" data-n="1">1</button>
+      <button class="sv-num" data-n="2">2</button>
+      <button class="sv-num" data-n="3">3</button>
+      <button class="sv-num" data-n="4">4</button>
+      <button class="sv-num" data-n="5">5</button>
+      <button class="sv-num" data-n="6">6</button>
+      <button class="sv-num" data-n="7">7</button>
+      <button class="sv-num" data-n="8">8</button>
+      <button class="sv-num" data-n="9">9</button>
+      <button class="sv-num sv-num--clear" id="sv-clear">✕</button>
+      <button class="sv-num" data-n="0">0</button>
+      <button class="sv-num sv-num--del" id="sv-del">⌫</button>
+    </div>
+    <button class="share-view-unlock-btn" id="sv-unlock-btn">View Details</button>
+    <div class="share-view-error" id="sv-error"></div>
+  </div>
+  <div id="share-view-card" class="share-card" style="display:none"></div>
+  <div class="share-card-footer">Shared via Vault · End-to-end encrypted</div>
+</div>
+
 <script>
 // ═══════════════════════════════════════
 //  DEBUG LOG (in-app console)
@@ -6501,86 +6580,6 @@ function init() {
 }
 init();
 </script>
-<!-- ══════════ SECURE SHARE MODAL ══════════ -->
-<!-- ══════════ DEBUG OVERLAY ══════════ -->
-<!-- ══════════ SECURE SHARE SCREEN ══════════ -->
-<div class="screen hidden" id="share-setup-screen">
-  <div class="topbar">
-    <div class="icon-btn" id="share-setup-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
-    <h2>🔗 Secure Share</h2>
-    <div style="width:40px"></div>
-  </div>
-  <div class="form-body">
-    <div id="share-step-setup">
-      <p style="font-size:13px;color:var(--muted);margin:0 0 20px;">Set a PIN and expiry — the recipient will need the PIN to view.</p>
-      <div class="field-label" style="margin-bottom:10px">4-digit PIN</div>
-      <div class="share-pin-row" id="sp-dots">
-        <div class="sp-dot">–</div>
-        <div class="sp-dot">–</div>
-        <div class="sp-dot">–</div>
-        <div class="sp-dot">–</div>
-      </div>
-      <div class="numpad" style="max-width:280px;margin:0 auto 24px">
-        <button class="num-btn" data-sp="1">1</button><button class="num-btn" data-sp="2">2</button><button class="num-btn" data-sp="3">3</button>
-        <button class="num-btn" data-sp="4">4</button><button class="num-btn" data-sp="5">5</button><button class="num-btn" data-sp="6">6</button>
-        <button class="num-btn" data-sp="7">7</button><button class="num-btn" data-sp="8">8</button><button class="num-btn" data-sp="9">9</button>
-        <button class="num-btn empty"></button><button class="num-btn" data-sp="0">0</button>
-        <button class="num-btn del" id="sp-del">⌫</button>
-      </div>
-      <div class="field-label" style="margin-bottom:10px">Link expires after</div>
-      <div class="share-expiry-row">
-        <button class="share-expiry-btn" data-ttl="3600000">1 hour</button>
-        <button class="share-expiry-btn selected" data-ttl="86400000">24 hours</button>
-        <button class="share-expiry-btn" data-ttl="604800000">7 days</button>
-      </div>
-      <button class="share-generate-btn" id="share-generate-btn">Generate Link</button>
-    </div>
-    <div id="share-step-link" style="display:none">
-      <div class="field-label" style="margin-bottom:10px">Share this link</div>
-      <div class="share-link-row">
-        <div class="share-link-box" id="share-link-box"></div>
-        <button class="share-copy-btn" id="share-copy-btn">Copy</button>
-      </div>
-      <p style="font-size:12px;color:var(--muted);margin:0 0 20px;">Send the PIN separately — the link alone reveals nothing.</p>
-      <button class="share-generate-btn" id="share-native-btn">↗️ Share…</button>
-      <button class="share-cancel-btn" id="share-done-btn">Done</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════ SHARE VIEW (recipient) ══════════ -->
-<div id="share-view" class="hidden">
-  <div class="share-view-logo">🔐 Vault</div>
-  <div class="share-view-tagline">Secure Share</div>
-  <div id="share-view-pin-wrap" class="share-pin-prompt">
-    <div class="share-pin-prompt-title">Enter PIN to view</div>
-    <div class="share-pin-prompt-sub">The sender shared a PIN with you separately.</div>
-    <div class="share-view-pin-row" id="sv-dots">
-      <div class="sv-dot" data-pos="0">–</div>
-      <div class="sv-dot" data-pos="1">–</div>
-      <div class="sv-dot" data-pos="2">–</div>
-      <div class="sv-dot" data-pos="3">–</div>
-    </div>
-    <div class="sv-numpad" id="sv-numpad">
-      <button class="sv-num" data-n="1">1</button>
-      <button class="sv-num" data-n="2">2</button>
-      <button class="sv-num" data-n="3">3</button>
-      <button class="sv-num" data-n="4">4</button>
-      <button class="sv-num" data-n="5">5</button>
-      <button class="sv-num" data-n="6">6</button>
-      <button class="sv-num" data-n="7">7</button>
-      <button class="sv-num" data-n="8">8</button>
-      <button class="sv-num" data-n="9">9</button>
-      <button class="sv-num sv-num--clear" id="sv-clear">✕</button>
-      <button class="sv-num" data-n="0">0</button>
-      <button class="sv-num sv-num--del" id="sv-del">⌫</button>
-    </div>
-    <button class="share-view-unlock-btn" id="sv-unlock-btn">View Details</button>
-    <div class="share-view-error" id="sv-error"></div>
-  </div>
-  <div id="share-view-card" class="share-card" style="display:none"></div>
-  <div class="share-card-footer">Shared via Vault · End-to-end encrypted</div>
-</div>
 
 </body>
 </html>
