@@ -895,6 +895,17 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   transition:all .14s;
 }
 .detail-icon-btn:active{transform:scale(.88);background:var(--surface2);}
+
+/* Share button in detail fields */
+.detail-share-row{padding:0 20px 8px;}
+.detail-share-btn-full{
+  width:100%;padding:13px;border-radius:var(--radius);
+  border:1.5px solid var(--border);background:var(--surface);
+  color:var(--text2);font-family:var(--font);font-size:14px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all .14s;
+}
+.detail-share-btn-full:active{background:var(--surface2);}
 .detail-avatar{font-size:40px;margin-bottom:10px;display:block;}
 .detail-name{font-size:22px;font-weight:800;color:var(--text);font-family:var(--font-head);}
 .detail-cat-badge{
@@ -1606,7 +1617,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   <div class="detail-hero">
     <div class="detail-top-actions">
       <button class="detail-icon-btn" id="detail-delete-btn" title="Delete" style="color:var(--red)">🗑️</button>
-      <button class="detail-icon-btn" id="detail-share-btn" title="Share">🔗</button>
       <button class="detail-icon-btn" id="detail-edit" title="Edit">✏️</button>
       <button class="detail-icon-btn" id="detail-fav-btn" title="Star">☆</button>
     </div>
@@ -2972,6 +2982,13 @@ async function openDetail(id) {
   // Append linked documents section after the entry fields
   renderLinkedDocs(entry, container);
 
+  // Share button — full width, below fields
+  const shareRow = document.createElement('div');
+  shareRow.className = 'detail-share-row';
+  shareRow.innerHTML = `<button class="detail-share-btn-full" id="detail-share-btn">🔗 Secure Share</button>`;
+  container.appendChild(shareRow);
+  shareRow.querySelector('#detail-share-btn').addEventListener('click', () => openShareModal(entry));
+
   showScreen('detail-screen');
 }
 
@@ -3517,21 +3534,14 @@ function renderForm() {
 
   let html = '';
 
-  // Type picker or locked badge
-  if(isEdit){
-    const tm=TYPE_META[type]||TYPE_META.app;
-    html += `<div class="field-group"><div class="field-label">Type</div>
-      <div class="type-locked-badge">${tm.emoji} ${tm.label} <span style="font-size:11px;color:var(--muted);font-weight:500;margin-left:4px">(cannot change)</span></div></div>`;
-  } else {
-    html += `<div class="field-group"><div class="field-label">Entry Type</div>
-      <div class="type-picker-grid">
-        ${Object.entries(TYPE_META).map(([k,v])=>`
-          <button class="type-pick-btn${type===k?' selected':''}" onclick="selectType('${k}')" type="button">
-            <span class="type-pick-icon">${v.emoji}</span>
-            <span class="type-pick-label">${v.label}</span>
-          </button>`).join('')}
-      </div></div>`;
-  }
+  // Type locked badge — shown for both new entries (type already chosen via
+  // template picker) and edits. No in-form picker needed anymore.
+  const tm=TYPE_META[type]||TYPE_META.app;
+  const changeHint = isEdit
+    ? '<span style="font-size:11px;color:var(--muted);font-weight:500;margin-left:4px">(cannot change)</span>'
+    : `<span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:8px;cursor:pointer;text-decoration:underline" onclick="openTemplatePicker(state._templateFrom||'home')">Change</span>`;
+  html += `<div class="field-group"><div class="field-label">Type</div>
+    <div class="type-locked-badge">${tm.emoji} ${tm.label}${changeHint}</div></div>`;
 
   // Title field for types that use a generic name
   if(!['note'].includes(type)){
@@ -3731,51 +3741,217 @@ function initRichNoteEditor(currentValue) {
   const toolbar = document.getElementById('note-toolbar');
   if(!toolbar) return;
 
-  // Toolbar button handler
-  toolbar.addEventListener('mousedown', e=>{
+  // ── State tracking ──────────────────────────────────────────────────────
+  // We track formatting state ourselves — no queryCommandState (unreliable
+  // on Android Chrome). State is re-evaluated on every selection change by
+  // walking the DOM ancestors of the current cursor position.
+
+  function getAncestors(node) {
+    const tags = [];
+    let cur = node;
+    while(cur && cur !== editor) {
+      if(cur.tagName) tags.push(cur.tagName.toUpperCase());
+      cur = cur.parentNode;
+    }
+    return tags;
+  }
+
+  function getCursorAncestors() {
+    const sel = window.getSelection();
+    if(!sel || !sel.rangeCount) return [];
+    const node = sel.getRangeAt(0).commonAncestorContainer;
+    return getAncestors(node.nodeType === 3 ? node.parentNode : node);
+  }
+
+  function updateToolbarState() {
+    const anc = getCursorAncestors();
+    toolbar.querySelector('[data-cmd="bold"]')?.classList.toggle('active', anc.includes('B') || anc.includes('STRONG'));
+    toolbar.querySelector('[data-cmd="italic"]')?.classList.toggle('active', anc.includes('I') || anc.includes('EM'));
+    toolbar.querySelector('[data-cmd="heading"]')?.classList.toggle('active', anc.includes('H1'));
+    toolbar.querySelector('[data-cmd="bullet"]')?.classList.toggle('active', anc.includes('LI') || anc.includes('UL'));
+  }
+
+  // ── Inline toggle (bold / italic) ────────────────────────────────────────
+  // Wraps selection in <b>/<i> or unwraps if already wrapped.
+  function toggleInline(tag) {
+    const sel = window.getSelection();
+    if(!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+
+    // Check if selection is already inside this tag
+    const anc = getAncestors(
+      range.commonAncestorContainer.nodeType === 3
+        ? range.commonAncestorContainer.parentNode
+        : range.commonAncestorContainer
+    );
+    const TAG = tag.toUpperCase();
+    const isActive = anc.includes(TAG) || anc.includes(TAG === 'B' ? 'STRONG' : 'EM');
+
+    if(isActive) {
+      // Unwrap: find the wrapping element and replace with its children
+      let wrap = range.commonAncestorContainer;
+      while(wrap && wrap !== editor) {
+        if(wrap.tagName && (wrap.tagName.toUpperCase() === TAG ||
+          (TAG === 'B' && wrap.tagName.toUpperCase() === 'STRONG') ||
+          (TAG === 'I' && wrap.tagName.toUpperCase() === 'EM'))) break;
+        wrap = wrap.parentNode;
+      }
+      if(wrap && wrap !== editor) {
+        const frag = document.createDocumentFragment();
+        while(wrap.firstChild) frag.appendChild(wrap.firstChild);
+        wrap.parentNode.replaceChild(frag, wrap);
+      }
+    } else {
+      // Wrap selection
+      if(range.collapsed) return; // nothing selected
+      const el = document.createElement(tag);
+      try { range.surroundContents(el); }
+      catch(e) {
+        // surroundContents fails if selection crosses block boundaries — extract and wrap
+        const frag = range.extractContents();
+        el.appendChild(frag);
+        range.insertNode(el);
+      }
+    }
+    editor.normalize();
+    updateToolbarState();
+  }
+
+  // ── Block toggle (heading / bullet) ─────────────────────────────────────
+  // Converts the block containing the cursor. Heading ↔ p, bullet ↔ p.
+  function getContainingBlock(node) {
+    const BLOCKS = ['P','DIV','H1','H2','H3','LI','UL','OL','BLOCKQUOTE'];
+    let cur = node;
+    while(cur && cur !== editor) {
+      if(cur.tagName && BLOCKS.includes(cur.tagName.toUpperCase())) return cur;
+      cur = cur.parentNode;
+    }
+    return null;
+  }
+
+  function toggleHeading() {
+    const sel = window.getSelection();
+    if(!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer.nodeType === 3
+      ? range.startContainer.parentNode : range.startContainer;
+
+    // Find nearest block
+    let block = getContainingBlock(node);
+    if(!block || block === editor) {
+      // Cursor is directly in editor — wrap in a p first
+      const p = document.createElement('p');
+      range.surroundContents(p);
+      block = p;
+    }
+
+    const tag = block.tagName.toUpperCase();
+    if(tag === 'H1') {
+      // Convert H1 → P
+      const p = document.createElement('p');
+      p.innerHTML = block.innerHTML;
+      block.parentNode.replaceChild(p, block);
+      moveCursorToEnd(p);
+    } else if(tag === 'LI') {
+      // In a list — convert li → h1, remove from list
+      const ul = block.parentNode;
+      const h1 = document.createElement('h1');
+      h1.innerHTML = block.innerHTML;
+      ul.parentNode.insertBefore(h1, ul);
+      ul.removeChild(block);
+      if(!ul.children.length) ul.parentNode.removeChild(ul);
+      moveCursorToEnd(h1);
+    } else {
+      // Convert to H1
+      const h1 = document.createElement('h1');
+      h1.innerHTML = block.innerHTML;
+      block.parentNode.replaceChild(h1, block);
+      moveCursorToEnd(h1);
+    }
+    updateToolbarState();
+  }
+
+  function toggleBullet() {
+    const sel = window.getSelection();
+    if(!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer.nodeType === 3
+      ? range.startContainer.parentNode : range.startContainer;
+
+    let block = getContainingBlock(node);
+
+    if(block && (block.tagName === 'LI' || block.tagName === 'UL')) {
+      // Already a list item — convert back to P
+      const li = block.tagName === 'LI' ? block : block.querySelector('li');
+      if(!li) return;
+      const ul = li.parentNode;
+      const p = document.createElement('p');
+      p.innerHTML = li.innerHTML;
+      ul.parentNode.insertBefore(p, ul);
+      ul.removeChild(li);
+      if(!ul.children.length) ul.parentNode.removeChild(ul);
+      moveCursorToEnd(p);
+    } else {
+      // Convert block to LI inside UL
+      if(!block || block === editor) {
+        // wrap bare text in a p first
+        const p = document.createElement('p');
+        if(range.startContainer.nodeType === 3) {
+          const textNode = range.startContainer;
+          textNode.parentNode.insertBefore(p, textNode);
+          p.appendChild(textNode);
+        }
+        block = p;
+      }
+      const ul = document.createElement('ul');
+      const li = document.createElement('li');
+      li.innerHTML = block.innerHTML;
+      ul.appendChild(li);
+      block.parentNode.replaceChild(ul, block);
+      moveCursorToEnd(li);
+    }
+    updateToolbarState();
+  }
+
+  function moveCursorToEnd(el) {
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  // ── Toolbar listener ─────────────────────────────────────────────────────
+  toolbar.addEventListener('mousedown', e => {
     const btn = e.target.closest('[data-cmd]');
     if(!btn) return;
-    e.preventDefault(); // keep focus in editor
-    const cmd = btn.dataset.cmd;
+    e.preventDefault(); // keep editor focus
     editor.focus();
-    if(cmd==='bold')    document.execCommand('bold');
-    if(cmd==='italic')  document.execCommand('italic');
-    if(cmd==='heading'){
-      const sel = window.getSelection();
-      if(!sel.rangeCount) return;
-      const range = sel.getRangeAt(0);
-      const block = range.commonAncestorContainer.nodeType===3
-        ? range.commonAncestorContainer.parentElement
-        : range.commonAncestorContainer;
-      const inH1 = block.tagName==='H1' || block.closest('h1');
-      document.execCommand('formatBlock', false, inH1 ? 'p' : 'h1');
-    }
-    if(cmd==='bullet')  document.execCommand('insertUnorderedList');
-    updateToolbarState();
+    const cmd = btn.dataset.cmd;
+    if(cmd === 'bold')    toggleInline('b');
+    if(cmd === 'italic')  toggleInline('i');
+    if(cmd === 'heading') toggleHeading();
+    if(cmd === 'bullet')  toggleBullet();
   });
 
-  // Update active state on selection change
+  // Also handle touchstart for mobile tap responsiveness
+  toolbar.addEventListener('touchstart', e => {
+    const btn = e.target.closest('[data-cmd]');
+    if(!btn) return;
+    e.preventDefault();
+    editor.focus();
+    const cmd = btn.dataset.cmd;
+    if(cmd === 'bold')    toggleInline('b');
+    if(cmd === 'italic')  toggleInline('i');
+    if(cmd === 'heading') toggleHeading();
+    if(cmd === 'bullet')  toggleBullet();
+  }, { passive: false });
+
   editor.addEventListener('keyup', updateToolbarState);
   editor.addEventListener('mouseup', updateToolbarState);
-
-  function updateToolbarState(){
-    toolbar.querySelectorAll('[data-cmd]').forEach(btn=>{
-      const cmd = btn.dataset.cmd;
-      let active = false;
-      if(cmd==='bold')    active = document.queryCommandState('bold');
-      if(cmd==='italic')  active = document.queryCommandState('italic');
-      if(cmd==='bullet')  active = document.queryCommandState('insertUnorderedList');
-      if(cmd==='heading'){
-        const sel=window.getSelection();
-        if(sel&&sel.rangeCount){
-          const block=sel.getRangeAt(0).commonAncestorContainer;
-          const el=block.nodeType===3?block.parentElement:block;
-          active=!!(el.tagName==='H1'||el.closest&&el.closest('h1'));
-        }
-      }
-      btn.classList.toggle('active', active);
-    });
-  }
+  editor.addEventListener('touchend', updateToolbarState);
+  editor.addEventListener('selectionchange', updateToolbarState);
 }
 
 // Read the note editor value as markdown (called from saveEntry)
@@ -6131,10 +6307,7 @@ document.getElementById('share-modal-overlay').addEventListener('click', e => {
     document.getElementById('share-modal-overlay').classList.add('hidden');
 });
 
-document.getElementById('detail-share-btn').addEventListener('click', () => {
-  if(!currentDetail) return;
-  openShareModal(currentDetail);
-});
+// Share button is wired dynamically in openDetail()
 
 // ── Share view (recipient side) ───────────────────────────────────────────
 
@@ -6154,10 +6327,19 @@ document.getElementById('detail-share-btn').addEventListener('click', () => {
 document.getElementById('sv-unlock-btn').addEventListener('click', async () => {
   const pin = ['sv-d1','sv-d2','sv-d3','sv-d4'].map(id => document.getElementById(id).value).join('');
   if(pin.length !== 4) { document.getElementById('sv-error').textContent = 'Enter all 4 digits'; return; }
-  const fragment = location.hash.slice(1); // remove #
-  const b64 = fragment.replace(/^share\//,'').replace(/-/g,'+').replace(/_/g,'/');
+  const rawHash = location.hash;
+  const sharePrefix = '#share/';
+  if(!rawHash.startsWith(sharePrefix)) {
+    document.getElementById('sv-error').textContent = 'Invalid share link';
+    return;
+  }
+  // Restore standard base64 from URL-safe encoding
+  const b64 = rawHash.slice(sharePrefix.length)
+    .replace(/-/g, '+').replace(/_/g, '/');
+  // Pad to multiple of 4
+  const padded = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
   try {
-    const payload = await Crypto.decrypt(b64, pin);
+    const payload = await Crypto.decrypt(padded, pin);
     if(!payload || !payload.entry || !payload.expiresAt) throw new Error('Invalid payload');
     if(Date.now() > payload.expiresAt) {
       document.getElementById('sv-error').textContent = '⚠️ This link has expired';
@@ -6276,14 +6458,21 @@ function renderShareCard(entry) {
 function checkShareLink() {
   const hash = location.hash;
   if(!hash.startsWith('#share/')) return false;
-  // Show share view, hide everything else
   document.getElementById('share-view').classList.remove('hidden');
-  // Apply theme from localStorage
   applyTheme(Store.get('vault_theme') === 'dark');
-  // Check expiry from URL (we can't without decrypting, so just show PIN prompt)
+  // Reset state for fresh link
+  document.getElementById('share-view-pin-wrap').style.display = '';
+  document.getElementById('share-view-card').style.display = 'none';
+  document.getElementById('share-view-card').innerHTML = '';
+  document.getElementById('sv-error').textContent = '';
+  ['sv-d1','sv-d2','sv-d3','sv-d4'].forEach(id => { document.getElementById(id).value = ''; });
   setTimeout(() => document.getElementById('sv-d1').focus(), 200);
   return true;
 }
+
+// Handle share links opened while app is already running
+window.addEventListener('hashchange', () => { checkShareLink(); });
+
 
 function init() {
   applyTheme(Store.get('vault_theme')==='dark');
