@@ -6298,29 +6298,53 @@ function openShareModal(entry) {
   showShareModal();
 }
 
-document.getElementById('sp-numpad').addEventListener('click', e => {
-  const btn = e.target.closest('[data-n]');
-  dbg(`numpad click: target=${e.target.tagName} data-n=${btn?.dataset?.n} pin=${_spPin}`);
-  if(btn && _spPin.length < 4) { _spPin += btn.dataset.n; spUpdateDots(); }
-});
-document.getElementById('sp-del').addEventListener('click', () => {
-  dbg(`sp-del: before=${_spPin}`);
-  _spPin = _spPin.slice(0,-1); spUpdateDots();
-});
-document.getElementById('sp-clear').addEventListener('click', () => {
-  dbg('sp-clear');
-  _spPin = ''; spUpdateDots();
-});
+function spHandleNum(n) {
+  dbg(`spHandleNum: n=${n} pin=${_spPin}`);
+  if(_spPin.length < 4) { _spPin += n; spUpdateDots(); }
+}
 
-document.querySelectorAll('.share-expiry-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    dbg(`expiry btn: ${btn.dataset.ttl}`);
-    _shareSelectedTTL = Number(btn.dataset.ttl);
-    document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b === btn));
+// Wire each numpad button with both touchend and click for maximum compatibility
+document.querySelectorAll('#sp-numpad [data-n]').forEach(btn => {
+  let _touched = false;
+  btn.addEventListener('touchend', e => {
+    e.preventDefault(); // prevent ghost click
+    _touched = true;
+    dbg(`touchend data-n=${btn.dataset.n}`);
+    spHandleNum(btn.dataset.n);
+  }, { passive: false });
+  btn.addEventListener('click', e => {
+    if(_touched) { _touched = false; return; } // already handled by touchend
+    dbg(`click data-n=${btn.dataset.n}`);
+    spHandleNum(btn.dataset.n);
   });
 });
 
-document.getElementById('share-generate-btn').addEventListener('click', async () => {
+document.getElementById('sp-del').addEventListener('touchend', e => {
+  e.preventDefault(); _spPin = _spPin.slice(0,-1); spUpdateDots(); dbg('del');
+}, { passive: false });
+document.getElementById('sp-del').addEventListener('click', () => {
+  _spPin = _spPin.slice(0,-1); spUpdateDots(); dbg('del-click');
+});
+
+document.getElementById('sp-clear').addEventListener('touchend', e => {
+  e.preventDefault(); _spPin = ''; spUpdateDots(); dbg('clear');
+}, { passive: false });
+document.getElementById('sp-clear').addEventListener('click', () => {
+  _spPin = ''; spUpdateDots(); dbg('clear-click');
+});
+
+document.querySelectorAll('.share-expiry-btn').forEach(btn => {
+  const handler = () => {
+    dbg(`expiry: ${btn.dataset.ttl}`);
+    _shareSelectedTTL = Number(btn.dataset.ttl);
+    document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b === btn));
+  };
+  let _touched = false;
+  btn.addEventListener('touchend', e => { e.preventDefault(); _touched = true; handler(); }, { passive: false });
+  btn.addEventListener('click', () => { if(_touched){_touched=false;return;} handler(); });
+});
+
+const _generateHandler = async () => {
   dbg(`generate: pin=${_spPin} ttl=${_shareSelectedTTL}`);
   const pin = _spPin;
   if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
@@ -6340,11 +6364,22 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
     if(navigator.share) { navigator.share({ url: link, title: 'Shared from Vault' }).catch(()=>{}); }
     else { navigator.clipboard.writeText(link).then(() => toast('Link copied ✓')); }
   };
+};
+let _genTouched = false;
+document.getElementById('share-generate-btn').addEventListener('touchend', e => {
+  e.preventDefault(); _genTouched = true; _generateHandler();
+}, { passive: false });
+document.getElementById('share-generate-btn').addEventListener('click', () => {
+  if(_genTouched){_genTouched=false;return;} _generateHandler();
 });
 
-document.getElementById('share-cancel-btn').addEventListener('click', () => { dbg('cancel'); hideShareModal(); });
-document.getElementById('share-done-btn').addEventListener('click', () => { dbg('done'); hideShareModal(); });
-document.getElementById('share-backdrop').addEventListener('click', () => { dbg('backdrop tap'); hideShareModal(); });
+['share-cancel-btn','share-done-btn'].forEach(id => {
+  let _t = false;
+  const el = document.getElementById(id);
+  el.addEventListener('touchend', e => { e.preventDefault(); _t=true; dbg(id); hideShareModal(); }, { passive:false });
+  el.addEventListener('click', () => { if(_t){_t=false;return;} dbg(id+'-click'); hideShareModal(); });
+});
+document.getElementById('share-backdrop').addEventListener('click', () => { dbg('backdrop'); hideShareModal(); });
 
 // Share button is wired dynamically in openDetail()
 
@@ -6556,7 +6591,7 @@ init();
 <div id="share-backdrop" style="display:none;position:fixed;inset:0;z-index:499;background:rgba(0,0,0,.5);"></div>
 
 <!-- ══════════ SECURE SHARE SHEET ══════════ -->
-<div id="share-modal" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--bg2);border-radius:24px 24px 0 0;padding:16px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,.3);overflow-y:auto;max-height:92vh;">
+<div id="share-modal" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--bg2);border-radius:24px 24px 0 0;padding:16px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.3);">
     <div class="share-modal-handle"></div>
     <div class="share-modal-title">🔗 Secure Share</div>
     <div class="share-modal-sub">Set a PIN and expiry — the recipient will need the PIN to view.</div>
