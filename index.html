@@ -723,6 +723,26 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .share-view-pin-digit:focus{border-color:var(--accent);}
 .share-view-unlock-btn{width:100%;padding:14px;border-radius:var(--radius);border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;}
 .share-view-error{font-size:13px;color:var(--red);text-align:center;margin-top:10px;min-height:20px;}
+/* Share view numpad */
+.share-view-pin-row{display:flex;gap:14px;justify-content:center;margin-bottom:20px;}
+.sv-dot{
+  width:52px;height:52px;border-radius:14px;
+  background:var(--surface);border:1.5px solid var(--border);
+  font-size:22px;font-weight:800;color:var(--text);
+  display:flex;align-items:center;justify-content:center;
+  letter-spacing:0;transition:border-color .15s;
+}
+.sv-dot.filled{border-color:var(--accent);color:var(--accent);}
+.sv-numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;width:100%;}
+.sv-num{
+  padding:16px 8px;border-radius:var(--radius-sm);
+  border:1.5px solid var(--border);background:var(--surface);
+  font-size:20px;font-weight:700;color:var(--text);
+  cursor:pointer;font-family:var(--font);transition:all .1s;
+}
+.sv-num:active{background:var(--surface2);transform:scale(.94);}
+.sv-num--clear{color:var(--muted);font-size:16px;}
+.sv-num--del{color:var(--muted);font-size:18px;}
 /* Digital card styles */
 .share-card{width:100%;max-width:360px;margin-top:24px;}
 .share-card-widget{border-radius:20px;padding:24px;position:relative;overflow:hidden;margin-bottom:16px;box-shadow:0 8px 32px rgba(0,0,0,.25);}
@@ -3741,30 +3761,46 @@ function initRichNoteEditor(currentValue) {
   const toolbar = document.getElementById('note-toolbar');
   if(!toolbar) return;
 
-  // ── State tracking ──────────────────────────────────────────────────────
-  // We track formatting state ourselves — no queryCommandState (unreliable
-  // on Android Chrome). State is re-evaluated on every selection change by
-  // walking the DOM ancestors of the current cursor position.
+  // ── Save/restore selection ───────────────────────────────────────────────
+  // Mobile Chrome loses the selection when a toolbar button is tapped
+  // (touchstart moves focus). We snapshot it on every selectionchange/
+  // touchend and restore it before applying any formatting command.
+  let _savedRange = null;
 
+  function saveSelection() {
+    const sel = window.getSelection();
+    if(sel && sel.rangeCount) _savedRange = sel.getRangeAt(0).cloneRange();
+  }
+
+  function restoreSelection() {
+    if(!_savedRange) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(_savedRange);
+  }
+
+  editor.addEventListener('keyup', saveSelection);
+  editor.addEventListener('mouseup', saveSelection);
+  editor.addEventListener('touchend', saveSelection);
+  document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection();
+    if(sel && sel.rangeCount && editor.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      saveSelection();
+    }
+  });
+
+  // ── Toolbar state ────────────────────────────────────────────────────────
   function getAncestors(node) {
     const tags = [];
     let cur = node;
-    while(cur && cur !== editor) {
-      if(cur.tagName) tags.push(cur.tagName.toUpperCase());
-      cur = cur.parentNode;
-    }
+    while(cur && cur !== editor) { if(cur.tagName) tags.push(cur.tagName.toUpperCase()); cur = cur.parentNode; }
     return tags;
   }
 
-  function getCursorAncestors() {
-    const sel = window.getSelection();
-    if(!sel || !sel.rangeCount) return [];
-    const node = sel.getRangeAt(0).commonAncestorContainer;
-    return getAncestors(node.nodeType === 3 ? node.parentNode : node);
-  }
-
   function updateToolbarState() {
-    const anc = getCursorAncestors();
+    if(!_savedRange) return;
+    const node = _savedRange.commonAncestorContainer;
+    const anc = getAncestors(node.nodeType === 3 ? node.parentNode : node);
     toolbar.querySelector('[data-cmd="bold"]')?.classList.toggle('active', anc.includes('B') || anc.includes('STRONG'));
     toolbar.querySelector('[data-cmd="italic"]')?.classList.toggle('active', anc.includes('I') || anc.includes('EM'));
     toolbar.querySelector('[data-cmd="heading"]')?.classList.toggle('active', anc.includes('H1'));
@@ -3772,28 +3808,22 @@ function initRichNoteEditor(currentValue) {
   }
 
   // ── Inline toggle (bold / italic) ────────────────────────────────────────
-  // Wraps selection in <b>/<i> or unwraps if already wrapped.
   function toggleInline(tag) {
+    restoreSelection();
     const sel = window.getSelection();
     if(!sel || !sel.rangeCount) return;
     const range = sel.getRangeAt(0);
-
-    // Check if selection is already inside this tag
-    const anc = getAncestors(
-      range.commonAncestorContainer.nodeType === 3
-        ? range.commonAncestorContainer.parentNode
-        : range.commonAncestorContainer
-    );
     const TAG = tag.toUpperCase();
+
+    const node = range.commonAncestorContainer;
+    const anc = getAncestors(node.nodeType === 3 ? node.parentNode : node);
     const isActive = anc.includes(TAG) || anc.includes(TAG === 'B' ? 'STRONG' : 'EM');
 
     if(isActive) {
-      // Unwrap: find the wrapping element and replace with its children
-      let wrap = range.commonAncestorContainer;
+      let wrap = node.nodeType === 3 ? node.parentNode : node;
       while(wrap && wrap !== editor) {
-        if(wrap.tagName && (wrap.tagName.toUpperCase() === TAG ||
-          (TAG === 'B' && wrap.tagName.toUpperCase() === 'STRONG') ||
-          (TAG === 'I' && wrap.tagName.toUpperCase() === 'EM'))) break;
+        const t = wrap.tagName && wrap.tagName.toUpperCase();
+        if(t === TAG || (TAG === 'B' && t === 'STRONG') || (TAG === 'I' && t === 'EM')) break;
         wrap = wrap.parentNode;
       }
       if(wrap && wrap !== editor) {
@@ -3802,115 +3832,94 @@ function initRichNoteEditor(currentValue) {
         wrap.parentNode.replaceChild(frag, wrap);
       }
     } else {
-      // Wrap selection
-      if(range.collapsed) return; // nothing selected
-      const el = document.createElement(tag);
-      try { range.surroundContents(el); }
-      catch(e) {
-        // surroundContents fails if selection crosses block boundaries — extract and wrap
-        const frag = range.extractContents();
-        el.appendChild(frag);
+      if(range.collapsed) {
+        // No selection — insert a placeholder wrapped element at cursor
+        const el = document.createElement(tag);
+        el.innerHTML = '&#8203;'; // zero-width space so cursor lands inside
         range.insertNode(el);
+        moveCursorToEnd(el);
+      } else {
+        const el = document.createElement(tag);
+        try { range.surroundContents(el); }
+        catch(e) { const frag = range.extractContents(); el.appendChild(frag); range.insertNode(el); }
       }
     }
     editor.normalize();
+    saveSelection();
     updateToolbarState();
   }
 
-  // ── Block toggle (heading / bullet) ─────────────────────────────────────
-  // Converts the block containing the cursor. Heading ↔ p, bullet ↔ p.
+  // ── Block toggle ─────────────────────────────────────────────────────────
   function getContainingBlock(node) {
     const BLOCKS = ['P','DIV','H1','H2','H3','LI','UL','OL','BLOCKQUOTE'];
     let cur = node;
-    while(cur && cur !== editor) {
-      if(cur.tagName && BLOCKS.includes(cur.tagName.toUpperCase())) return cur;
-      cur = cur.parentNode;
-    }
+    while(cur && cur !== editor) { if(cur.tagName && BLOCKS.includes(cur.tagName.toUpperCase())) return cur; cur = cur.parentNode; }
     return null;
   }
 
+  function ensureBlock() {
+    // If editor has bare text nodes (no block wrapper), wrap them
+    if(!_savedRange) return null;
+    const node = _savedRange.startContainer;
+    const block = getContainingBlock(node.nodeType === 3 ? node.parentNode : node);
+    if(block) return block;
+    // Wrap bare content in a <p>
+    const p = document.createElement('p');
+    p.innerHTML = editor.innerHTML || '&#8203;';
+    editor.innerHTML = '';
+    editor.appendChild(p);
+    moveCursorToEnd(p);
+    return p;
+  }
+
   function toggleHeading() {
-    const sel = window.getSelection();
-    if(!sel || !sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    const node = range.startContainer.nodeType === 3
-      ? range.startContainer.parentNode : range.startContainer;
-
-    // Find nearest block
-    let block = getContainingBlock(node);
-    if(!block || block === editor) {
-      // Cursor is directly in editor — wrap in a p first
-      const p = document.createElement('p');
-      range.surroundContents(p);
-      block = p;
-    }
-
+    restoreSelection();
+    const block = ensureBlock();
+    if(!block || block === editor) return;
     const tag = block.tagName.toUpperCase();
+    let newEl;
     if(tag === 'H1') {
-      // Convert H1 → P
-      const p = document.createElement('p');
-      p.innerHTML = block.innerHTML;
-      block.parentNode.replaceChild(p, block);
-      moveCursorToEnd(p);
+      newEl = document.createElement('p');
     } else if(tag === 'LI') {
-      // In a list — convert li → h1, remove from list
       const ul = block.parentNode;
-      const h1 = document.createElement('h1');
-      h1.innerHTML = block.innerHTML;
-      ul.parentNode.insertBefore(h1, ul);
+      newEl = document.createElement('h1');
+      newEl.innerHTML = block.innerHTML;
+      ul.parentNode.insertBefore(newEl, ul);
       ul.removeChild(block);
       if(!ul.children.length) ul.parentNode.removeChild(ul);
-      moveCursorToEnd(h1);
+      moveCursorToEnd(newEl);
+      saveSelection(); updateToolbarState(); return;
     } else {
-      // Convert to H1
-      const h1 = document.createElement('h1');
-      h1.innerHTML = block.innerHTML;
-      block.parentNode.replaceChild(h1, block);
-      moveCursorToEnd(h1);
+      newEl = document.createElement('h1');
     }
-    updateToolbarState();
+    newEl.innerHTML = block.innerHTML;
+    block.parentNode.replaceChild(newEl, block);
+    moveCursorToEnd(newEl);
+    saveSelection(); updateToolbarState();
   }
 
   function toggleBullet() {
-    const sel = window.getSelection();
-    if(!sel || !sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    const node = range.startContainer.nodeType === 3
-      ? range.startContainer.parentNode : range.startContainer;
-
-    let block = getContainingBlock(node);
-
-    if(block && (block.tagName === 'LI' || block.tagName === 'UL')) {
-      // Already a list item — convert back to P
-      const li = block.tagName === 'LI' ? block : block.querySelector('li');
-      if(!li) return;
-      const ul = li.parentNode;
+    restoreSelection();
+    const block = ensureBlock();
+    if(!block || block === editor) return;
+    const tag = block.tagName.toUpperCase();
+    if(tag === 'LI') {
+      const ul = block.parentNode;
       const p = document.createElement('p');
-      p.innerHTML = li.innerHTML;
+      p.innerHTML = block.innerHTML;
       ul.parentNode.insertBefore(p, ul);
-      ul.removeChild(li);
+      ul.removeChild(block);
       if(!ul.children.length) ul.parentNode.removeChild(ul);
       moveCursorToEnd(p);
     } else {
-      // Convert block to LI inside UL
-      if(!block || block === editor) {
-        // wrap bare text in a p first
-        const p = document.createElement('p');
-        if(range.startContainer.nodeType === 3) {
-          const textNode = range.startContainer;
-          textNode.parentNode.insertBefore(p, textNode);
-          p.appendChild(textNode);
-        }
-        block = p;
-      }
       const ul = document.createElement('ul');
       const li = document.createElement('li');
-      li.innerHTML = block.innerHTML;
+      li.innerHTML = block.innerHTML || '&#8203;';
       ul.appendChild(li);
       block.parentNode.replaceChild(ul, block);
       moveCursorToEnd(li);
     }
-    updateToolbarState();
+    saveSelection(); updateToolbarState();
   }
 
   function moveCursorToEnd(el) {
@@ -3920,38 +3929,34 @@ function initRichNoteEditor(currentValue) {
     range.collapse(false);
     sel.removeAllRanges();
     sel.addRange(range);
+    _savedRange = range.cloneRange();
   }
 
-  // ── Toolbar listener ─────────────────────────────────────────────────────
-  toolbar.addEventListener('mousedown', e => {
-    const btn = e.target.closest('[data-cmd]');
-    if(!btn) return;
-    e.preventDefault(); // keep editor focus
-    editor.focus();
-    const cmd = btn.dataset.cmd;
+  // ── Toolbar listeners ─────────────────────────────────────────────────────
+  function applyCmd(cmd) {
     if(cmd === 'bold')    toggleInline('b');
     if(cmd === 'italic')  toggleInline('i');
     if(cmd === 'heading') toggleHeading();
     if(cmd === 'bullet')  toggleBullet();
+  }
+
+  toolbar.addEventListener('mousedown', e => {
+    const btn = e.target.closest('[data-cmd]');
+    if(!btn) return;
+    e.preventDefault();
+    applyCmd(btn.dataset.cmd);
   });
 
-  // Also handle touchstart for mobile tap responsiveness
   toolbar.addEventListener('touchstart', e => {
     const btn = e.target.closest('[data-cmd]');
     if(!btn) return;
     e.preventDefault();
-    editor.focus();
-    const cmd = btn.dataset.cmd;
-    if(cmd === 'bold')    toggleInline('b');
-    if(cmd === 'italic')  toggleInline('i');
-    if(cmd === 'heading') toggleHeading();
-    if(cmd === 'bullet')  toggleBullet();
+    applyCmd(btn.dataset.cmd);
   }, { passive: false });
 
   editor.addEventListener('keyup', updateToolbarState);
   editor.addEventListener('mouseup', updateToolbarState);
   editor.addEventListener('touchend', updateToolbarState);
-  editor.addEventListener('selectionchange', updateToolbarState);
 }
 
 // Read the note editor value as markdown (called from saveEntry)
@@ -6312,20 +6317,36 @@ document.getElementById('share-modal-overlay').addEventListener('click', e => {
 // ── Share view (recipient side) ───────────────────────────────────────────
 
 // PIN digit auto-advance (recipient)
-['sv-d1','sv-d2','sv-d3','sv-d4'].forEach((id, i, arr) => {
-  const el = document.getElementById(id);
-  el.addEventListener('input', () => {
-    el.value = el.value.replace(/\D/g,'').slice(0,1);
-    if(el.value && i < arr.length - 1) document.getElementById(arr[i+1]).focus();
-    if(i === arr.length - 1 && el.value) document.getElementById('sv-unlock-btn').click();
+// ── Share view numpad PIN ─────────────────────────────────────────────────
+let _svPin = '';
+
+function svUpdateDots() {
+  document.querySelectorAll('.sv-dot').forEach((dot, i) => {
+    dot.textContent = i < _svPin.length ? '•' : '–';
+    dot.classList.toggle('filled', i < _svPin.length);
   });
-  el.addEventListener('keydown', e => {
-    if(e.key === 'Backspace' && !el.value && i > 0) document.getElementById(arr[i-1]).focus();
-  });
+}
+
+document.getElementById('sv-numpad').addEventListener('click', e => {
+  const btn = e.target.closest('[data-n]');
+  if(btn && _svPin.length < 4) {
+    _svPin += btn.dataset.n;
+    svUpdateDots();
+    if(_svPin.length === 4) document.getElementById('sv-unlock-btn').click();
+  }
 });
 
+document.getElementById('sv-del').addEventListener('click', () => {
+  _svPin = _svPin.slice(0, -1); svUpdateDots();
+});
+
+document.getElementById('sv-clear').addEventListener('click', () => {
+  _svPin = ''; svUpdateDots();
+});
+
+
 document.getElementById('sv-unlock-btn').addEventListener('click', async () => {
-  const pin = ['sv-d1','sv-d2','sv-d3','sv-d4'].map(id => document.getElementById(id).value).join('');
+  const pin = _svPin;
   if(pin.length !== 4) { document.getElementById('sv-error').textContent = 'Enter all 4 digits'; return; }
   const rawHash = location.hash;
   const sharePrefix = '#share/';
@@ -6333,10 +6354,7 @@ document.getElementById('sv-unlock-btn').addEventListener('click', async () => {
     document.getElementById('sv-error').textContent = 'Invalid share link';
     return;
   }
-  // Restore standard base64 from URL-safe encoding
-  const b64 = rawHash.slice(sharePrefix.length)
-    .replace(/-/g, '+').replace(/_/g, '/');
-  // Pad to multiple of 4
+  const b64 = rawHash.slice(sharePrefix.length).replace(/-/g, '+').replace(/_/g, '/');
   const padded = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
   try {
     const payload = await Crypto.decrypt(padded, pin);
@@ -6352,8 +6370,7 @@ document.getElementById('sv-unlock-btn').addEventListener('click', async () => {
     card.innerHTML = renderShareCard(payload.entry);
   } catch(e) {
     document.getElementById('sv-error').textContent = 'Incorrect PIN — try again';
-    ['sv-d1','sv-d2','sv-d3','sv-d4'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('sv-d1').focus();
+    _svPin = ''; svUpdateDots();
   }
 });
 
@@ -6465,8 +6482,7 @@ function checkShareLink() {
   document.getElementById('share-view-card').style.display = 'none';
   document.getElementById('share-view-card').innerHTML = '';
   document.getElementById('sv-error').textContent = '';
-  ['sv-d1','sv-d2','sv-d3','sv-d4'].forEach(id => { document.getElementById(id).value = ''; });
-  setTimeout(() => document.getElementById('sv-d1').focus(), 200);
+  _svPin = ''; svUpdateDots();
   return true;
 }
 
@@ -6535,11 +6551,25 @@ init();
   <div id="share-view-pin-wrap" class="share-pin-prompt">
     <div class="share-pin-prompt-title">Enter PIN to view</div>
     <div class="share-pin-prompt-sub">The sender shared a PIN with you separately.</div>
-    <div class="share-view-pin-row">
-      <input class="share-view-pin-digit" id="sv-d1" type="password" inputmode="numeric" maxlength="1"/>
-      <input class="share-view-pin-digit" id="sv-d2" type="password" inputmode="numeric" maxlength="1"/>
-      <input class="share-view-pin-digit" id="sv-d3" type="password" inputmode="numeric" maxlength="1"/>
-      <input class="share-view-pin-digit" id="sv-d4" type="password" inputmode="numeric" maxlength="1"/>
+    <div class="share-view-pin-row" id="sv-dots">
+      <div class="sv-dot" data-pos="0">–</div>
+      <div class="sv-dot" data-pos="1">–</div>
+      <div class="sv-dot" data-pos="2">–</div>
+      <div class="sv-dot" data-pos="3">–</div>
+    </div>
+    <div class="sv-numpad" id="sv-numpad">
+      <button class="sv-num" data-n="1">1</button>
+      <button class="sv-num" data-n="2">2</button>
+      <button class="sv-num" data-n="3">3</button>
+      <button class="sv-num" data-n="4">4</button>
+      <button class="sv-num" data-n="5">5</button>
+      <button class="sv-num" data-n="6">6</button>
+      <button class="sv-num" data-n="7">7</button>
+      <button class="sv-num" data-n="8">8</button>
+      <button class="sv-num" data-n="9">9</button>
+      <button class="sv-num sv-num--clear" id="sv-clear">✕</button>
+      <button class="sv-num" data-n="0">0</button>
+      <button class="sv-num sv-num--del" id="sv-del">⌫</button>
     </div>
     <button class="share-view-unlock-btn" id="sv-unlock-btn">View Details</button>
     <div class="share-view-error" id="sv-error"></div>
