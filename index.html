@@ -692,9 +692,9 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 .share-sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 12px;}
 .share-sheet-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:8px;}
-.share-numpad-compact.numpad{gap:0;}
-.share-numpad-compact .num-btn{height:50px;font-size:22px;}
-.share-numpad-compact .num-btn.del{font-size:16px;}
+.share-numpad-compact.numpad{gap:6px;}
+.share-numpad-compact .num-btn{height:56px;font-size:24px;}
+.share-numpad-compact .num-btn.del{font-size:17px;}
 .share-expiry-row{display:flex;gap:8px;margin-bottom:20px;}
 .share-expiry-btn{
   flex:1;padding:10px 8px;border-radius:10px;
@@ -1843,7 +1843,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="share-sheet-title">🔗 Secure Share</div>
     <div id="share-step-setup">
       <p style="font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.4;">Set a PIN and expiry — the recipient will need the PIN to view.</p>
-      <div class="pin-dots" id="sp-dots" style="margin-bottom:10px">
+      <div class="pin-dots" id="sp-dots" style="margin:0 auto 16px;max-width:260px">
         <div class="pin-dot"></div>
         <div class="pin-dot"></div>
         <div class="pin-dot"></div>
@@ -1884,7 +1884,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   <div id="share-view-pin-wrap" class="share-pin-prompt">
     <div class="share-pin-prompt-title">Enter PIN to view</div>
     <div class="share-pin-prompt-sub">The sender shared a PIN with you separately.</div>
-    <div class="pin-dots" id="sv-dots" style="margin-bottom:28px">
+    <div class="pin-dots" id="sv-dots" style="margin:0 auto 28px;max-width:280px">
       <div class="pin-dot" data-pos="0"></div>
       <div class="pin-dot" data-pos="1"></div>
       <div class="pin-dot" data-pos="2"></div>
@@ -6309,11 +6309,9 @@ function spUpdateDots() {
 
 function showShareSheet() {
   document.getElementById('share-sheet-overlay').classList.add('show');
-  state.importInProgress = true; // guard against auto-lock for the whole sheet lifetime
 }
 function hideShareSheet() {
   document.getElementById('share-sheet-overlay').classList.remove('show');
-  state.importInProgress = false;
 }
 
 function openShareModal(entry) {
@@ -6429,6 +6427,16 @@ document.getElementById('sv-del').addEventListener('click', () => {
   document.getElementById('sv-error').textContent = '';
 });
 
+// Group a numeric string into 4-digit chunks for readability, matching how
+// card/Aadhaar numbers are displayed elsewhere in the app. Non-numeric IDs
+// (e.g. PAN, alphanumeric passport numbers) are left untouched.
+function groupDigits(raw) {
+  if(!raw) return raw;
+  const str = String(raw);
+  if(!/^\d+$/.test(str)) return str; // leave alphanumeric IDs as-is
+  return str.replace(/(\d{4})(?=\d)/g, '$1 ');
+}
+
 function renderShareCard(entry) {
   const tm = {
     app:      { label:'App / Website',  cls:'share-app-card',    color:'#fff' },
@@ -6449,7 +6457,7 @@ function renderShareCard(entry) {
       <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
         <div class="share-card-title">${esc(entry.name)}</div>
         <div class="share-card-chip"></div>
-        <div class="share-card-number">${esc(entry.cardNumber ? entry.cardNumber.replace(/(\d{4})(?=\d)/g,'$1 ') : '•••• •••• •••• ••••')}</div>
+        <div class="share-card-number">${entry.cardNumber ? esc(groupDigits(entry.cardNumber)) : '•••• •••• •••• ••••'}</div>
         <div class="share-card-row">
           <div><div style="font-size:10px;opacity:.6;margin-bottom:2px">CARDHOLDER</div><div style="font-size:14px;font-weight:700">${esc(entry.cardHolder||'—')}</div></div>
           <div><div style="font-size:10px;opacity:.6;margin-bottom:2px">EXPIRY</div><div style="font-size:14px;font-weight:700">${esc(entry.expiry||'—')}</div></div>
@@ -6468,7 +6476,7 @@ function renderShareCard(entry) {
           </div>
         </div>
         <div class="share-card-fields">
-          ${entry.docNumber?`<div class="share-card-field"><div class="share-card-field-label">Document Number</div><div class="share-card-field-value">${esc(entry.docNumber)}</div></div>`:''}
+          ${entry.docNumber?`<div class="share-card-field"><div class="share-card-field-label">Document Number</div><div class="share-card-field-value">${esc(groupDigits(entry.docNumber))}</div></div>`:''}
           ${entry.expiry?`<div class="share-card-field"><div class="share-card-field-label">Expiry</div><div class="share-card-field-value">${esc(entry.expiry)}</div></div>`:''}
           ${entry.nationality?`<div class="share-card-field"><div class="share-card-field-label">Nationality</div><div class="share-card-field-value">${esc(entry.nationality)}</div></div>`:''}
           ${entry.issuingState?`<div class="share-card-field"><div class="share-card-field-label">Issuing State</div><div class="share-card-field-value">${esc(entry.issuingState)}</div></div>`:''}
@@ -6482,7 +6490,7 @@ function renderShareCard(entry) {
         <div class="share-card-name">${esc(entry.bankName||entry.name)}</div>
         <div class="share-card-sub">${esc(entry.accountType||'')}</div>
         <div class="share-card-fields">
-          ${entry.accountNo?`<div class="share-card-field"><div class="share-card-field-label">Account Number</div><div class="share-card-field-value">${esc(entry.accountNo)}</div></div>`:''}
+          ${entry.accountNo?`<div class="share-card-field"><div class="share-card-field-label">Account Number</div><div class="share-card-field-value">${esc(groupDigits(entry.accountNo))}</div></div>`:''}
           ${entry.ifsc?`<div class="share-card-field"><div class="share-card-field-label">IFSC Code</div><div class="share-card-field-value">${esc(entry.ifsc)}</div></div>`:''}
           ${entry.netBankingId?`<div class="share-card-field"><div class="share-card-field-label">Net Banking ID</div><div class="share-card-field-value">${esc(entry.netBankingId)}</div></div>`:''}
           ${entry.netBankingPassword?`<div class="share-card-field"><div class="share-card-field-label">Net Banking Password</div><div class="share-card-field-value">${esc(entry.netBankingPassword)}</div></div>`:''}
