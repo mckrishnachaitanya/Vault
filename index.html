@@ -6702,26 +6702,41 @@ async function svAttemptUnlock() {
   }
   const b64 = rawHash.slice(sharePrefix.length).replace(/-/g, '+').replace(/_/g, '/');
   const padded = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
+  let payload;
   try {
-    const payload = await Crypto.decrypt(padded, pin);
-    // New links carry payload.entries (array, supports bulk share). Older
-    // links carry a single payload.entry — normalize both to an array.
-    const entries = payload && Array.isArray(payload.entries) ? payload.entries
-                   : payload && payload.entry ? [payload.entry]
-                   : null;
-    if(!entries || !entries.length || !payload.expiresAt) throw new Error('Invalid payload');
-    if(Date.now() > payload.expiresAt) {
-      document.getElementById('sv-error').textContent = '⚠️ This link has expired';
-      return;
-    }
-    document.getElementById('sv-error').textContent = '';
-    document.getElementById('share-view-pin-wrap').style.display = 'none';
-    const card = document.getElementById('share-view-card');
-    card.style.display = '';
-    initShareCarousel(entries);
+    payload = await Crypto.decrypt(padded, pin);
   } catch(e) {
     document.getElementById('sv-error').textContent = 'Incorrect PIN — try again';
     _svPin = ''; svUpdateDots();
+    return;
+  }
+
+  // New links carry payload.entries (array, supports bulk share). Older
+  // links carry a single payload.entry — normalize both to an array.
+  const entries = payload && Array.isArray(payload.entries) ? payload.entries
+                 : payload && payload.entry ? [payload.entry]
+                 : null;
+  if(!entries || !entries.length || !payload.expiresAt) {
+    document.getElementById('sv-error').textContent = 'Incorrect PIN — try again';
+    _svPin = ''; svUpdateDots();
+    return;
+  }
+  if(Date.now() > payload.expiresAt) {
+    document.getElementById('sv-error').textContent = '⚠️ This link has expired';
+    return;
+  }
+
+  // Only switch away from the PIN screen once the card has actually
+  // rendered — if something in the card build throws, the PIN screen
+  // stays visible with a clear message instead of leaving a blank page.
+  try {
+    initShareCarousel(entries);
+    document.getElementById('sv-error').textContent = '';
+    document.getElementById('share-view-pin-wrap').style.display = 'none';
+    document.getElementById('share-view-card').style.display = '';
+  } catch(renderErr) {
+    console.error('Share card render error:', renderErr);
+    document.getElementById('sv-error').textContent = 'Could not display this share — please reopen the link.';
   }
 }
 
