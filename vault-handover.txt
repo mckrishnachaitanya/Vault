@@ -1,349 +1,98 @@
-VAULT HANDOVER
-==============
-GitHub: https://mckrishnachaitanya.github.io/Vault/
-Stack:  Single HTML file, Web Crypto (AES-256-GCM+PBKDF2), WebAuthn,
-        localStorage, IndexedDB, Google Fonts. No build step.
-Deploy: Upload index.html + sw.js + vault-info.json to GitHub Pages. Done.
-VERSION: v5.9 — 04-Jul-2026 — ~6100 lines. Five features shipped this session.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FROZEN — Architecture & Decisions
+R7 SUMMARY — Multi-Entry Secure Share + ID Card Redesign (v6.0)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-CORE ARCHITECTURE
------------------
-- 6-digit PIN → PBKDF2 key → AES-256-GCM encrypts entry array → localStorage
-- localStorage keys: vault_data, vault_pin, vault_theme, vault_bio,
-  vault_bio_cred, vault_lockout, vault_fails, vault_local_updated,
-  vault_cloud_sync, vault_cloud_uid, vault_cloud_email, vault_last_sync,
-  vault_sync_pending
-- IndexedDB "VaultDocsDB" v1: two stores — "meta" (key 'manifest' →
-  Crypto.encrypt blob of manifest array) and "files" (key = doc id →
-  {salt, iv, ct} object encrypted via Crypto.encryptRaw/decryptRaw).
-  Files stored as raw ArrayBuffer — no base64/JSON wrapping, no size
-  limit issues on mobile Chrome.
-- state{} holds: entries, currentPIN, unlocked, unlockedViaBio,
-  stepUpDone, pinBuffer, pinMode, pinTemp, editId, activeFilter,
-  currentNav, detailSource, failCount, preLockScreen, formDraft,
-  bioGen, bioPending, cloudUser, cloudSyncOn, syncStatus,
-  docsStepUpDone, docs[], docViewSource, docViewEntryId
-- Auto-lock: 2min idle. Lockout: 5 fails → 30s delay.
-- Single file always. No build tooling. No frameworks.
+MULTI-SELECT (Home screen only)
+- state.selectMode (bool), state.selectedIds (Set) — added to state{}.
+  selectedIds intentionally persists across category-filter switches and
+  search — this was a deliberate decision, not an oversight.
+- ☑️ button in home-header-row (#select-mode-btn) toggles select mode.
+  toggleSelectMode(on) — clears selectedIds when turning OFF.
+- In select mode, entry-card shows a checkbox (.entry-checkbox) instead of
+  fav-star/arrow; clicking the card toggles selection instead of opening
+  detail. Swipe actions are disabled while in select mode (addSwipeActions
+  is simply not called on that render pass).
+- #select-bar (fixed above bottom-nav) appears once selectedIds.size > 0.
+  Tapping the count OR the Share button opens the summary sheet — both do
+  the same thing by design (summary-before-share was a late addition).
+  ✕ button exits select mode entirely.
+- openSummarySheet() — bottom sheet listing each selected entry with a
+  remove (✕). Removing the last one auto-exits select mode.
+  "Continue to Share" closes the sheet and calls openShareModal(entries[]).
 
-ENTRY SCHEMA
-------------
-All:      id, type, name, fav, created, updated, customFields[],
-          sensitiveOverride, linkedDocIds[]
-app:      url, username, password, notes
-wifi:     ssid, password, securityType, notes
-note:     note
-card:     cardHolder, cardNumber(raw digits), expiry(MM/YY), cvv, pin, notes
-bank:     bankName, accountNo, ifsc, accountType, netBankingId,
-          netBankingPassword, notes
-identity: docType(aadhaar/pan/passport/dl/voterid/other), docName,
-          docNumber(raw digits for aadhaar), idName, dob(DD/MM/YYYY),
-          expiry(DD/MM/YYYY), nationality, issuingState, notes
+SWIPE ACTIONS (Home + Starred entry lists only — NOT Docs)
+- New addSwipeActions(container) — parallel implementation to the existing
+  addSwipeToDelete(container) (which still powers the Docs list, untouched).
+- Reveals 176px (two 88px buttons: Share, then Delete) instead of 88px.
+  Layout order left→right = Share, Delete — Delete sits at the far edge by
+  design (agreed as "furthest from content" during discussion, not a
+  progressive-reveal threshold — both buttons appear together once the
+  swipe crosses the open threshold).
+- .swiped-actions class (176px margin) — distinct from the old .swiped
+  (88px, still used by Docs) so both gestures coexist without CSS clashes.
+- Swipe-share button calls openShareModal(entry) directly (single-entry
+  quick share, same flow as the in-detail Share button).
 
-linkedDocIds is always preserved through form edits (collectFormData
-copies from existing entry). Absent on old entries = treated as [].
-Max 10 links per entry, enforced in link picker and UI.
+SECURE SHARE — MULTI-ENTRY PAYLOAD
+- openShareModal() now accepts a single entry OR an array — always
+  normalizes internally to _shareTargetEntries[]. Detail-screen's Share
+  button and the new swipe-share button pass a single entry (auto-wrapped).
+- Share sheet title shows "🔗 Secure Share (N items)" when N > 1.
+- Payload shape changed: { entries: [...], expiresAt }. OLDER LINKS with
+  the legacy { entry, expiresAt } shape still decrypt fine — svAttemptUnlock
+  checks payload.entries first, falls back to [payload.entry].
+- Finishing a bulk share (Done button) auto-exits select mode.
 
-DOC MANIFEST SCHEMA
--------------------
-Each doc: {id, name, mimeType, size, created, updated, fav,
-           category, thumb (data: URI for images only)}
-category values: none|identity|medical|property|financial|education|
-                 travel|other (see DOC_CATEGORIES array)
-Stored encrypted in IndexedDB meta store. In-memory as state.docs[].
+ID CARD REDESIGN (Design D) — recipient view
+- Old renderShareCard() + share-card-widget/.share-*-card gradient themes
+  REMOVED entirely. Replaced by:
+  - idCardModel(entry) — maps any entry type to {eyebrow, name, fields[]}.
+    fields carry {label, value, emphasis, wide, prose} flags.
+  - buildIdCardHTML(entry) — renders the actual .idcard markup: brass left
+    edge, eyebrow row (type label + monogram), serif name, 2-col responsive
+    field grid. Primary identifier (card/account/document number) gets
+    emphasis+wide. Note/app "Notes" fields get prose (wraps, non-mono).
+  - Cream/brass palette scoped under .idcard-scope (CSS vars prefixed
+    --ic-*) so it never touches the app's own --accent/--bg vars.
+  - Cormorant Garamond added to the Google Fonts link (display serif for
+    the name); JetBrains Mono (already loaded) reused for field values —
+    no extra font weight added.
+- CVV/PIN/passwords are shown in full (NOT masked) — the whole point of
+  the recipient view is revealing the actual secret. The masked look in
+  the design mockups was a placeholder for the static preview only.
 
-TYPE COLOURS
-------------
-App🌐 #5b5ff5  WiFi📶 #06b6d4  Note📝 #f59e0b
-Card💳 #8b5cf6  Bank🏦 #10b981  Identity🪪 #f97316
+RECIPIENT CAROUSEL (multi-entry shares)
+- #share-view-card now has fixed chrome (arrows, dots, peek edges, hint,
+  count) around a single #share-idcard-slot that gets its innerHTML
+  replaced per-slide — the old approach of overwriting the whole card
+  container no longer applies.
+- initShareCarousel(entries) — called once after successful PIN decrypt.
+  Hides all carousel chrome when entries.length === 1 (single-entry shares
+  look exactly like before, just with the new card design).
+- renderShareCarouselSlide() — updates card content, dot states, arrow
+  disabled states (first/last), and peek-edge visibility.
+- shareCarouselGo(delta) — bounds-checked step; wired to both arrow clicks
+  and a touchstart/touchend swipe listener on #share-carousel (40px
+  horizontal threshold, must exceed vertical delta to count as a swipe).
 
-BIOMETRIC RULES
----------------
-- WebAuthn platform only. Credential ID stored in vault_bio_cred.
-- Fresh app open: PIN required once to seed currentPIN in memory.
-  Bio auto-triggers on every re-lock after first PIN, via state.bioPending
-  + visibilitychange/focus listeners.
-- unlockedViaBio=true → step-up PIN required for Card/Bank/Identity
-  view, Add/Edit/Delete/Export, form restore after re-auth.
-- stepUpDone=true after first step-up (resets on lockVault). Manual
-  PIN unlock ALSO sets stepUpDone=true.
-- Docs tab: docsStepUpDone controls Docs-specific gate. Passing Docs
-  step-up also sets stepUpDone=true (satisfies general step-up).
-- Viewing a linked doc from entry detail: step-up fires if
-  unlockedViaBio && !docsStepUpDone (same gate as Docs tab).
-- "Link a document" button: NO step-up — entry detail step-up already
-  happened. Opening the linked doc viewer IS gated as above.
-
-SCREEN RESTORE AFTER RE-AUTH
-----------------------------
-lockVault() captures preLockScreen: form/detail/docview/fav/settings/docs.
-restoreAfterUnlock() restores each appropriately. docview-screen restores
-via openDocsTab() + openDocDetail() (step-up re-fires correctly).
-
-SECURITY TIERS
---------------
-Sensitive: Card, Bank, Identity (step-up when bio unlock).
-Non-sensitive: App, WiFi, Note.
-Per-entry override via sensitiveOverride field.
-Docs: docsStepUpDone gate (highest tier, PIN once per session).
-
-NUMBER FORMATTING
------------------
-cardNumber and Aadhaar docNumber stored as raw digits.
-Formatted on display only: 16 digits → 4-4-4-4, 15 → Amex 4-6-5,
-12 (Aadhaar) → 4-4-4. Card expiry stored as MM/YY.
-
-SWIPE-TO-DELETE
----------------
-.swipe-delete-bg always opacity:0 in CSS. Never set via class.
-Only set to opacity:1 via JS inline style during actual swipe gesture
-(snapOpen) and back to 0 on snapClose. This prevents backdrop-filter
-on glass cards from bleeding red through overflow:hidden on Android Chrome.
-
-RULED OUT — PERMANENTLY
------------------------
-- Password generator: not in scope.
-- Multi-page architecture: single file is intentional for security.
-- Storing PIN or decryption key in Firestore: PIN never leaves device.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ROADMAP
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-R5  → SHIPPED (v4.5) — Cloud Sync (Firebase Auth+Firestore).
-R6a → SHIPPED (v5.0) & fully tested (v5.4) — Document Vault: IndexedDB,
-       Docs tab, per-file encryption, viewer, step-up gating, zip
-       export/import, categories, search, rename, linked docs, password
-       health. All R6a test cases passed. Bugs fixed across v5.1–v5.4.
-R6b → Document sync (Firebase Storage). DEFERRED — see backlog.
-R6c → SHIPPED (v5.3) — Linked Documents (entry ↔ doc).
-R6d → SHIPPED (v5.4) — Password Health, UI polish, bug fixes.
-R6e → SHIPPED (v5.6) — Old passwords check, camera capture accept attr,
-       folder export (device-gated via showDirectoryPicker).
-R6f → SHIPPED (v5.7) — Service Worker, auto-update detection, update banner,
-       vault-info.json as version source of truth, Help overlay in Settings.
-PWA  → SHIPPED — Glass Aurora icon (512×512, 192×192 PNGs), manifest.json,
-       apple-touch-icon.png. manifest links added to index.html <head>.
-       display:standalone + start_url is what makes app installable on Android Chrome.
-
-BACKLOG (priority order)
-------------------------
-1. R6b — Firebase Storage for doc sync. ~3 sessions. Low priority —
-   manual export/nudge covers the backup safety need for single-device use.
-
-RULED OUT — PERMANENTLY
------------------------
-- Password generator: not in scope.
-- Multi-page architecture: single file is intentional for security.
-- Storing PIN or decryption key in Firestore: PIN never leaves device.
-- OTP/2FA TOTP: removed from scope.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6f SUMMARY — Service Worker + Help Overlay (v5.8)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-SERVICE WORKER (sw.js — deploy alongside index.html)
-- Precaches index.html, manifest.json, vault-info.json using cache:'no-store'
-  on each request — prevents browser HTTP cache from handing back stale
-  responses during install (critical; without this, manual cache clearing
-  was needed after every deploy).
-- Stale-while-revalidate for index.html: cached copy served instantly,
-  network fetch updates cache in background for next launch.
-- vault-info.json: always network-first (cache:'no-store'), cache fallback.
-- activate: deletes old caches by name, claims clients.
-- CACHE_NAME = 'vault-v1' — only bump this if manifest/icons change.
-- SW itself never needs changing for content deploys.
-
-VAULT-INFO.JSON (deploy alongside index.html)
-- Fields: version, released, whatsNew[], features[].
-- version field is the sole source of truth for update detection.
-- On future deploys: bump version + update whatsNew[]. Nothing else needed.
-- helpInfoCache holds in-memory once fetched per session.
-- About version label reads from this file on init().
-
-UPDATE NUDGE (inline card, home screen only)
-- Inline nudge card (#update-nudge) inside home screen, same style as
-  backup nudge. Shown only after unlock via checkPendingUpdateNudge().
-- Version check runs on page (not SW) via checkForUpdate() called 1.5s
-  after load. Compares vault-info.json version to vault_last_version in
-  localStorage.
-- First open = bootstrap: stores version silently, no nudge shown.
-- Subsequent opens with new version → sets window._pendingUpdateVersion.
-  checkPendingUpdateNudge() called from both PIN and bio unlock paths.
-- Dismissed state: vault_banner_dismissed_{version} in localStorage.
-- "What's new" button opens Help overlay and clears nudge.
-
-HELP OVERLAY (Settings → Help → What's New & Feature Guide)
-- Full-screen overlay (z-index 900), slides up from bottom.
-- What's New card at top (accent gradient, NEW badge, date, bullets).
-- Features as accordion rows — tap to expand, multiple can be open.
-- Content fetched from vault-info.json, cached in memory per session.
-- s-help-guide settings row added above About section.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R5 SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-- Firebase CDN ES module dynamic import() pattern — lazy-loaded only
-  when sync is touched. Same pattern used for JSZip in R6a/R6d.
-- Auth: signInWithPopup → fallback signInWithRedirect (vault_sync_pending
-  flag + getRedirectResult() in restore()).
-- Firestore: users/{uid}/vault/data {data, updated}. Last-write-wins.
-- CRITICAL: empty-local + non-empty-remote ALWAYS pulls down. Never let
-  a newer-but-empty blob overwrite real data. Apply to all future sync.
-- Spark (free) plan. No billing risk.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6a SUMMARY — Document Vault (shipped & fully tested v5.4)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-STORAGE
-- DocsDB module: IndexedDB VaultDocsDB v1.
-- Manifest encrypted with Crypto.encrypt (small JSON, base64 string).
-- File blobs encrypted with Crypto.encryptRaw (ArrayBuffer → {salt,iv,ct}
-  stored natively in IndexedDB). No base64 — handles 5MB+ photos.
-- Thumbnail for images: 80px JPEG canvas resize, stored as data: URI
-  in manifest (fast list display without decrypting file).
-- PIN change: DocsDB.reencryptAll(oldPin, newPin) before saveEntries().
-
-DOCS UI
-- 5th bottom-nav slot. Lock moved to top-right .lock-top-btn on all screens.
-- Docs tab gate: _showStepUpModal() directly (bypasses requirePIN shortcut).
-  Sets docsStepUpDone=true AND stepUpDone=true on success.
-- File picker: state.importInProgress=true prevents visibilitychange lock.
-  cancel event + 'change' both clear it.
-- Add: fileToArrayBuffer → DocsDB.saveFile → manifest update → renderDocs().
-  Duplicate by filename: "File Already Exists" confirmDelete sheet with
-  Replace/Cancel. Replace preserves original fav/created.
-- Viewer: images → <img> blob URL. PDFs → "Open PDF" button →
-  window.open(blobUrl,'_blank') (new tab, no embed hijack).
-  Word/Excel/other → "Open DOCX/XLSX/etc." button same pattern.
-  Blob URLs revoked on back/delete/re-open.
-- Download: <a download> direct. Share: re-decrypts ArrayBuffer fresh
-  (no fetch()) to build File for navigator.share — preserves gesture
-  context on Android Chrome.
-- Rename: updates topbar, preview card filename, meta card, and silently
-  calls renderDocs() so list reflects new name.
-- Categories: 8 types (none/identity/medical/property/financial/education/
-  travel/other) with icons. Picker in viewer. Badge on list card.
-  Filter pills only shown when at least one doc has a real category.
-- Search: filters by filename in real time. Resets on tab re-open.
-- Swipe-to-delete: doc cards use entry-card class so addSwipeToDelete works.
-- Export: decrypts to real files → zip with files/<name> structure.
-  manifest.json preserves all fields. User can open files directly from zip.
-- Import: reads files/<name> or files/<id>.bin (backward compat).
-  Deduplicates by filename (replaces same-name). Preserves category+fav.
-  Reports "N added · N replaced · N skipped". JSZip lazy CDN import.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6c SUMMARY — Linked Documents
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-- entry.linkedDocIds: string[] (absent = [], max 10).
-- renderLinkedDocs(entry, container): appended to detail-fields-container.
-  Shows each linked doc (icon+name+size), unlink ✕, "+ Link a document".
-- openLinkPicker(entry, container): bottom-sheet overlay with search bar.
-  Filters by filename. Excludes already-linked docs. Lazy-loads manifest
-  if user hasn't visited Docs tab yet this session.
-- Back-nav from linked doc view: state.docViewSource='entry',
-  state.docViewEntryId=entry.id → docview-back returns to entry detail.
-- Stale cleanup: cleanStaleLinkFor(docId) on every doc delete.
-- Bio session: no step-up for "Link a document" (entry detail already
-  authenticated). Viewing linked doc: step-up if !docsStepUpDone.
-- docFileTypeMeta(doc): {icon,label,bg,color} — used in linked rows
-  and picker. Parallel to DOC_FILE_TYPES/docFileMeta.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6d SUMMARY — Password Health + Polish
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-PASSWORD HEALTH
-- Stats row changed from 3-card flex row → 2×2 CSS grid.
-- 4th stat card: 🛡️ PW Health (id=stat-health-card, purple accent strip).
-- healthPanelOpen state var (like catPanelOpen). Panel uses existing
-  .cat-inline-panel/.cat-inline-inner CSS — same slide-open pattern as
-  Types Used breakdown. Both panels mutually exclusive (opening one closes
-  the other).
-- checkPasswordHealth() runs on: unlock, every saveEntries() call, nav
-  to home. Re-evaluates runHealthCheck() each time.
-- runHealthCheck(): checks app/wifi/bank entries for:
-  1. Reused passwords (same non-empty pw on 2+ entries)
-  2. Weak passwords (passwordScore <= 2, not already flagged as reused)
-  3. Missing passwords (no password field set)
-- passwordScore(pw): 0-5, same algorithm as form strength bar.
-- entryPassword(e): extracts primary pw field per type (app/wifi →
-  e.password, bank → e.netBankingPassword).
-- Card shows 🛡️ All Good (green) / ⚠️ N Issues (red) / 🔔 N Issues (amber).
-- Panel rows are tappable → openDetail(id). Closes panel on nav.
-- Card is disabled (opacity .5, no click) if fewer than 2 relevant entries.
-
-BUGS FIXED IN R6d
------------------
-- Category pills showing "Uncategorised" when all docs uncategorised:
-  pills now only render when at least one doc has a real category (≠ none).
-- Share button: now re-decrypts ArrayBuffer fresh instead of fetch(blobUrl)
-  — preserves Android gesture context for navigator.share.
-- Import duplicates: deduplicates by filename not doc.id.
-- Import loses category: all manifest fields now preserved on import.
-- Doc search ✕ button position: wrapped in .docs-search-input-wrap div,
-  icon/clear button position relative to inner wrapper.
-- Rename in viewer: updates topbar + preview card filename + meta card +
-  silently re-renders docs list.
-- confirmDelete() extended: accepts optional {title, message, confirmLabel,
-  icon} override — used for "File Already Exists" duplicate replace dialog.
-
-WARNINGS
---------
-- "Clear site data" wipes ALL vault data (localStorage + IndexedDB).
-  "Clear cache" is safe.
-- Biometric needs HTTPS (GitHub Pages ✓, file:// ✗).
-- Always export before PIN change or new deploy.
-- SW caches index.html — after a deploy, users see update banner
-  automatically on next open. No need to manually clear cache.
-- Docs export zip is plaintext — store it somewhere safe.
-- .vault file (entries backup) is NOT accepted by docs import — correct.
-  Docs backup is a .zip file from Settings → Export Documents Backup.
-- Share button: confirmed working correctly. Uses a pre-built File
-  object (created when the doc viewer loads, before any tap) so
-  navigator.share() fires with no async gap — avoids Android losing
-  user-gesture context. Falls back to auto-download if share is
-  unsupported in a given browser context.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R6e SUMMARY — Old Passwords, Camera Accept, Folder Export (v5.6)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-OLD PASSWORDS CHECK
-- runHealthCheck() returns 4th bucket: old[].
-- old = app/wifi/bank entries where (e.updated||e.created) < 1 year ago,
-  has a password, and is NOT already flagged reused or weak.
-- oneYearAgo = Date.now() - 365*24*60*60*1000.
-- Rendered as "🕐 Old · N" section (purple #8b5cf6) in health overlay.
-- detail shows ">1 year". Counts toward totalIssues.
-- Section order in overlay: Reused → Weak → Old → No Password.
-
-CAMERA CAPTURE (accept attr)
-- doc-file-input now has accept="image/*,application/pdf,.doc,.docx,
-  .xls,.xlsx,.txt,.csv". No capture attribute — Android Chrome's native
-  file picker already offers Camera as an option.
-
-FOLDER EXPORT (device-gated)
-- New settings row "Export to Folder" (id=s-docs-export-folder),
-  hidden by default (style="display:none").
-- Shown only if 'showDirectoryPicker' in window — checked at runtime
-  after DOM ready.
-- Uses window.showDirectoryPicker({mode:'readwrite'}). Decrypts each
-  doc via DocsDB.loadFile and writes via FileSystemWritableFileStream.
-- AbortError (user cancelled picker) handled silently.
-- Toast reports "Exported N files ✓" with optional "· N failed".
-- Zip export (s-docs-export) unchanged — still primary path on Android.
+WARNINGS / NOTES FOR NEXT SESSION
+- Fav screen (Starred tab) was intentionally left on the OLD single-button
+  swipe (addSwipeToDelete) — multi-select/share was only asked for on Home.
+  If that's expected to extend to Starred later, renderFavs() needs the
+  same treatment as renderEntries().
+- Documents are still NOT part of any share payload — entries only. The
+  per-entry `includeDocs` toggle discussed for a future session was NOT
+  added to the UI yet since it stays dormant until doc-sharing ships;
+  revisit idCardModel()/openShareModal() then.
+- No test data available in this session to click-test the carousel swipe
+  gesture on an actual touch device — logic mirrors the proven
+  addSwipeToDelete touch-handling pattern, but worth confirming feel on
+  first real use.
 
 NEXT SESSION
 ------------
 Upload: index.html + sw.js + vault-info.json + this file.
-R6b  → say "Implement R6b" for Firebase Storage doc sync.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.

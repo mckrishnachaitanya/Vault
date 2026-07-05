@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <title>Vault</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet"/>
 <style>
 /* ═══════════════════════════════════
    THEME VARIABLES
@@ -721,26 +721,66 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .share-view-error{font-size:13px;color:var(--red);text-align:center;margin-top:10px;min-height:20px;}
 /* Digital card styles */
 .share-card{width:100%;max-width:360px;margin-top:24px;}
-.share-card-widget{border-radius:20px;padding:24px;position:relative;overflow:hidden;margin-bottom:16px;box-shadow:0 8px 32px rgba(0,0,0,.25);}
-.share-card-title{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;opacity:.75;margin-bottom:16px;}
-.share-card-avatar{width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:12px;}
-.share-card-name{font-size:20px;font-weight:800;margin-bottom:4px;}
-.share-card-sub{font-size:13px;opacity:.75;margin-bottom:16px;}
-.share-card-fields{display:flex;flex-direction:column;gap:10px;}
-.share-card-field{background:rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;}
-.share-card-field-label{font-size:10px;font-weight:600;opacity:.65;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;}
-.share-card-field-value{font-size:14px;font-weight:700;}
-.share-card-chip{width:36px;height:26px;background:linear-gradient(135deg,#f6c90e,#f0a500);border-radius:5px;margin-bottom:12px;}
-.share-card-number{font-size:18px;font-weight:700;letter-spacing:3px;margin-bottom:8px;}
-.share-card-row{display:flex;justify-content:space-between;align-items:flex-end;}
-/* ID card specific */
-.share-id-card{background:linear-gradient(135deg,#1e293b,#334155);}
-.share-bank-card{background:linear-gradient(135deg,#064e3b,#065f46);}
-.share-credit-card{background:linear-gradient(135deg,#312e81,#4c1d95);}
-.share-app-card{background:linear-gradient(135deg,#1e3a5f,#1e4d7b);}
-.share-wifi-card{background:linear-gradient(135deg,#0c4a6e,#075985);}
-.share-note-card{background:linear-gradient(135deg,#451a03,#78350f);}
 .share-card-footer{font-size:11px;color:var(--muted);text-align:center;margin-top:20px;}
+
+/* ── ID Card (Design D) — cream/brass premium card, recipient side ── */
+.idcard-scope{
+  --ic-cream:#FBF7EF; --ic-line:#DACBA4; --ic-ink:#3A3128;
+  --ic-ink-soft:#7A6E5C; --ic-brass:#A9822F; --ic-brass-deep:#7C5E23;
+}
+.idcard{
+  width:100%;border-radius:22px;position:relative;
+  background:var(--ic-cream);color:var(--ic-ink);
+  box-shadow:0 14px 30px -12px rgba(60,46,20,.35),0 2px 6px rgba(60,46,20,.12);
+  padding:20px 22px 22px 26px;
+}
+.idcard::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:5px;border-radius:22px 0 0 22px;
+  background:linear-gradient(180deg,var(--ic-brass),var(--ic-brass-deep));
+}
+.idcard-eyebrow-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.idcard-eyebrow{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--ic-brass-deep);font-weight:700;}
+.idcard-monogram{
+  width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ic-brass);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;color:var(--ic-brass-deep);
+  font-family:'Cormorant Garamond',serif;font-size:12px;font-weight:700;
+}
+.idcard-name-block{margin-bottom:16px;}
+.idcard-name-block label,.idcard-field label{
+  display:block;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--ic-ink-soft);margin-bottom:3px;font-weight:600;
+}
+.idcard-name-block .val{font-family:'Cormorant Garamond',serif;font-size:23px;font-weight:700;line-height:1.15;word-break:break-word;}
+.idcard-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
+.idcard-field .val{font-family:'JetBrains Mono',monospace;font-size:13.5px;font-weight:700;color:var(--ic-ink);letter-spacing:.3px;word-break:break-word;white-space:pre-wrap;}
+.idcard-field.emphasis .val{color:var(--ic-brass-deep);font-size:14.5px;}
+.idcard-field.wide{grid-column:1/-1;}
+.idcard-field.prose .val{font-family:var(--font);font-weight:500;letter-spacing:0;white-space:pre-wrap;}
+
+/* ── Carousel (multi-entry recipient view) ── */
+.share-carousel{position:relative;display:flex;align-items:center;justify-content:center;width:100%;}
+.share-carousel .idcard-slot{width:100%;}
+.carousel-nav-arrow{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:36px;height:36px;border-radius:50%;background:var(--ic-cream,var(--surface));
+  border:1px solid var(--ic-line,var(--border));display:flex;align-items:center;justify-content:center;
+  color:var(--ic-brass-deep,var(--accent));font-size:17px;cursor:pointer;user-select:none;
+  box-shadow:0 6px 16px -6px rgba(60,46,20,.35);z-index:5;transition:opacity .15s;
+}
+.carousel-nav-arrow.left{left:-8px;}
+.carousel-nav-arrow.right{right:-8px;}
+.carousel-nav-arrow.disabled{opacity:.25;pointer-events:none;}
+.carousel-peek{
+  position:absolute;width:92%;top:8px;bottom:8px;border-radius:22px;
+  background:var(--ic-cream,var(--surface));box-shadow:0 10px 24px -14px rgba(60,46,20,.3);z-index:-1;
+}
+.carousel-peek.left{left:-10px;opacity:.55;}
+.carousel-peek.right{right:-10px;opacity:.55;}
+.carousel-dots{display:flex;justify-content:center;gap:7px;margin-top:18px;}
+.carousel-dot{width:6px;height:6px;border-radius:50%;background:var(--ic-line,var(--border));transition:all .2s;}
+.carousel-dot.active{background:var(--ic-brass-deep,var(--accent));width:16px;border-radius:4px;}
+.carousel-hint{margin-top:10px;font-size:11px;color:var(--muted);text-align:center;}
+.carousel-count{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px;letter-spacing:.4px;}
 
 /* ── Doc Add Sheet ── */
 .bottom-sheet-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;}
@@ -1337,6 +1377,66 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 .entry-card.swiped{margin-right:88px;}
 
+/* Two-action swipe (Share + Delete) — used on the home/starred entry lists.
+   Layout order left→right: Share (adjacent to card), Delete (at the far
+   edge) — matches the intended "delete sits furthest from the content". */
+.swipe-actions{
+  position:absolute;right:0;top:0;bottom:0;width:176px;
+  display:flex;border-radius:var(--radius-sm) var(--radius) var(--radius) var(--radius-sm);
+  overflow:hidden;pointer-events:none;opacity:0;z-index:0;transition:opacity .15s;
+}
+.swipe-actions.revealed{ pointer-events:all; opacity:1; }
+.swipe-action-btn{
+  flex:1;height:100%;border:none;cursor:pointer;color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-family:var(--font);
+}
+.swipe-action-btn span{font-size:20px;}
+.swipe-action-btn small{font-size:9px;font-weight:800;letter-spacing:.5px;color:#fff;}
+.swipe-share-btn{background:var(--accent-g);}
+.swipe-delete-btn{background:linear-gradient(135deg,#ef4444,#dc2626);}
+.entry-card.swiped-actions{margin-right:176px;}
+
+/* Multi-select mode */
+.entry-checkbox{
+  width:22px;height:22px;border-radius:7px;border:2px solid var(--border);
+  background:var(--surface);flex-shrink:0;margin-right:2px;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.entry-checkbox.checked{background:var(--accent-g);border-color:transparent;}
+.entry-checkbox.checked::after{content:'✓';color:#fff;font-size:13px;font-weight:800;}
+.entry-card.select-mode .entry-avatar{margin-left:12px;}
+#select-mode-btn.active{background:var(--accent);color:#fff;}
+
+.select-bar{
+  position:absolute;left:12px;right:12px;bottom:86px;
+  display:flex;align-items:center;gap:10px;
+  background:var(--bg2);border:1.5px solid var(--border);
+  border-radius:var(--radius);padding:10px 10px 10px 16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+  opacity:0;pointer-events:none;transform:translateY(12px);
+  transition:all .2s;z-index:60;
+}
+.select-bar.show{ opacity:1;pointer-events:auto;transform:translateY(0); }
+.select-bar-cancel{
+  width:34px;height:34px;border-radius:50%;border:none;background:var(--surface2);
+  color:var(--text2);font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;
+}
+.select-bar-count{flex:1;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;}
+.select-bar-share{
+  padding:10px 16px;border-radius:var(--radius-sm);border:none;background:var(--accent-g);
+  color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+
+/* Selected-entries summary sheet */
+.summary-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:44vh;overflow-y:auto;}
+.summary-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--surface);border:1.5px solid var(--border);}
+.summary-item-icon{font-size:20px;width:30px;text-align:center;flex-shrink:0;}
+.summary-item-info{flex:1;min-width:0;}
+.summary-item-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.summary-item-sub{font-size:11px;color:var(--muted);}
+.summary-item-remove{width:26px;height:26px;border-radius:50%;border:none;background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;flex-shrink:0;}
+
 /* Staggered entry cards */
 .entry-card:nth-child(1){animation-delay:.04s}
 .entry-card:nth-child(2){animation-delay:.07s}
@@ -1405,6 +1505,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="lock-top-btn" id="health-icon-btn" title="Password Health" style="display:none">🛡️</button>
+        <button class="lock-top-btn" id="select-mode-btn" title="Select entries to share">☑️</button>
         <button class="lock-top-btn" id="lock-top-btn-home" title="Lock Vault">🔒</button>
       </div>
     </div>
@@ -1445,6 +1546,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
   <div class="entries-list" id="entries-list"></div>
 
+  <div class="select-bar" id="select-bar">
+    <button class="select-bar-cancel" id="select-bar-cancel">✕</button>
+    <div class="select-bar-count" id="select-bar-count">0 selected</div>
+    <button class="select-bar-share" id="select-bar-share">🔗 Share</button>
+  </div>
+
   <!-- Bottom Nav -->
   <div class="bottom-nav">
     <div class="nav-item active" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
@@ -1452,6 +1559,17 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <button class="nav-add" id="add-btn">+</button>
     <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-expiry-badge" data-docsbadge></div><div class="nav-label">DOCS</div></div>
     <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
+  </div>
+</div>
+
+<!-- ══════════ SHARE SELECTION SUMMARY SHEET ══════════ -->
+<div class="bottom-sheet-overlay hidden" id="share-summary-overlay">
+  <div class="bottom-sheet" id="share-summary-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-title">Share Selected (<span id="summary-count">0</span>)</div>
+    <div class="summary-list" id="summary-list"></div>
+    <button class="share-generate-btn" id="summary-share-btn">🔗 Continue to Share</button>
+    <button class="doc-add-cancel" id="summary-cancel-btn">Cancel</button>
   </div>
 </div>
 
@@ -1906,7 +2024,18 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     </div>
     <div class="share-view-error" id="sv-error"></div>
   </div>
-  <div id="share-view-card" class="share-card" style="display:none"></div>
+  <div id="share-view-card" class="share-card idcard-scope" style="display:none">
+    <div class="carousel-count" id="share-carousel-count" style="display:none"></div>
+    <div class="share-carousel" id="share-carousel">
+      <div class="carousel-peek left" id="share-peek-left" style="display:none"></div>
+      <div class="carousel-nav-arrow left disabled" id="share-arrow-left">‹</div>
+      <div class="idcard-slot" id="share-idcard-slot"></div>
+      <div class="carousel-nav-arrow right" id="share-arrow-right" style="display:none">›</div>
+      <div class="carousel-peek right" id="share-peek-right" style="display:none"></div>
+    </div>
+    <div class="carousel-dots" id="share-carousel-dots" style="display:none"></div>
+    <div class="carousel-hint" id="share-carousel-hint" style="display:none">Swipe or tap the arrow to see the next item</div>
+  </div>
   <div class="share-card-footer">Shared via Vault · End-to-end encrypted</div>
 </div>
 
@@ -2016,6 +2145,8 @@ let state = {
   docsStepUpDone: false,
   docViewSource: 'docs',   // 'docs' | 'entry' — controls docview-back destination
   docViewEntryId: null,    // entry id when docViewSource === 'entry'
+  selectMode: false,       // multi-select mode on home screen for bulk share
+  selectedIds: new Set(),  // persists across filter/search changes intentionally
 };
 
 const Store = {
@@ -2474,7 +2605,7 @@ function lockVault() {
   // top of the PIN unlock screen — checked first since the underlying screen
   // (usually detail-screen) would otherwise match one of the branches below
   // and short-circuit before this ever runs.
-  const shareSheetOpen = document.getElementById('share-sheet-overlay').classList.contains('show') && _shareTargetEntry;
+  const shareSheetOpen = document.getElementById('share-sheet-overlay').classList.contains('show') && _shareTargetEntries.length;
   if(shareSheetOpen) {
     document.getElementById('share-sheet-overlay').classList.remove('show');
   }
@@ -2716,7 +2847,7 @@ async function restoreAfterUnlock() {
     return;
   }
 
-  if(target==='share-sheet' && _shareTargetEntry){
+  if(target==='share-sheet' && _shareTargetEntries.length){
     if(currentDetail){ showScreen('home-screen'); renderEntries(true); updateStats(); openDetail(currentDetail.id); }
     showShareSheet();
     return;
@@ -2857,11 +2988,14 @@ function renderEntries(animate=false) {
     list.innerHTML=`<div class="empty-state"><span class="empty-icon">🔒</span><p>${search?'No results found':'No entries yet.<br>Tap + to add one'}</p></div>`;
     return;
   }
+  const selMode = state.selectMode;
   list.innerHTML=entries.map((e,i)=>{
     const tm=TYPE_META[e.type]||TYPE_META.app;
+    const checked = state.selectedIds.has(e.id);
     return `
     <div class="entry-card-wrap">
-      <div class="entry-card type-${e.type}" data-id="${e.id}"${animate ? ` style="animation-delay:${i*.04}s"` : ' style="animation:none"'}>
+      <div class="entry-card type-${e.type}${selMode?' select-mode':''}" data-id="${e.id}"${animate ? ` style="animation-delay:${i*.04}s"` : ' style="animation:none"'}>
+        ${selMode?`<div class="entry-checkbox${checked?' checked':''}" data-check="${e.id}"></div>`:''}
         <div class="entry-avatar">${tm.emoji}</div>
         <div class="entry-info">
           <div class="entry-name">${esc(e.name)}</div>
@@ -2869,16 +3003,19 @@ function renderEntries(animate=false) {
           <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
         </div>
         <div class="entry-meta">
-          <span class="fav-star" data-fav="${e.id}">${e.fav?'⭐':'☆'}</span>
-          <span class="entry-arrow">›</span>
+          ${selMode?'':`<span class="fav-star" data-fav="${e.id}">${e.fav?'⭐':'☆'}</span><span class="entry-arrow">›</span>`}
         </div>
       </div>
-      <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
+      ${selMode?'':`<div class="swipe-actions" data-actions>
+        <button class="swipe-action-btn swipe-share-btn" data-share="${e.id}"><span>🔗</span><small>SHARE</small></button>
+        <button class="swipe-action-btn swipe-delete-btn" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></button>
+      </div>`}
     </div>`;
   }).join('');
 
   list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{
     if(ev.target.classList.contains('fav-star')) return;
+    if(selMode){ toggleEntrySelected(c.dataset.id); return; }
     openDetail(c.dataset.id);
   }));
   list.querySelectorAll('.fav-star').forEach(s=>s.addEventListener('click',async ev=>{
@@ -2888,22 +3025,32 @@ function renderEntries(animate=false) {
     entry.fav=!entry.fav;
     await saveEntries(); renderEntries(); updateStats();
   }));
-  list.querySelectorAll('.swipe-delete-bg').forEach(btn=>btn.addEventListener('click',async ev=>{
+  list.querySelectorAll('.swipe-share-btn').forEach(btn=>btn.addEventListener('click',ev=>{
+    ev.stopPropagation();
+    const entry=state.entries.find(e=>e.id===btn.dataset.share);
+    if(!entry) return;
+    const card=btn.closest('.entry-card-wrap').querySelector('.entry-card');
+    card.style.marginRight=''; card.classList.remove('swiped-actions');
+    const actions=btn.closest('.swipe-actions'); setTimeout(()=>actions.classList.remove('revealed'),280);
+    openShareModal(entry);
+  }));
+  list.querySelectorAll('.swipe-delete-btn').forEach(btn=>btn.addEventListener('click',async ev=>{
     ev.stopPropagation();
     const id=btn.dataset.del;
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
     if(state.unlockedViaBio){
       const ok = await requirePIN('Enter PIN to delete');
-      if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
+      if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped-actions'); const actions=btn.closest('.swipe-actions'); setTimeout(()=>actions.classList.remove('revealed'),280); return; }
     }
     const ok = await confirmDelete(entry.name);
-    if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
+    if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped-actions'); const actions=btn.closest('.swipe-actions'); setTimeout(()=>actions.classList.remove('revealed'),280); return; }
     state.entries=state.entries.filter(e=>e.id!==id);
-    await saveEntries(); updateStats(); renderEntries();
+    state.selectedIds.delete(id);
+    await saveEntries(); updateStats(); renderEntries(); updateSelectBar();
     toast('Deleted');
   }));
-  addSwipeToDelete(list);
+  if(!selMode) addSwipeActions(list);
 }
 
 function renderFavs() {
@@ -3518,6 +3665,148 @@ function addSwipeToDelete(container) {
     }, {passive: true});
   });
 }
+
+// Two-action swipe (Share + Delete) — mirrors addSwipeToDelete's gesture
+// handling but reveals a 176px-wide pair of buttons instead of one.
+function addSwipeActions(container) {
+  const SWIPE_PX = 176;
+  let activeCard = null, activeActions = null;
+  let startX = 0, startY = 0;
+  let dirLocked = false, isHoriz = false, dragging = false, wasOpen = false;
+
+  function snapOpen(card, actions) {
+    card.style.transition = '';
+    card.style.marginRight = SWIPE_PX + 'px';
+    card.classList.add('swiped-actions');
+    actions.classList.add('revealed');
+    actions.style.opacity = '1';
+  }
+  function snapClose(card, actions) {
+    card.style.transition = '';
+    card.style.marginRight = '';
+    card.classList.remove('swiped-actions');
+    actions.style.opacity = '0';
+    setTimeout(() => { actions.classList.remove('revealed'); }, 280);
+  }
+  function closeAll() {
+    container.querySelectorAll('.entry-card').forEach(c => {
+      const actions = c.closest('.entry-card-wrap') ? c.closest('.entry-card-wrap').querySelector('.swipe-actions') : null;
+      if(actions) snapClose(c, actions);
+    });
+  }
+  function onDocMove(e) {
+    if (!activeCard) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (!dirLocked) {
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      isHoriz = Math.abs(dx) > Math.abs(dy) * 1.3;
+      dirLocked = true;
+      if (!isHoriz) { activeCard = null; return; }
+      if (activeActions) activeActions.style.opacity = '1';
+    }
+    e.preventDefault();
+    dragging = true;
+    activeCard.style.transition = 'none';
+    const base = wasOpen ? SWIPE_PX : 0;
+    const raw = base + (-dx);
+    const clamped = Math.min(SWIPE_PX, Math.max(0, raw));
+    activeCard.style.marginRight = clamped + 'px';
+  }
+  function onDocEnd(e) {
+    if (!activeCard) return;
+    document.removeEventListener('touchmove', onDocMove);
+    document.removeEventListener('touchend', onDocEnd);
+    const card = activeCard, actions = activeActions;
+    const open = wasOpen;
+    const didDrag = dragging;
+    activeCard = activeActions = null;
+    dragging = false;
+    if (!didDrag) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (!open && dx < -(SWIPE_PX * 0.45)) { snapOpen(card, actions); }
+    else if (open && dx > (SWIPE_PX * 0.3)) { snapClose(card, actions); }
+    else if (open) { snapOpen(card, actions); }
+    else { snapClose(card, actions); }
+  }
+  container.querySelectorAll('.entry-card-wrap').forEach(wrap => {
+    const card = wrap.querySelector('.entry-card');
+    const actions = wrap.querySelector('.swipe-actions');
+    if(!card || !actions) return;
+    wrap.addEventListener('touchstart', e => {
+      const currentOpen = container.querySelector('.entry-card.swiped-actions');
+      if (currentOpen && currentOpen !== card) closeAll();
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dirLocked = false; isHoriz = false; dragging = false;
+      wasOpen = card.classList.contains('swiped-actions');
+      activeCard = card; activeActions = actions;
+      document.addEventListener('touchmove', onDocMove, {passive: false});
+      document.addEventListener('touchend', onDocEnd, {passive: true});
+    }, {passive: true});
+  });
+}
+
+// ═══════════════════════════════════════
+//  MULTI-SELECT (for bulk Secure Share)
+// ═══════════════════════════════════════
+function toggleSelectMode(on) {
+  state.selectMode = (on !== undefined) ? on : !state.selectMode;
+  if(!state.selectMode) state.selectedIds.clear();
+  document.getElementById('select-mode-btn').classList.toggle('active', state.selectMode);
+  renderEntries(); updateSelectBar();
+}
+function toggleEntrySelected(id) {
+  if(state.selectedIds.has(id)) state.selectedIds.delete(id);
+  else state.selectedIds.add(id);
+  renderEntries(); updateSelectBar();
+}
+function updateSelectBar() {
+  const bar = document.getElementById('select-bar');
+  const n = state.selectedIds.size;
+  bar.classList.toggle('show', state.selectMode && n > 0);
+  document.getElementById('select-bar-count').textContent = `${n} selected`;
+}
+function openSummarySheet() {
+  const ids = Array.from(state.selectedIds);
+  const entries = state.entries.filter(e => ids.includes(e.id));
+  if(!entries.length) return;
+  document.getElementById('summary-count').textContent = entries.length;
+  const list = document.getElementById('summary-list');
+  list.innerHTML = entries.map(e => {
+    const tm = TYPE_META[e.type] || TYPE_META.app;
+    return `<div class="summary-item" data-id="${e.id}">
+      <div class="summary-item-icon">${tm.emoji}</div>
+      <div class="summary-item-info"><div class="summary-item-name">${esc(e.name)}</div><div class="summary-item-sub">${esc(tm.label)}</div></div>
+      <button class="summary-item-remove" data-remove="${e.id}">✕</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', () => {
+    state.selectedIds.delete(btn.dataset.remove);
+    renderEntries(); updateSelectBar();
+    if(state.selectedIds.size === 0) { closeSummarySheet(); toggleSelectMode(false); return; }
+    openSummarySheet();
+  }));
+  document.getElementById('share-summary-overlay').classList.remove('hidden');
+}
+function closeSummarySheet() {
+  document.getElementById('share-summary-overlay').classList.add('hidden');
+}
+document.getElementById('select-mode-btn').addEventListener('click', () => toggleSelectMode());
+document.getElementById('select-bar-cancel').addEventListener('click', () => toggleSelectMode(false));
+document.getElementById('select-bar-count').addEventListener('click', openSummarySheet);
+document.getElementById('select-bar-share').addEventListener('click', openSummarySheet);
+document.getElementById('summary-cancel-btn').addEventListener('click', closeSummarySheet);
+document.getElementById('share-summary-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('share-summary-overlay')) closeSummarySheet();
+});
+document.getElementById('summary-share-btn').addEventListener('click', () => {
+  const ids = Array.from(state.selectedIds);
+  const entries = state.entries.filter(e => ids.includes(e.id));
+  if(!entries.length) return;
+  closeSummarySheet();
+  openShareModal(entries);
+});
 
 document.getElementById('detail-back').addEventListener('click',()=>{
   if(state.detailSource==='fav'){ showScreen('fav-screen'); renderFavs(); }
@@ -6304,7 +6593,7 @@ document.getElementById('s-force-update').addEventListener('click', async () => 
 // ═══════════════════════════════════════
 
 // ── Secure Share (sender side, full screen) ────────────────────────────────
-let _shareTargetEntry = null;
+let _shareTargetEntries = [];
 let _shareSelectedTTL = 86400000;
 let _spPin = '';
 
@@ -6321,11 +6610,14 @@ function hideShareSheet() {
   document.getElementById('share-sheet-overlay').classList.remove('show');
 }
 
-function openShareModal(entry) {
-  _shareTargetEntry = entry;
+// Accepts either a single entry or an array of entries (bulk share).
+function openShareModal(entryOrEntries) {
+  _shareTargetEntries = Array.isArray(entryOrEntries) ? entryOrEntries : [entryOrEntries];
   _shareSelectedTTL = 86400000;
   _spPin = '';
   spUpdateDots();
+  const n = _shareTargetEntries.length;
+  document.querySelector('.share-sheet-title').textContent = n > 1 ? `🔗 Secure Share (${n} items)` : '🔗 Secure Share';
   document.getElementById('share-step-setup').style.display = '';
   document.getElementById('share-step-link').style.display = 'none';
   document.querySelectorAll('.share-expiry-btn').forEach(b => {
@@ -6355,8 +6647,8 @@ document.querySelectorAll('.share-expiry-btn').forEach(btn => {
 document.getElementById('share-generate-btn').addEventListener('click', async () => {
   const pin = _spPin;
   if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
-  if(!_shareTargetEntry) return;
-  const payload = { entry: _shareTargetEntry, expiresAt: Date.now() + _shareSelectedTTL };
+  if(!_shareTargetEntries.length) return;
+  const payload = { entries: _shareTargetEntries, expiresAt: Date.now() + _shareSelectedTTL };
   const encrypted = await Crypto.encrypt(payload, pin);
   const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   const link = `${location.origin}${location.pathname}#share/${urlSafe}`;
@@ -6375,7 +6667,10 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
   };
 });
 
-document.getElementById('share-done-btn').addEventListener('click', hideShareSheet);
+document.getElementById('share-done-btn').addEventListener('click', () => {
+  hideShareSheet();
+  if(_shareTargetEntries.length > 1 && state.selectMode) toggleSelectMode(false);
+});
 
 // Share button is wired dynamically in openDetail()
 
@@ -6403,7 +6698,12 @@ async function svAttemptUnlock() {
   const padded = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
   try {
     const payload = await Crypto.decrypt(padded, pin);
-    if(!payload || !payload.entry || !payload.expiresAt) throw new Error('Invalid payload');
+    // New links carry payload.entries (array, supports bulk share). Older
+    // links carry a single payload.entry — normalize both to an array.
+    const entries = payload && Array.isArray(payload.entries) ? payload.entries
+                   : payload && payload.entry ? [payload.entry]
+                   : null;
+    if(!entries || !entries.length || !payload.expiresAt) throw new Error('Invalid payload');
     if(Date.now() > payload.expiresAt) {
       document.getElementById('sv-error').textContent = '⚠️ This link has expired';
       return;
@@ -6412,7 +6712,7 @@ async function svAttemptUnlock() {
     document.getElementById('share-view-pin-wrap').style.display = 'none';
     const card = document.getElementById('share-view-card');
     card.style.display = '';
-    card.innerHTML = renderShareCard(payload.entry);
+    initShareCarousel(entries);
   } catch(e) {
     document.getElementById('sv-error').textContent = 'Incorrect PIN — try again';
     _svPin = ''; svUpdateDots();
@@ -6444,102 +6744,157 @@ function groupDigits(raw) {
   return str.replace(/(\d{4})(?=\d)/g, '$1 ');
 }
 
-function renderShareCard(entry) {
-  const tm = {
-    app:      { label:'App / Website',  cls:'share-app-card',    color:'#fff' },
-    wifi:     { label:'WiFi',           cls:'share-wifi-card',   color:'#fff' },
-    note:     { label:'Secure Note',    cls:'share-note-card',   color:'#fff' },
-    card:     { label:'Card',           cls:'share-credit-card', color:'#fff' },
-    bank:     { label:'Bank Account',   cls:'share-bank-card',   color:'#fff' },
-    identity: { label:'Identity',       cls:'share-id-card',     color:'#fff' },
-  }[entry.type] || { label:'Entry', cls:'share-app-card', color:'#fff' };
+// ── ID Card (Design D) builder — generic across entry types ────────────────
+// Returns {eyebrow, name, fields:[{label,value,emphasis,wide,prose}]}
+function idCardModel(entry) {
+  const eyebrowFor = {
+    app:      'App / Website',
+    wifi:     'WiFi Network',
+    note:     'Secure Note',
+    card:     'Payment Card',
+    bank:     'Bank Account',
+    identity: {aadhaar:'Identity · Aadhaar',pan:'Identity · PAN',passport:'Identity · Passport',dl:'Identity · Driving Licence',voterid:'Identity · Voter ID',other:'Identity'}[entry.docType] || 'Identity',
+  };
+  const eyebrow = eyebrowFor[entry.type] || 'Entry';
+  const f = (label, value, opts={}) => value ? { label, value: String(value), ...opts } : null;
 
-  const emoji = {app:'🌐',wifi:'📶',note:'📝',card:'💳',bank:'🏦',identity:'🪪'}[entry.type]||'🔐';
-
-  let inner = '';
-
-  if(entry.type === 'card') {
-    // Credit card style
-    inner = `
-      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
-        <div class="share-card-title">${esc(entry.name)}</div>
-        <div class="share-card-chip"></div>
-        <div class="share-card-number">${entry.cardNumber ? esc(groupDigits(entry.cardNumber)) : '•••• •••• •••• ••••'}</div>
-        <div class="share-card-row">
-          <div><div style="font-size:10px;opacity:.6;margin-bottom:2px">CARDHOLDER</div><div style="font-size:14px;font-weight:700">${esc(entry.cardHolder||'—')}</div></div>
-          <div><div style="font-size:10px;opacity:.6;margin-bottom:2px">EXPIRY</div><div style="font-size:14px;font-weight:700">${esc(entry.expiry||'—')}</div></div>
-        </div>
-        ${entry.cvv ? `<div class="share-card-fields" style="margin-top:14px"><div class="share-card-field"><div class="share-card-field-label">CVV</div><div class="share-card-field-value">${esc(entry.cvv)}</div></div></div>` : ''}
-        ${entry.pin ? `<div class="share-card-fields" style="margin-top:8px"><div class="share-card-field"><div class="share-card-field-label">ATM PIN</div><div class="share-card-field-value">${esc(entry.pin)}</div></div></div>` : ''}
-      </div>`;
-  } else if(entry.type === 'identity') {
-    const docLabel = {aadhaar:'Aadhaar',pan:'PAN',passport:'Passport',dl:'Driving Licence',voterid:'Voter ID',other:'Identity'}[entry.docType]||'Identity';
-    inner = `
-      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
-        <div class="share-card-title">${docLabel}</div>
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
-          <div class="share-card-avatar">👤</div>
-          <div><div style="font-size:18px;font-weight:800">${esc(entry.idName||entry.name)}</div>${entry.dob?`<div style="font-size:12px;opacity:.7">DOB: ${esc(entry.dob)}</div>`:''}
-          </div>
-        </div>
-        <div class="share-card-fields">
-          ${entry.docNumber?`<div class="share-card-field"><div class="share-card-field-label">Document Number</div><div class="share-card-field-value">${esc(groupDigits(entry.docNumber))}</div></div>`:''}
-          ${entry.expiry?`<div class="share-card-field"><div class="share-card-field-label">Expiry</div><div class="share-card-field-value">${esc(entry.expiry)}</div></div>`:''}
-          ${entry.nationality?`<div class="share-card-field"><div class="share-card-field-label">Nationality</div><div class="share-card-field-value">${esc(entry.nationality)}</div></div>`:''}
-          ${entry.issuingState?`<div class="share-card-field"><div class="share-card-field-label">Issuing State</div><div class="share-card-field-value">${esc(entry.issuingState)}</div></div>`:''}
-        </div>
-      </div>`;
-  } else if(entry.type === 'bank') {
-    inner = `
-      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
-        <div class="share-card-title">${tm.label}</div>
-        <div class="share-card-avatar">${emoji}</div>
-        <div class="share-card-name">${esc(entry.bankName||entry.name)}</div>
-        <div class="share-card-sub">${esc(entry.accountType||'')}</div>
-        <div class="share-card-fields">
-          ${entry.accountNo?`<div class="share-card-field"><div class="share-card-field-label">Account Number</div><div class="share-card-field-value">${esc(groupDigits(entry.accountNo))}</div></div>`:''}
-          ${entry.ifsc?`<div class="share-card-field"><div class="share-card-field-label">IFSC Code</div><div class="share-card-field-value">${esc(entry.ifsc)}</div></div>`:''}
-          ${entry.netBankingId?`<div class="share-card-field"><div class="share-card-field-label">Net Banking ID</div><div class="share-card-field-value">${esc(entry.netBankingId)}</div></div>`:''}
-          ${entry.netBankingPassword?`<div class="share-card-field"><div class="share-card-field-label">Net Banking Password</div><div class="share-card-field-value">${esc(entry.netBankingPassword)}</div></div>`:''}
-        </div>
-      </div>`;
-  } else if(entry.type === 'wifi') {
-    inner = `
-      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
-        <div class="share-card-title">${tm.label}</div>
-        <div class="share-card-avatar">${emoji}</div>
-        <div class="share-card-name">${esc(entry.ssid||entry.name)}</div>
-        <div class="share-card-sub">${esc(entry.securityType||'')}</div>
-        <div class="share-card-fields">
-          <div class="share-card-field"><div class="share-card-field-label">Password</div><div class="share-card-field-value">${esc(entry.password||'—')}</div></div>
-        </div>
-      </div>`;
-  } else if(entry.type === 'note') {
-    inner = `
-      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
-        <div class="share-card-title">${tm.label}</div>
-        <div class="share-card-name">${esc(entry.name)}</div>
-        <div class="share-card-fields" style="margin-top:12px">
-          <div class="share-card-field"><div class="share-card-field-value" style="white-space:pre-wrap;font-weight:500">${esc(entry.note||'')}</div></div>
-        </div>
-      </div>`;
-  } else {
-    // app
-    inner = `
-      <div class="share-card-widget ${tm.cls}" style="color:${tm.color}">
-        <div class="share-card-title">${tm.label}</div>
-        <div class="share-card-avatar">${emoji}</div>
-        <div class="share-card-name">${esc(entry.name)}</div>
-        ${entry.url?`<div class="share-card-sub">${esc(entry.url)}</div>`:''}
-        <div class="share-card-fields">
-          ${entry.username?`<div class="share-card-field"><div class="share-card-field-label">Username / Email</div><div class="share-card-field-value">${esc(entry.username)}</div></div>`:''}
-          ${entry.password?`<div class="share-card-field"><div class="share-card-field-label">Password</div><div class="share-card-field-value">${esc(entry.password)}</div></div>`:''}
-          ${entry.notes?`<div class="share-card-field"><div class="share-card-field-label">Notes</div><div class="share-card-field-value" style="font-weight:500">${esc(entry.notes)}</div></div>`:''}
-        </div>
-      </div>`;
+  let name, fields;
+  switch(entry.type) {
+    case 'card':
+      name = entry.cardHolder || entry.name;
+      fields = [
+        f('Card Number', entry.cardNumber ? groupDigits(entry.cardNumber) : '•••• •••• •••• ••••', {wide:true, emphasis:true}),
+        f('Expiry', entry.expiry),
+        f('CVV', entry.cvv),
+        f('ATM PIN', entry.pin),
+      ];
+      break;
+    case 'identity':
+      name = entry.idName || entry.name;
+      fields = [
+        f('Date of Birth', entry.dob),
+        f('Nationality', entry.nationality),
+        f('Issuing State', entry.issuingState),
+        f('Expiry', entry.expiry),
+        f('Document Number', entry.docNumber ? groupDigits(entry.docNumber) : null, {wide:true, emphasis:true}),
+      ];
+      break;
+    case 'bank':
+      name = entry.bankName || entry.name;
+      fields = [
+        f('Account Type', entry.accountType),
+        f('IFSC Code', entry.ifsc),
+        f('Account Number', entry.accountNo ? groupDigits(entry.accountNo) : null, {wide:true, emphasis:true}),
+        f('Net Banking ID', entry.netBankingId),
+        f('Net Banking Password', entry.netBankingPassword),
+      ];
+      break;
+    case 'wifi':
+      name = entry.ssid || entry.name;
+      fields = [
+        f('Security Type', entry.securityType),
+        f('Password', entry.password, {wide:true, emphasis:true}),
+      ];
+      break;
+    case 'note':
+      name = entry.name;
+      fields = [ f('Note', entry.note, {wide:true, prose:true}) ];
+      break;
+    default: // app
+      name = entry.name;
+      fields = [
+        f('Username / Email', entry.username),
+        f('Password', entry.password, {emphasis:true}),
+        f('Website', entry.url, {wide:true}),
+        f('Notes', entry.notes, {wide:true, prose:true}),
+      ];
   }
-  return inner;
+  return { eyebrow, name, fields: fields.filter(Boolean) };
 }
+
+function buildIdCardHTML(entry) {
+  const m = idCardModel(entry);
+  const monogram = (m.name||'V').trim().charAt(0).toUpperCase() || 'V';
+  return `
+    <div class="idcard">
+      <div class="idcard-eyebrow-row">
+        <span class="idcard-eyebrow">${esc(m.eyebrow)}</span>
+        <div class="idcard-monogram">${esc(monogram)}</div>
+      </div>
+      <div class="idcard-name-block">
+        <label>Name</label>
+        <div class="val">${esc(m.name||'—')}</div>
+      </div>
+      <div class="idcard-fields">
+        ${m.fields.map(fl => `<div class="idcard-field${fl.emphasis?' emphasis':''}${fl.wide?' wide':''}${fl.prose?' prose':''}">
+          <label>${esc(fl.label)}</label><div class="val">${esc(fl.value)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Carousel controller (recipient side, multi-entry shares) ───────────────
+let _shareViewEntries = [];
+let _shareViewIndex = 0;
+
+function initShareCarousel(entries) {
+  _shareViewEntries = entries;
+  _shareViewIndex = 0;
+  const multi = entries.length > 1;
+  document.getElementById('share-carousel-count').style.display = multi ? '' : 'none';
+  document.getElementById('share-carousel-dots').style.display = multi ? 'flex' : 'none';
+  document.getElementById('share-carousel-hint').style.display = multi ? '' : 'none';
+  document.getElementById('share-arrow-right').style.display = multi ? 'flex' : 'none';
+  document.getElementById('share-peek-left').style.display = multi ? '' : 'none';
+  document.getElementById('share-peek-right').style.display = multi ? '' : 'none';
+  if(multi) {
+    document.getElementById('share-carousel-dots').innerHTML = entries.map((_,i) =>
+      `<div class="carousel-dot${i===0?' active':''}"></div>`).join('');
+  }
+  renderShareCarouselSlide();
+}
+
+function renderShareCarouselSlide() {
+  const entries = _shareViewEntries, i = _shareViewIndex;
+  document.getElementById('share-idcard-slot').innerHTML = buildIdCardHTML(entries[i]);
+  if(entries.length > 1) {
+    document.getElementById('share-carousel-count').textContent = `Item ${i+1} of ${entries.length}`;
+    document.querySelectorAll('#share-carousel-dots .carousel-dot').forEach((d,idx) => d.classList.toggle('active', idx===i));
+    document.getElementById('share-arrow-left').classList.toggle('disabled', i===0);
+    document.getElementById('share-arrow-right').classList.toggle('disabled', i===entries.length-1);
+    document.getElementById('share-peek-left').style.visibility = i===0 ? 'hidden' : 'visible';
+    document.getElementById('share-peek-right').style.visibility = i===entries.length-1 ? 'hidden' : 'visible';
+  }
+}
+
+function shareCarouselGo(delta) {
+  const next = _shareViewIndex + delta;
+  if(next < 0 || next >= _shareViewEntries.length) return;
+  _shareViewIndex = next;
+  renderShareCarouselSlide();
+}
+
+document.getElementById('share-arrow-left').addEventListener('click', () => shareCarouselGo(-1));
+document.getElementById('share-arrow-right').addEventListener('click', () => shareCarouselGo(1));
+
+// Touch swipe support on the carousel itself
+(function(){
+  let sx = 0, sy = 0, tracking = false;
+  const el = document.getElementById('share-carousel');
+  el.addEventListener('touchstart', e => {
+    if(_shareViewEntries.length < 2) return;
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
+  }, {passive:true});
+  el.addEventListener('touchend', e => {
+    if(!tracking) return;
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if(Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      shareCarouselGo(dx < 0 ? 1 : -1);
+    }
+  }, {passive:true});
+})();
 
 // ── Detect share link on load ─────────────────────────────────────────────
 function checkShareLink() {

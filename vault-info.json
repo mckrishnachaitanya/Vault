@@ -1,12 +1,12 @@
 {
-  "version": "5.9",
-  "released": "2026-07-04",
+  "version": "6.0",
+  "released": "2026-07-05",
   "whatsNew": [
-    "📋 Entry Templates — tap + to choose a template, with fields pre-labelled per category",
-    "✏️ Secure Notes — rich text editor for Note entries: bold, italic, headings, bullet lists",
-    "📅 Document Expiry — set expiry dates on documents; nudge on unlock + badge on Docs tab",
-    "📷 Document Scanner — tap + in Docs to use your camera or pick from files",
-    "🔗 Secure Share — share any entry via a PIN-protected link; expires in 1h, 24h, or 7 days"
+    "🗂️ Multi-Entry Share — tap ☑️ on Home to select several entries (filter-aware) and share them all in one link",
+    "👀 Share Summary — review everything you've selected before generating the link",
+    "🔗 Swipe to Share — swipe left on any entry for quick Share + Delete actions side by side",
+    "🪪 Redesigned Share Card — recipient view now shows a premium cream/brass ID-card style layout",
+    "➡️ Multi-Item Carousel — recipients swipe or tap through multiple shared entries with dot indicators"
   ],
   "features": [
     {
@@ -48,6 +48,11 @@
       "icon": "📤",
       "title": "Backup & Export",
       "desc": "Export an encrypted .vault file anytime from Settings → Backup. Import it on any device to restore. Documents can be exported separately as a .zip."
+    },
+    {
+      "icon": "🔗",
+      "title": "Secure Share",
+      "desc": "Share one or several entries via a PIN-protected link that expires in 1h, 24h, or 7 days. Recipients see a premium ID-card style view."
     }
   ]
 }
