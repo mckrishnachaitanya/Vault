@@ -2470,9 +2470,19 @@ function resetAutoLock() {
 function lockVault() {
   state.bioPending = false;
   stopCameraStream(); // kill live camera if open
+  // If Secure Share sheet is open, hide it immediately so it can never sit on
+  // top of the PIN unlock screen — checked first since the underlying screen
+  // (usually detail-screen) would otherwise match one of the branches below
+  // and short-circuit before this ever runs.
+  const shareSheetOpen = document.getElementById('share-sheet-overlay').classList.contains('show') && _shareTargetEntry;
+  if(shareSheetOpen) {
+    document.getElementById('share-sheet-overlay').classList.remove('show');
+  }
   // Capture which screen we were on, so we can restore it after re-auth
   const visibleScreen = SCREENS.find(s => !document.getElementById(s).classList.contains('hidden'));
-  if(visibleScreen==='form-screen'){
+  if(shareSheetOpen){
+    state.preLockScreen='share-sheet';
+  } else if(visibleScreen==='form-screen'){
     state.preLockScreen='form-screen';
     state.formDraft=captureFormDraft();
   } else if(visibleScreen==='detail-screen' && currentDetail){
@@ -2481,9 +2491,6 @@ function lockVault() {
     state.preLockScreen='docview-screen';
   } else if(visibleScreen==='fav-screen' || visibleScreen==='settings-screen' || visibleScreen==='docs-screen'){
     state.preLockScreen=visibleScreen;
-  } else if(document.getElementById('share-sheet-overlay').classList.contains('show') && _shareTargetEntry){
-    state.preLockScreen='share-sheet';
-    document.getElementById('share-sheet-overlay').classList.remove('show'); // don't block unlock numpad
   } else {
     state.preLockScreen=null; state.formDraft=null;
   }
