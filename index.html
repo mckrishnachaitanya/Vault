@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <title>Vault</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 /* ═══════════════════════════════════
    THEME VARIABLES
@@ -812,11 +813,49 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .camera-capture-btn:active{transform:scale(.92);}
 .camera-action-btn{padding:10px 14px;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);min-width:72px;text-align:center;}
 .camera-action-btn--right{min-width:72px;}
-.camera-confirm-bar{display:flex;gap:10px;padding:12px 16px 24px;background:rgba(0,0,0,.75);align-items:center;flex-shrink:0;}
+.camera-confirm-bar{display:flex;flex-direction:column;gap:10px;padding:12px 16px 24px;background:rgba(0,0,0,.75);flex-shrink:0;}
 .camera-confirm-bar.hidden{display:none;}
+.camera-confirm-row{display:flex;gap:10px;align-items:center;}
+.camera-format-row{display:flex;gap:8px;align-items:center;}
+.camera-format-row.hidden{display:none;}
+.camera-format-label{font-size:12px;color:rgba(255,255,255,.6);font-weight:600;margin-right:2px;}
+.camera-format-btn{padding:7px 16px;border-radius:20px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);}
+.camera-format-btn.selected{background:var(--accent-g);border-color:transparent;}
 .camera-filename-input{flex:1;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.25);color:#fff;font-family:var(--font);font-size:14px;outline:none;}
 .camera-filename-input::placeholder{color:rgba(255,255,255,.5);}
 .camera-save-btn{padding:10px 18px;border-radius:10px;border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.camera-save-btn:disabled{opacity:.6;cursor:default;}
+
+/* Multi-page scan strip */
+.camera-page-strip{
+  display:flex;gap:8px;padding:10px 14px;overflow-x:auto;flex-shrink:0;
+  background:rgba(0,0,0,.5);-webkit-overflow-scrolling:touch;
+}
+.camera-page-thumb{
+  position:relative;flex-shrink:0;width:52px;height:68px;border-radius:8px;overflow:hidden;
+  border:2px solid rgba(255,255,255,.25);cursor:pointer;
+}
+.camera-page-thumb.selected{border-color:var(--accent);}
+.camera-page-thumb.retake-armed{border-color:#f59e0b;}
+.camera-page-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.camera-page-thumb .page-num-badge{
+  position:absolute;left:3px;bottom:3px;background:rgba(0,0,0,.65);color:#fff;
+  font-size:9px;font-weight:700;padding:1px 5px;border-radius:6px;
+}
+.camera-page-thumb .page-del-btn{
+  position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;
+  background:rgba(0,0,0,.65);color:#fff;border:none;font-size:9px;line-height:1;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.camera-page-action-row{
+  display:flex;gap:8px;padding:0 14px 10px;flex-shrink:0;background:rgba(0,0,0,.5);
+}
+.camera-page-action-btn{
+  flex:1;padding:9px 6px;border-radius:9px;border:1.5px solid rgba(255,255,255,.25);
+  background:rgba(255,255,255,.08);color:#fff;font-size:12px;font-weight:600;cursor:pointer;
+  font-family:var(--font);white-space:nowrap;
+}
+.camera-page-action-btn--danger{border-color:rgba(239,68,68,.5);color:#fca5a5;}
 
 .template-body{flex:1;overflow-y:auto;padding:16px 16px 32px;display:flex;flex-direction:column;gap:10px;}
 .template-card{
@@ -1686,15 +1725,29 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   <div class="camera-body" id="camera-body">
     <!-- viewfinder or preview rendered here -->
   </div>
+  <div class="camera-page-action-row hidden" id="camera-page-action-row">
+    <button class="camera-page-action-btn" id="camera-page-retake">↺ Retake</button>
+    <button class="camera-page-action-btn" id="camera-page-move-left">◀ Move</button>
+    <button class="camera-page-action-btn" id="camera-page-move-right">Move ▶</button>
+    <button class="camera-page-action-btn camera-page-action-btn--danger" id="camera-page-delete">🗑 Delete</button>
+  </div>
+  <div class="camera-page-strip hidden" id="camera-page-strip"></div>
   <div class="camera-toolbar" id="camera-toolbar">
     <button class="camera-action-btn" id="camera-pick-files-btn">📁 Files</button>
     <button class="camera-capture-btn" id="camera-capture-btn">⬤</button>
-    <button class="camera-action-btn camera-action-btn--right" id="camera-retake-btn" style="display:none">↩ Retake</button>
+    <button class="camera-action-btn camera-action-btn--right hidden" id="camera-done-btn">Done (<span id="camera-page-count">0</span>)</button>
     <div class="camera-action-btn" style="visibility:hidden" id="camera-right-spacer"></div>
   </div>
   <div class="camera-confirm-bar hidden" id="camera-confirm-bar">
-    <input class="camera-filename-input" id="camera-filename-input" placeholder="Filename…" autocomplete="off"/>
-    <button class="camera-save-btn" id="camera-save-btn">Save to Vault</button>
+    <div class="camera-format-row hidden" id="camera-format-row">
+      <span class="camera-format-label">Save as:</span>
+      <button class="camera-format-btn selected" id="camera-format-jpeg" data-format="jpeg">JPEG</button>
+      <button class="camera-format-btn" id="camera-format-pdf" data-format="pdf">PDF</button>
+    </div>
+    <div class="camera-confirm-row">
+      <input class="camera-filename-input" id="camera-filename-input" placeholder="Filename…" autocomplete="off"/>
+      <button class="camera-save-btn" id="camera-save-btn">Save to Vault</button>
+    </div>
   </div>
 </div>
 
@@ -2428,26 +2481,35 @@ document.getElementById('doc-camera-input').addEventListener('change', async (e)
   await saveDocFromFile(file);
 });
 
-// ── Camera Screen ─────────────────────────────────────────────────────────
+// ── Camera Screen (multi-page scan) ─────────────────────────────────────────
 let _cameraStream = null;
-let _capturedBlob = null;
 let _capturedFilename = '';
+let _scanPages = [];          // [{id, blob, url}]
+let _scanSelectedId = null;   // currently selected thumbnail
+let _scanRetakeTargetId = null; // if set, next capture replaces this page
+let _scanSaveFormat = 'jpeg';   // single-page only choice: 'jpeg' | 'pdf'
+
+function resetScanSession() {
+  _scanPages.forEach(p => { if(p.url) URL.revokeObjectURL(p.url); });
+  _scanPages = [];
+  _scanSelectedId = null;
+  _scanRetakeTargetId = null;
+}
 
 async function openCameraScreen() {
-  _capturedBlob = null;
-  _capturedFilename = '';
+  resetScanSession();
   showScreen('camera-screen');
-  const body = document.getElementById('camera-body');
-  const toolbar = document.getElementById('camera-toolbar');
-  const confirmBar = document.getElementById('camera-confirm-bar');
-  const captureBtn = document.getElementById('camera-capture-btn');
-  const retakeBtn = document.getElementById('camera-retake-btn');
-  const pickBtn = document.getElementById('camera-pick-files-btn');
-  confirmBar.classList.add('hidden');
-  retakeBtn.style.display = 'none';
-  pickBtn.style.display = '';
+  document.getElementById('camera-confirm-bar').classList.add('hidden');
+  document.getElementById('camera-toolbar').style.display = '';
+  renderPageStrip();
+  await startLiveView();
+}
 
-  // Try getUserMedia
+async function startLiveView() {
+  const body = document.getElementById('camera-body');
+  const captureBtn = document.getElementById('camera-capture-btn');
+  const pickBtn = document.getElementById('camera-pick-files-btn');
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -2463,34 +2525,9 @@ async function openCameraScreen() {
     body.appendChild(video);
     body.appendChild(guide);
     captureBtn.style.display = '';
-
-    captureBtn.onclick = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      canvas.toBlob(blob => {
-        _capturedBlob = blob;
-        _capturedFilename = `scan_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.jpg`;
-        stopCameraStream();
-        // Show preview
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(blob);
-        img.style.maxWidth = '100%'; img.style.maxHeight = '100%';
-        body.innerHTML = ''; body.appendChild(img);
-        retakeBtn.style.display = '';
-        pickBtn.style.display = 'none';
-        confirmBar.classList.remove('hidden');
-        document.getElementById('camera-filename-input').value = _capturedFilename;
-      }, 'image/jpeg', 0.92);
-    };
-
-    retakeBtn.onclick = () => {
-      _capturedBlob = null;
-      openCameraScreen();
-    };
+    captureBtn.onclick = capturePage;
   } catch(err) {
-    // getUserMedia unavailable — fall back to native camera input
+    // getUserMedia unavailable — fall back to native camera input (single page only)
     console.warn('[Camera] getUserMedia failed, falling back to input capture:', err);
     stopCameraStream();
     body.innerHTML = `<div style="color:#fff;text-align:center;padding:40px 24px;font-size:15px;opacity:.7">
@@ -2499,20 +2536,137 @@ async function openCameraScreen() {
     </div>`;
     captureBtn.style.display = 'none';
     pickBtn.style.display = '';
-    pickBtn.onclick = () => {
-      state.importInProgress = true;
-      document.getElementById('doc-camera-input').click();
-      showScreen('docs-screen');
-    };
   }
 
-  pickBtn.onclick = pickBtn.onclick || (() => {
+  pickBtn.onclick = () => {
     stopCameraStream();
     state.importInProgress = true;
     document.getElementById('doc-file-input').click();
     showScreen('docs-screen');
-  });
+  };
 }
+
+function capturePage() {
+  const video = document.querySelector('#camera-body video');
+  if(!video) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 720;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.toBlob(blob => {
+    if(_scanRetakeTargetId) {
+      const p = _scanPages.find(p => p.id === _scanRetakeTargetId);
+      if(p) { URL.revokeObjectURL(p.url); p.blob = blob; p.url = URL.createObjectURL(blob); }
+      _scanRetakeTargetId = null;
+      toast('Page retaken ✓');
+    } else {
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      _scanPages.push({ id, blob, url: URL.createObjectURL(blob) });
+    }
+    _scanSelectedId = null;
+    renderPageStrip();
+  }, 'image/jpeg', 0.85);
+}
+
+function renderPageStrip() {
+  const strip = document.getElementById('camera-page-strip');
+  const actionRow = document.getElementById('camera-page-action-row');
+  const doneBtn = document.getElementById('camera-done-btn');
+  const pickBtn = document.getElementById('camera-pick-files-btn');
+
+  if(!_scanPages.length) {
+    strip.classList.add('hidden'); strip.innerHTML = '';
+    actionRow.classList.add('hidden');
+    doneBtn.classList.add('hidden');
+    pickBtn.style.display = '';
+    return;
+  }
+  pickBtn.style.display = 'none';
+  strip.classList.remove('hidden');
+  doneBtn.classList.remove('hidden');
+  document.getElementById('camera-page-count').textContent = _scanPages.length;
+
+  strip.innerHTML = _scanPages.map((p, i) => `
+    <div class="camera-page-thumb${p.id===_scanSelectedId?' selected':''}${p.id===_scanRetakeTargetId?' retake-armed':''}" data-id="${p.id}">
+      <img src="${p.url}"/>
+      <span class="page-num-badge">${i+1}</span>
+      <button class="page-del-btn" data-del="${p.id}">✕</button>
+    </div>`).join('');
+
+  strip.querySelectorAll('.camera-page-thumb').forEach(el => {
+    el.addEventListener('click', ev => {
+      if(ev.target.classList.contains('page-del-btn')) return;
+      const id = el.dataset.id;
+      _scanSelectedId = (_scanSelectedId === id) ? null : id;
+      renderPageStrip();
+    });
+  });
+  strip.querySelectorAll('.page-del-btn').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const id = btn.dataset.del;
+      const p = _scanPages.find(p => p.id === id);
+      if(p) URL.revokeObjectURL(p.url);
+      _scanPages = _scanPages.filter(p => p.id !== id);
+      if(_scanSelectedId === id) _scanSelectedId = null;
+      if(_scanRetakeTargetId === id) _scanRetakeTargetId = null;
+      renderPageStrip();
+    });
+  });
+
+  actionRow.classList.toggle('hidden', !_scanSelectedId);
+}
+
+document.getElementById('camera-page-retake').addEventListener('click', () => {
+  if(!_scanSelectedId) return;
+  _scanRetakeTargetId = _scanSelectedId;
+  toast('Point the camera and tap capture to retake this page');
+  renderPageStrip();
+});
+document.getElementById('camera-page-move-left').addEventListener('click', () => {
+  const i = _scanPages.findIndex(p => p.id === _scanSelectedId);
+  if(i > 0) { [_scanPages[i-1], _scanPages[i]] = [_scanPages[i], _scanPages[i-1]]; renderPageStrip(); }
+});
+document.getElementById('camera-page-move-right').addEventListener('click', () => {
+  const i = _scanPages.findIndex(p => p.id === _scanSelectedId);
+  if(i >= 0 && i < _scanPages.length - 1) { [_scanPages[i+1], _scanPages[i]] = [_scanPages[i], _scanPages[i+1]]; renderPageStrip(); }
+});
+document.getElementById('camera-page-delete').addEventListener('click', () => {
+  if(!_scanSelectedId) return;
+  const p = _scanPages.find(p => p.id === _scanSelectedId);
+  if(p) URL.revokeObjectURL(p.url);
+  _scanPages = _scanPages.filter(p => p.id !== _scanSelectedId);
+  _scanSelectedId = null;
+  renderPageStrip();
+});
+
+document.getElementById('camera-done-btn').addEventListener('click', () => {
+  if(!_scanPages.length) return;
+  stopCameraStream();
+  document.getElementById('camera-capture-btn').style.display = 'none';
+  document.getElementById('camera-page-strip').classList.add('hidden');
+  document.getElementById('camera-page-action-row').classList.add('hidden');
+  document.getElementById('camera-toolbar').style.display = 'none';
+  const body = document.getElementById('camera-body');
+  body.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = _scanPages[0].url;
+  img.style.maxWidth = '100%'; img.style.maxHeight = '100%';
+  body.appendChild(img);
+  _capturedFilename = `scan_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}`;
+  document.getElementById('camera-filename-input').value = _capturedFilename;
+  _scanSaveFormat = 'jpeg';
+  document.querySelectorAll('.camera-format-btn').forEach(b => b.classList.toggle('selected', b.dataset.format === 'jpeg'));
+  document.getElementById('camera-format-row').classList.toggle('hidden', _scanPages.length !== 1);
+  document.getElementById('camera-confirm-bar').classList.remove('hidden');
+});
+
+document.querySelectorAll('.camera-format-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    _scanSaveFormat = btn.dataset.format;
+    document.querySelectorAll('.camera-format-btn').forEach(b => b.classList.toggle('selected', b === btn));
+  });
+});
 
 function stopCameraStream() {
   if(_cameraStream){ _cameraStream.getTracks().forEach(t => t.stop()); _cameraStream = null; }
@@ -2520,17 +2674,72 @@ function stopCameraStream() {
 
 document.getElementById('camera-close').addEventListener('click', () => {
   stopCameraStream();
-  _capturedBlob = null;
+  resetScanSession();
   showScreen('docs-screen');
 });
 
+// Combine captured page blobs into a single PDF (one image per page, scaled
+// to fit A4 while preserving aspect ratio). Runs entirely client-side.
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+function loadImageEl(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+async function buildPdfFromPages(pages) {
+  const { jsPDF } = window.jspdf;
+  const pageWpt = 595.28, pageHpt = 841.89; // A4 portrait, points
+  let doc = null;
+  for(const page of pages) {
+    const dataUrl = await blobToDataURL(page.blob);
+    const img = await loadImageEl(dataUrl);
+    const ratio = Math.min(pageWpt / img.width, pageHpt / img.height);
+    const w = img.width * ratio, h = img.height * ratio;
+    const x = (pageWpt - w) / 2, y = (pageHpt - h) / 2;
+    if(!doc) doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    else doc.addPage();
+    doc.addImage(dataUrl, 'JPEG', x, y, w, h);
+  }
+  return doc.output('blob');
+}
+
 document.getElementById('camera-save-btn').addEventListener('click', async () => {
-  if(!_capturedBlob) return;
+  if(!_scanPages.length) return;
+  const btn = document.getElementById('camera-save-btn');
   const name = document.getElementById('camera-filename-input').value.trim() || _capturedFilename;
-  const file = new File([_capturedBlob], name.endsWith('.jpg') ? name : name + '.jpg', { type: 'image/jpeg' });
-  showScreen('docs-screen');
-  _capturedBlob = null;
-  await saveDocFromFile(file);
+  const asJpeg = _scanPages.length === 1 && _scanSaveFormat === 'jpeg';
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = asJpeg ? 'Saving…' : (_scanPages.length > 1 ? 'Preparing PDF…' : 'Saving…');
+  try {
+    let file;
+    if(asJpeg) {
+      const finalName = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.jpeg') ? name : name + '.jpg';
+      file = new File([_scanPages[0].blob], finalName, { type: 'image/jpeg' });
+    } else {
+      const pdfBlob = await buildPdfFromPages(_scanPages);
+      const finalName = name.toLowerCase().endsWith('.pdf') ? name : name + '.pdf';
+      file = new File([pdfBlob], finalName, { type: 'application/pdf' });
+    }
+    showScreen('docs-screen');
+    resetScanSession();
+    await saveDocFromFile(file);
+  } catch(e) {
+    console.error('[Scan] save failed', e);
+    toast('Could not save — try again');
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
 });
 
 // Shared save-from-file helper (used by file picker and camera save paths)

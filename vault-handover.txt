@@ -96,3 +96,110 @@ Upload: index.html + sw.js + vault-info.json + this file.
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R8 SUMMARY — Multi-Page Document Scan (v6.1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NEW DEPENDENCY
+- jsPDF (UMD build) added via CDN in <head>:
+  https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
+- Only used client-side to combine captured page images into one PDF —
+  no server, no build step, consistent with the single-file architecture.
+
+BEHAVIOR CHANGE (deliberate)
+- EVERY camera scan now produces a .pdf, even a single-page scan.
+  Previously single-page scans saved as .jpg. Unified to one code path
+  (N pages → one PDF) since maintaining two save formats added complexity
+  for no real benefit — a 1-page PDF opens identically to a jpg via the
+  existing docview iframe preview.
+
+CAMERA SCREEN — SESSION MODEL
+- Camera stream now stays LIVE continuously through the whole scan
+  session — it is only started once (openCameraScreen → startLiveView)
+  and stopped only on camera-close or Done. Each capture just grabs a
+  canvas frame from the still-playing <video>; this avoids the
+  stop/restart flicker an earlier stop-per-page design would have had.
+- State: _scanPages[] ({id, blob, url}), _scanSelectedId, 
+  _scanRetakeTargetId. resetScanSession() revokes all object URLs and
+  clears these — called on camera-close and on fresh openCameraScreen().
+
+PAGE STRIP UI (#camera-page-strip)
+- Appears once _scanPages.length > 0. Horizontal scroll of thumbnails,
+  each with a page-number badge and a ✕ delete button.
+- Tapping a thumbnail (not the ✕) toggles selection — selecting reveals
+  #camera-page-action-row (Retake / Move ◀ / Move ▶ / Delete), matching
+  the discussed "tap thumbnail, then tap arrows to move" pattern (NOT
+  drag-and-drop — decided against it during discussion).
+- Retake sets _scanRetakeTargetId and shows a toast; it does NOT reopen
+  the camera (already live) — next capture-button tap replaces that
+  page's blob+url instead of appending a new page.
+- No page-count cap (explicit decision).
+
+DONE → SAVE FLOW
+- "Done (N)" button appears once ≥1 page captured, replacing the old
+  single-shot retake button. Tapping it stops the stream, hides the
+  strip/action-row/toolbar, shows the FIRST page as a static preview,
+  and reveals the existing camera-confirm-bar (filename input unchanged
+  from before, just no longer forces a .jpg extension).
+- Save button: buildPdfFromPages() converts each page's blob → dataURL →
+  Image → scaled to fit A4 (in points) preserving aspect ratio, one
+  jsPDF page per image. Resulting blob wrapped in a File and passed to
+  the EXISTING saveDocFromFile() — no changes needed there or in DocsDB;
+  a multi-page scan is just a normal (larger) PDF file to the rest of
+  the app.
+- Button shows "Preparing PDF…" (multi-page) or "Saving…" (single) while
+  the async PDF build runs; re-enables itself and restores its label if
+  buildPdfFromPages() throws, with a toast — does not lose captured pages
+  on failure, user can just retry Done → Save.
+
+FALLBACK PATH (no getUserMedia)
+- Unchanged from before: falls back to the native <input capture> camera
+  via #doc-camera-input, which is single-shot only (no multi-page strip
+  in this fallback — acceptable given it's already a degraded path for
+  devices without getUserMedia support).
+
+NOT DONE / WORTH KNOWING
+- No per-page compression/resize beyond the existing JPEG 0.85 quality
+  captured from canvas — multi-page PDFs from several full-res camera
+  frames can still run several MB. Worth revisiting if this becomes an
+  issue in practice (resize canvas before toBlob, e.g. cap long edge to
+  ~2000px).
+- No test device available this session to confirm real capture-button
+  responsiveness/memory behavior with many pages (10+) in one session —
+  logic is sound but worth a real test with a longer document.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R9 SUMMARY — Single-Page Save Format Choice (v6.2)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- On the Done step, when exactly 1 page was captured, a JPEG/PDF toggle
+  (#camera-format-row) appears above the filename field. Defaults to
+  JPEG. Hidden entirely for 2+ pages — multi-page is always PDF, no
+  choice offered there (a multi-page JPEG doesn't make sense).
+- _scanSaveFormat ('jpeg' | 'pdf') tracks the choice; reset to 'jpeg'
+  each time Done is pressed, so it doesn't carry over stale from a
+  previous capture in the same session (e.g. delete down to 1 page after
+  having chosen pdf earlier — starts fresh at jpeg each time).
+- Save handler branches: single-page + jpeg → saves the original
+  captured blob directly as .jpg (no PDF build, faster). Every other
+  case (single-page+pdf, or 2+ pages) → goes through the existing
+  buildPdfFromPages() path unchanged.
+- Net effect: Documents can again contain a mix of .jpg and .pdf files
+  depending on user choice — this is intentional per this session's
+  request, reversing part of R8's "everything is a PDF" simplification
+  for the single-page case specifically.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+Bug  → say "Bug: [describe]" for anything found in normal use.
