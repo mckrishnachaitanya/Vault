@@ -2502,6 +2502,7 @@ async function openCameraScreen() {
   document.getElementById('camera-confirm-bar').classList.add('hidden');
   document.getElementById('camera-toolbar').style.display = '';
   renderPageStrip();
+  waitForJsPDF(3000).catch(() => {}); // warm-up only, ignore result here
   await startLiveView();
 }
 
@@ -2696,10 +2697,24 @@ function loadImageEl(src) {
     img.src = src;
   });
 }
-// jsPDF loads from a CDN <script> tag — on a slow/offline connection it may
-// not be ready yet by the time Save is tapped. Poll briefly instead of
-// failing (or hanging) immediately.
-function waitForJsPDF(timeoutMs = 6000) {
+// jsPDF loads from a CDN <script> tag — on a slow/flaky connection (or if
+// the original tag failed outright, e.g. a service-worker fetch hiccup on
+// cold start) it may never become available on its own. Poll first; if it
+// still hasn't shown up, actively retry by injecting a fresh script tag
+// rather than waiting indefinitely on one load attempt.
+let _jsPdfLoadPromise = null;
+function injectJsPDFScript() {
+  if(_jsPdfLoadPromise) return _jsPdfLoadPromise;
+  _jsPdfLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => { _jsPdfLoadPromise = null; reject(new Error('jsPDF script failed to load')); };
+    document.head.appendChild(s);
+  });
+  return _jsPdfLoadPromise;
+}
+function waitForJsPDF(timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     (function poll() {
@@ -2707,6 +2722,18 @@ function waitForJsPDF(timeoutMs = 6000) {
       if(Date.now() - start > timeoutMs) return reject(new Error('jsPDF failed to load'));
       setTimeout(poll, 150);
     })();
+  }).catch(async () => {
+    // Passive wait timed out — actively retry once with a fresh <script>
+    // tag before giving up, in case the original tag never fired at all.
+    await injectJsPDFScript();
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      (function poll() {
+        if(window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf.jsPDF);
+        if(Date.now() - start > 10000) return reject(new Error('jsPDF failed to load after retry'));
+        setTimeout(poll, 150);
+      })();
+    });
   });
 }
 function withTimeout(promise, ms, label) {
@@ -2746,7 +2773,7 @@ document.getElementById('camera-save-btn').addEventListener('click', async () =>
 
   if(wantsPdf) {
     try {
-      const pdfBlob = await withTimeout(buildPdfFromPages(_scanPages), 20000, 'PDF build timed out');
+      const pdfBlob = await withTimeout(buildPdfFromPages(_scanPages), 28000, 'PDF build timed out');
       const finalName = name.toLowerCase().endsWith('.pdf') ? name : name + '.pdf';
       file = new File([pdfBlob], finalName, { type: 'application/pdf' });
     } catch(e) {

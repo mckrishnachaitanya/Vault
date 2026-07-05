@@ -1,11 +1,11 @@
 {
-  "version": "6.3",
+  "version": "6.4",
   "released": "2026-07-05",
   "whatsNew": [
+    "🐛 Fixed: scan Save could still stall preparing a PDF if the PDF library failed to load on first try — now retries automatically",
     "🐛 Fixed: scan Save button could get stuck on \"Saving…\" indefinitely if the PDF library was slow to load",
     "🖼️📄 Save Format Choice — single-page scans let you pick JPEG or PDF before saving",
     "📑 Multi-Page Scan — capture several pages in one session and save them as a single PDF",
-    "🖼️ Page Strip — thumbnail strip while scanning; select a page to retake, reorder, or delete it",
     "🗂️ Multi-Entry Share — tap ☑️ on Home to select several entries (filter-aware) and share them all in one link"
   ],
   "features": [

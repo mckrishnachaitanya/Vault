@@ -249,3 +249,61 @@ Upload: index.html + sw.js + vault-info.json + this file.
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R11 SUMMARY — jsPDF Load Retry Hardening (v6.4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG REPORTED (with screenshot)
+- Even with R10's timeout fix in place, Save still got stuck on
+  "Preparing PDF…" — this time on a SINGLE page with JPEG explicitly
+  selected (which per the code should never touch the PDF path at all),
+  and the user reported multi-page scans failing right after too.
+- The JPEG-selected-but-still-"Preparing PDF" detail is the important
+  clue: that specific combination cannot happen from the app logic
+  itself (wantsPdf is false whenever pages.length===1 && format==='jpeg'
+  — confirmed by re-reading the exact shipped code). The far more likely
+  explanation is the phone was still running a CACHED older copy of
+  index.html via the service worker, from before the R10 fix — the
+  vault-info.json version-check only shows an update NUDGE banner, it
+  doesn't force the SW to serve fresh bytes immediately, so a stale
+  cached script can keep running until the SW's own lifecycle rotates
+  it out (typically requires fully closing and reopening the PWA,
+  sometimes twice).
+- I DO NOT have sw.js in this session's project files, so I could not
+  inspect or fix the actual caching strategy. If this keeps recurring
+  after confirming the version number in Settings → About matches the
+  latest whatsNew entry, the fix likely belongs in sw.js's cache
+  strategy for index.html (e.g. network-first instead of cache-first),
+  not in index.html itself.
+
+HARDENING ADDED REGARDLESS (belt-and-suspenders, doesn't rely on the
+cache theory being correct)
+- injectJsPDFScript() — if jsPDF isn't available after the first 5s
+  poll, actively injects a FRESH <script> tag pointing at the same CDN
+  URL and polls again (10s) before giving up. Previously the code only
+  ever polled for the ORIGINAL <head> script tag to finish — if that
+  particular request had failed outright (not just "still loading"),
+  no amount of waiting would ever have helped; this retry gives it a
+  second real attempt.
+- openCameraScreen() now fires a fire-and-forget
+  `waitForJsPDF(3000).catch(()=>{})` warm-up the moment the camera opens
+  — by the time the user finishes capturing pages and taps Done→Save,
+  jsPDF has had the whole scanning duration to load, not just the
+  few seconds after Save is tapped.
+- Overall PDF-build timeout raised 20s → 28s to give the new retry path
+  room to actually complete rather than timing out mid-retry.
+- Single-page JPEG fallback and multi-page "keep pages, show error"
+  behavior from R10 are unchanged — this session only strengthens how
+  hard the code tries before falling back / giving up.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+If the hang recurs: first confirm Settings → About shows v6.4 (or
+  later) — if it still shows an older version after a fresh deploy,
+  the issue is in sw.js's caching strategy, not this file. Bring sw.js
+  into the project so it can actually be inspected/fixed next time.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+Bug  → say "Bug: [describe]" for anything found in normal use.
