@@ -706,7 +706,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .share-generate-btn{width:100%;padding:15px;border-radius:var(--radius);border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;}
 .share-cancel-btn{width:100%;padding:13px;border-radius:var(--radius);border:none;background:var(--surface2);color:var(--text2);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;}
 .share-link-row{display:flex;gap:8px;margin-bottom:10px;}
-.share-link-box{flex:1;padding:12px 14px;border-radius:var(--radius-sm);background:var(--surface);border:1.5px solid var(--border);font-size:12px;color:var(--text2);word-break:break-all;line-height:1.5;}
+.share-link-box{flex:1;padding:12px 14px;border-radius:var(--radius-sm);background:var(--surface);border:1.5px solid var(--border);font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .share-copy-btn{padding:12px 16px;border-radius:var(--radius-sm);border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;align-self:flex-start;}
 
 /* ── Share View (recipient side) ── */
@@ -1958,7 +1958,10 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <div class="share-sheet-overlay" id="share-sheet-overlay">
   <div class="share-sheet" id="share-sheet">
     <div class="share-sheet-handle"></div>
-    <div class="share-sheet-title">🔗 Secure Share</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="share-sheet-title" style="margin-bottom:0">🔗 Secure Share</div>
+      <button id="share-sheet-close" style="width:28px;height:28px;border-radius:50%;border:none;background:var(--bg2);color:var(--text2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:var(--font)">✕</button>
+    </div>
     <div id="share-step-setup">
       <p style="font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.4;">Set a PIN and expiry — the recipient will need the PIN to view.</p>
       <div class="pin-dots" id="sp-dots" style="margin:0 auto 16px;max-width:260px">
@@ -6629,6 +6632,7 @@ function openShareModal(entryOrEntries) {
 document.getElementById('share-sheet-overlay').addEventListener('click', e => {
   if(e.target === document.getElementById('share-sheet-overlay')) hideShareSheet();
 });
+document.getElementById('share-sheet-close').addEventListener('click', hideShareSheet);
 
 document.querySelectorAll('.num-btn[data-sp]').forEach(b => b.addEventListener('click', () => {
   if(_spPin.length < 4) { _spPin += b.dataset.sp; spUpdateDots(); }
@@ -6652,7 +6656,9 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
   const encrypted = await Crypto.encrypt(payload, pin);
   const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   const link = `${location.origin}${location.pathname}#share/${urlSafe}`;
-  document.getElementById('share-link-box').textContent = link;
+  const shortLink = link.length > 44 ? link.slice(0, 28) + '…' + link.slice(-12) : link;
+  document.getElementById('share-link-box').textContent = shortLink;
+  document.getElementById('share-link-box').title = link;
   document.getElementById('share-step-setup').style.display = 'none';
   document.getElementById('share-step-link').style.display = '';
   document.getElementById('share-copy-btn').onclick = async () => {
@@ -6902,10 +6908,13 @@ function checkShareLink() {
   if(!hash.startsWith('#share/')) return false;
   document.getElementById('share-view').classList.remove('hidden');
   applyTheme(Store.get('vault_theme') === 'dark');
-  // Reset state for fresh link
+  // Reset state for fresh link. Note: share-view-card's carousel chrome
+  // (arrows/dots/slot) is static markup now — never wipe its innerHTML,
+  // only clear the actual slide content so the skeleton survives reuse.
   document.getElementById('share-view-pin-wrap').style.display = '';
   document.getElementById('share-view-card').style.display = 'none';
-  document.getElementById('share-view-card').innerHTML = '';
+  const slot = document.getElementById('share-idcard-slot');
+  if(slot) slot.innerHTML = '';
   document.getElementById('sv-error').textContent = '';
   _svPin = ''; svUpdateDots();
   return true;
