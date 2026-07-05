@@ -203,3 +203,49 @@ Upload: index.html + sw.js + vault-info.json + this file.
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R10 SUMMARY — Fixed Scan Save Hang (v6.3)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG REPORTED
+- After capturing a page and tapping Save (PDF selected), the button got
+  stuck on "Saving…" indefinitely — screen never advanced, no error shown.
+  Screenshot confirmed camera-screen was still showing (i.e. execution
+  never reached showScreen('docs-screen')), meaning the hang was inside
+  buildPdfFromPages(), most likely jsPDF's CDN <script> tag not having
+  finished loading yet (slow/first-time network fetch) when Save was
+  tapped — the old code did `const { jsPDF } = window.jspdf` with no
+  guard, so on a slow connection this could behave unpredictably instead
+  of failing fast.
+
+FIX
+- waitForJsPDF(timeoutMs=6000) — polls for window.jspdf.jsPDF every 150ms
+  instead of assuming it's already loaded. buildPdfFromPages() now awaits
+  this before touching jsPDF at all.
+- withTimeout(promise, ms, label) — generic timeout wrapper. The whole
+  buildPdfFromPages() call is now wrapped with a 20s ceiling, so no
+  matter what goes wrong inside (slow CDN, image decode issue, etc.) the
+  Save button WILL recover instead of hanging forever.
+- Graceful degradation on PDF failure:
+  - Single page → falls back to saving the original JPEG automatically
+    (the capture is never lost just because PDF generation failed), with
+    a toast: "PDF unavailable — saved as JPEG instead".
+  - Multi-page → can't meaningfully fall back (no single-file equivalent),
+    so shows a clear error toast and RESTORES the button + keeps all
+    captured pages so the user can just tap Save again without rescanning.
+
+NOT YET DONE
+- jsPDF is only requested for the first time when Save is tapped. Could
+  optimize by triggering the script load earlier (e.g. the moment
+  openCameraScreen() runs) so it's likely already warm by the time the
+  user finishes scanning — not done this session, current fix guarantees
+  correctness (no hang) but doesn't address perceived first-save latency
+  on a slow connection.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+Bug  → say "Bug: [describe]" for anything found in normal use.

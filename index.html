@@ -2696,8 +2696,27 @@ function loadImageEl(src) {
     img.src = src;
   });
 }
+// jsPDF loads from a CDN <script> tag — on a slow/offline connection it may
+// not be ready yet by the time Save is tapped. Poll briefly instead of
+// failing (or hanging) immediately.
+function waitForJsPDF(timeoutMs = 6000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    (function poll() {
+      if(window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf.jsPDF);
+      if(Date.now() - start > timeoutMs) return reject(new Error('jsPDF failed to load'));
+      setTimeout(poll, 150);
+    })();
+  });
+}
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label || 'Timed out')), ms)),
+  ]);
+}
 async function buildPdfFromPages(pages) {
-  const { jsPDF } = window.jspdf;
+  const jsPDF = await waitForJsPDF();
   const pageWpt = 595.28, pageHpt = 841.89; // A4 portrait, points
   let doc = null;
   for(const page of pages) {
@@ -2717,25 +2736,46 @@ document.getElementById('camera-save-btn').addEventListener('click', async () =>
   if(!_scanPages.length) return;
   const btn = document.getElementById('camera-save-btn');
   const name = document.getElementById('camera-filename-input').value.trim() || _capturedFilename;
-  const asJpeg = _scanPages.length === 1 && _scanSaveFormat === 'jpeg';
+  const wantsPdf = !(_scanPages.length === 1 && _scanSaveFormat === 'jpeg');
   btn.disabled = true;
   const prevLabel = btn.textContent;
-  btn.textContent = asJpeg ? 'Saving…' : (_scanPages.length > 1 ? 'Preparing PDF…' : 'Saving…');
-  try {
-    let file;
-    if(asJpeg) {
-      const finalName = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.jpeg') ? name : name + '.jpg';
-      file = new File([_scanPages[0].blob], finalName, { type: 'image/jpeg' });
-    } else {
-      const pdfBlob = await buildPdfFromPages(_scanPages);
+  btn.textContent = wantsPdf ? (_scanPages.length > 1 ? 'Preparing PDF…' : 'Saving…') : 'Saving…';
+
+  let file = null;
+  let fellBackToJpeg = false;
+
+  if(wantsPdf) {
+    try {
+      const pdfBlob = await withTimeout(buildPdfFromPages(_scanPages), 20000, 'PDF build timed out');
       const finalName = name.toLowerCase().endsWith('.pdf') ? name : name + '.pdf';
       file = new File([pdfBlob], finalName, { type: 'application/pdf' });
+    } catch(e) {
+      console.error('[Scan] PDF build failed:', e);
+      if(_scanPages.length === 1) {
+        // Single page — fall back to saving the original photo so the
+        // capture isn't lost just because PDF generation failed.
+        const finalName = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.jpeg') ? name : name + '.jpg';
+        file = new File([_scanPages[0].blob], finalName, { type: 'image/jpeg' });
+        fellBackToJpeg = true;
+      } else {
+        toast('Could not create PDF — check your connection and try again');
+        btn.disabled = false;
+        btn.textContent = prevLabel;
+        return; // keep pages so the user can retry without rescanning
+      }
     }
+  } else {
+    const finalName = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.jpeg') ? name : name + '.jpg';
+    file = new File([_scanPages[0].blob], finalName, { type: 'image/jpeg' });
+  }
+
+  try {
     showScreen('docs-screen');
     resetScanSession();
     await saveDocFromFile(file);
+    if(fellBackToJpeg) toast('PDF unavailable — saved as JPEG instead');
   } catch(e) {
-    console.error('[Scan] save failed', e);
+    console.error('[Scan] save failed:', e);
     toast('Could not save — try again');
     btn.disabled = false;
     btn.textContent = prevLabel;

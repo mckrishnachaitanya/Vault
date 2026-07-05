@@ -1,13 +1,12 @@
 {
-  "version": "6.2",
+  "version": "6.3",
   "released": "2026-07-05",
   "whatsNew": [
+    "🐛 Fixed: scan Save button could get stuck on \"Saving…\" indefinitely if the PDF library was slow to load",
     "🖼️📄 Save Format Choice — single-page scans let you pick JPEG or PDF before saving",
     "📑 Multi-Page Scan — capture several pages in one session and save them as a single PDF",
     "🖼️ Page Strip — thumbnail strip while scanning; select a page to retake, reorder, or delete it",
-    "🗂️ Multi-Entry Share — tap ☑️ on Home to select several entries (filter-aware) and share them all in one link",
-    "👀 Share Summary — review everything you've selected before generating the link",
-    "🔗 Swipe to Share — swipe left on any entry for quick Share + Delete actions side by side"
+    "🗂️ Multi-Entry Share — tap ☑️ on Home to select several entries (filter-aware) and share them all in one link"
   ],
   "features": [
     {
