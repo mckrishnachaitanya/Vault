@@ -435,3 +435,78 @@ If PDF scans still fail unreliably due to CDN loading (separate from
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R14 SUMMARY — Tier 1 Rectangular Crop (v6.7)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SCOPE (as discussed)
+- Tier 1 only: axis-aligned rectangular crop, no perspective/corner
+  correction. On-demand from the page strip (Option B) — capture flow
+  itself is completely unchanged.
+- New "✂ Crop" action added as the first button in the existing
+  page-action-row (alongside Retake / Move / Delete), shown when a
+  thumbnail is selected.
+
+NEW SCREEN — #crop-overlay
+- Full-screen overlay (z-index:200, sits above camera-screen). Shows the
+  selected page's full image with a draggable rectangle over it.
+- 4 corner handles (28px touch targets) — dragging tl/tr/bl/br adjusts
+  that corner's two edges independently (rect always stays
+  axis-aligned, never rotates/skews — this is the Tier 1 boundary).
+- Dragging inside the rectangle (not on a handle) moves the whole
+  selection; edges clamp to the image bounds and a MIN_CROP_PX (40px)
+  minimum size.
+- 4 mask divs (top/bottom/left/right) darken everything outside the
+  rect, repositioned on every drag frame via renderCropRect().
+- "Reset" button in the top bar restores the default inset (6% margin
+  on all sides) rather than full edge-to-edge, since a slight inset is
+  a more useful starting point for a document photo.
+
+COORDINATE HANDLING (the part most likely to need revisiting)
+- All drag math happens in DISPLAYED pixel space (the image's actual
+  on-screen size within crop-stage, measured via getBoundingClientRect()
+  right after the image loads — one requestAnimationFrame delay to let
+  layout settle first).
+- On "Apply Crop", displayed-space rect coordinates are converted to the
+  image's NATURAL pixel space via scaleX/scaleY
+  (naturalWidth/displayedWidth, naturalHeight/displayedHeight) before
+  drawing to an offscreen canvas — this is what keeps the crop accurate
+  regardless of how large the phone's camera resolution is vs. how the
+  image is actually rendered on screen.
+- No orientation/EXIF handling beyond what the browser's <img> already
+  does natively — not expected to be an issue since pages here come
+  from getUserMedia canvas captures (no EXIF rotation metadata to begin
+  with), but worth remembering if crop is ever extended to imported
+  files from the Files picker.
+
+INTEGRATION WITH EXISTING PAGE STATE
+- Applying a crop REPLACES that page's blob+url in _scanPages in place
+  (same pattern as Retake) — revokes the old object URL, creates a new
+  one, re-renders the strip. Everything downstream (Done, format
+  choice, PDF build, JPEG fallback) operates on whatever blob is
+  currently in _scanPages, so cropping needed zero changes to the
+  save/PDF pipeline.
+- Crop can be applied to a page more than once (crops the
+  already-cropped image further) — no "original" is preserved once
+  applied. Worth a note if Krishna ever wants an "undo crop" — would
+  need to keep the pre-crop blob around, which isn't done currently.
+
+NOT DONE / OUT OF SCOPE (per this session's decision)
+- No perspective/corner correction (Tier 2) — parked, discussed as a
+  meaningfully bigger effort (homography math or a new dependency, and
+  given the jsPDF CDN saga this session, any new dependency would
+  probably need to be bundled rather than CDN-loaded).
+- No aspect-ratio presets or lock — freeform rectangle only.
+- No live device testing this session for touch-drag feel — logic
+  mirrors the same touch-handling patterns already proven elsewhere in
+  the app (swipe-to-delete, carousel swipe), but worth a real test pass.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+Tier 2 crop (corner correction / perspective unwarp) → say "Let's build
+  the full corner-correction crop" to resume that discussion.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+Bug  → say "Bug: [describe]" for anything found in normal use.

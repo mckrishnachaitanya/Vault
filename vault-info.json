@@ -1,10 +1,10 @@
 {
-  "version": "6.6",
+  "version": "6.7",
   "released": "2026-07-05",
   "whatsNew": [
+    "✂️ Crop — select any page in the scan strip and trim it with a draggable rectangle before saving",
     "🐛 Fixed: second (and later) scan in the same session could show a stuck, unresponsive Save button reused from the previous scan",
     "🐛 Fixed: scan Save could feel stuck for a long time if the PDF library's CDN was slow/unreachable — now tries a second CDN mirror and fails fast",
-    "🐛 Fixed: multi-page scans that fail to become a PDF now save as separate JPEGs instead of being lost",
     "🖼️📄 Save Format Choice — single-page scans let you pick JPEG or PDF before saving",
     "📑 Multi-Page Scan — capture several pages in one session and save them as a single PDF"
   ],

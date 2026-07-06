@@ -858,6 +858,27 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 .camera-page-action-btn--danger{border-color:rgba(239,68,68,.5);color:#fca5a5;}
 
+/* Crop overlay (Tier 1 — rectangular crop only, no perspective correction) */
+.crop-overlay{position:fixed;inset:0;background:#0a0a0a;z-index:200;display:flex;flex-direction:column;}
+.crop-overlay.hidden{display:none;}
+.crop-topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;flex-shrink:0;}
+.crop-reset-btn{background:none;border:none;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);padding:8px;}
+.crop-stage{position:relative;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
+.crop-stage img{max-width:100%;max-height:100%;display:block;user-select:none;-webkit-user-drag:none;}
+.crop-mask{position:absolute;background:rgba(0,0,0,.65);pointer-events:none;}
+.crop-rect{position:absolute;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);cursor:move;}
+.crop-rect::before,.crop-rect::after{content:'';position:absolute;background:rgba(255,255,255,.5);}
+.crop-rect::before{left:33.33%;right:33.33%;top:0;bottom:0;width:1px;margin:0 auto;border-left:1px solid rgba(255,255,255,.5);border-right:1px solid rgba(255,255,255,.5);background:none;}
+.crop-rect::after{top:33.33%;bottom:33.33%;left:0;right:0;height:1px;margin:auto 0;border-top:1px solid rgba(255,255,255,.5);border-bottom:1px solid rgba(255,255,255,.5);background:none;}
+.crop-handle{position:absolute;width:28px;height:28px;transform:translate(-50%,-50%);touch-action:none;}
+.crop-handle::after{content:'';position:absolute;inset:8px;background:#fff;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.5);}
+.crop-handle-tl{left:0;top:0;}
+.crop-handle-tr{left:100%;top:0;}
+.crop-handle-bl{left:0;top:100%;}
+.crop-handle-br{left:100%;top:100%;}
+.crop-toolbar{padding:16px;flex-shrink:0;}
+.crop-confirm-btn{width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent-g);color:#fff;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;}
+
 .template-body{flex:1;overflow-y:auto;padding:16px 16px 32px;display:flex;flex-direction:column;gap:10px;}
 .template-card{
   display:flex;align-items:center;gap:14px;
@@ -1727,6 +1748,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <!-- viewfinder or preview rendered here -->
   </div>
   <div class="camera-page-action-row hidden" id="camera-page-action-row">
+    <button class="camera-page-action-btn" id="camera-page-crop">✂ Crop</button>
     <button class="camera-page-action-btn" id="camera-page-retake">↺ Retake</button>
     <button class="camera-page-action-btn" id="camera-page-move-left">◀ Move</button>
     <button class="camera-page-action-btn" id="camera-page-move-right">Move ▶</button>
@@ -1749,6 +1771,31 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <input class="camera-filename-input" id="camera-filename-input" placeholder="Filename…" autocomplete="off"/>
       <button class="camera-save-btn" id="camera-save-btn">Save to Vault</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════════ CROP OVERLAY (single page, rectangular crop) ══════════ -->
+<div class="crop-overlay hidden" id="crop-overlay">
+  <div class="crop-topbar">
+    <button class="camera-close-btn" id="crop-cancel-btn">✕</button>
+    <span class="camera-title">Crop Page</span>
+    <button class="crop-reset-btn" id="crop-reset-btn">Reset</button>
+  </div>
+  <div class="crop-stage" id="crop-stage">
+    <img id="crop-image" draggable="false"/>
+    <div class="crop-mask crop-mask-top"></div>
+    <div class="crop-mask crop-mask-bottom"></div>
+    <div class="crop-mask crop-mask-left"></div>
+    <div class="crop-mask crop-mask-right"></div>
+    <div class="crop-rect" id="crop-rect">
+      <div class="crop-handle crop-handle-tl" data-handle="tl"></div>
+      <div class="crop-handle crop-handle-tr" data-handle="tr"></div>
+      <div class="crop-handle crop-handle-bl" data-handle="bl"></div>
+      <div class="crop-handle crop-handle-br" data-handle="br"></div>
+    </div>
+  </div>
+  <div class="crop-toolbar">
+    <button class="crop-confirm-btn" id="crop-confirm-btn">✓ Apply Crop</button>
   </div>
 </div>
 
@@ -2628,6 +2675,10 @@ function renderPageStrip() {
   actionRow.classList.toggle('hidden', !_scanSelectedId);
 }
 
+document.getElementById('camera-page-crop').addEventListener('click', () => {
+  if(!_scanSelectedId) return;
+  openCropForPage(_scanSelectedId);
+});
 document.getElementById('camera-page-retake').addEventListener('click', () => {
   if(!_scanSelectedId) return;
   _scanRetakeTargetId = _scanSelectedId;
@@ -2649,6 +2700,144 @@ document.getElementById('camera-page-delete').addEventListener('click', () => {
   _scanPages = _scanPages.filter(p => p.id !== _scanSelectedId);
   _scanSelectedId = null;
   renderPageStrip();
+});
+
+// ── Crop overlay (Tier 1 — axis-aligned rectangular crop) ──────────────────
+let _cropTargetId = null;
+let _cropImgBox = null;   // {left, top, width, height} — displayed image bounds within crop-stage, in px
+let _cropRectPx = null;   // {left, top, right, bottom} — crop rectangle in the SAME px space as _cropImgBox
+let _cropDrag = null;     // {mode:'handle'|'move', handle, startX, startY, startRect}
+
+function openCropForPage(pageId) {
+  const page = _scanPages.find(p => p.id === pageId);
+  if(!page) return;
+  _cropTargetId = pageId;
+  const img = document.getElementById('crop-image');
+  img.src = page.url;
+  document.getElementById('crop-overlay').classList.remove('hidden');
+  img.onload = () => {
+    // Wait a frame so layout has settled before measuring.
+    requestAnimationFrame(() => {
+      const stage = document.getElementById('crop-stage').getBoundingClientRect();
+      const imgR = img.getBoundingClientRect();
+      _cropImgBox = { left: imgR.left - stage.left, top: imgR.top - stage.top, width: imgR.width, height: imgR.height };
+      resetCropRect();
+    });
+  };
+}
+
+function resetCropRect() {
+  if(!_cropImgBox) return;
+  // Start with a small inset from the full image (a sensible default,
+  // rather than starting at the full image edge-to-edge).
+  const inset = 0.06;
+  _cropRectPx = {
+    left: _cropImgBox.left + _cropImgBox.width * inset,
+    top: _cropImgBox.top + _cropImgBox.height * inset,
+    right: _cropImgBox.left + _cropImgBox.width * (1 - inset),
+    bottom: _cropImgBox.top + _cropImgBox.height * (1 - inset),
+  };
+  renderCropRect();
+}
+
+function renderCropRect() {
+  if(!_cropRectPx || !_cropImgBox) return;
+  const r = _cropRectPx, box = _cropImgBox;
+  const rectEl = document.getElementById('crop-rect');
+  rectEl.style.left = r.left + 'px';
+  rectEl.style.top = r.top + 'px';
+  rectEl.style.width = (r.right - r.left) + 'px';
+  rectEl.style.height = (r.bottom - r.top) + 'px';
+
+  const top = document.querySelector('.crop-mask-top');
+  const bottom = document.querySelector('.crop-mask-bottom');
+  const left = document.querySelector('.crop-mask-left');
+  const right = document.querySelector('.crop-mask-right');
+  top.style.cssText = `left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${r.top - box.top}px;`;
+  bottom.style.cssText = `left:${box.left}px;top:${r.bottom}px;width:${box.width}px;height:${(box.top+box.height) - r.bottom}px;`;
+  left.style.cssText = `left:${box.left}px;top:${r.top}px;width:${r.left - box.left}px;height:${r.bottom - r.top}px;`;
+  right.style.cssText = `left:${r.right}px;top:${r.top}px;width:${(box.left+box.width) - r.right}px;height:${r.bottom - r.top}px;`;
+}
+
+const MIN_CROP_PX = 40;
+
+function cropPointerDown(e, mode, handle) {
+  e.preventDefault();
+  const t = e.touches ? e.touches[0] : e;
+  _cropDrag = { mode, handle, startX: t.clientX, startY: t.clientY, startRect: { ..._cropRectPx } };
+}
+function cropPointerMove(e) {
+  if(!_cropDrag || !_cropImgBox) return;
+  const t = e.touches ? e.touches[0] : e;
+  const dx = t.clientX - _cropDrag.startX;
+  const dy = t.clientY - _cropDrag.startY;
+  const box = _cropImgBox;
+  const s = _cropDrag.startRect;
+  let r = { ..._cropRectPx };
+
+  if(_cropDrag.mode === 'move') {
+    const w = s.right - s.left, h = s.bottom - s.top;
+    let left = Math.min(Math.max(s.left + dx, box.left), box.left + box.width - w);
+    let top = Math.min(Math.max(s.top + dy, box.top), box.top + box.height - h);
+    r = { left, top, right: left + w, bottom: top + h };
+  } else {
+    r = { ...s };
+    if(_cropDrag.handle === 'tl' || _cropDrag.handle === 'bl') r.left = clamp(s.left + dx, box.left, s.right - MIN_CROP_PX);
+    if(_cropDrag.handle === 'tr' || _cropDrag.handle === 'br') r.right = clamp(s.right + dx, s.left + MIN_CROP_PX, box.left + box.width);
+    if(_cropDrag.handle === 'tl' || _cropDrag.handle === 'tr') r.top = clamp(s.top + dy, box.top, s.bottom - MIN_CROP_PX);
+    if(_cropDrag.handle === 'bl' || _cropDrag.handle === 'br') r.bottom = clamp(s.bottom + dy, s.top + MIN_CROP_PX, box.top + box.height);
+  }
+  _cropRectPx = r;
+  renderCropRect();
+}
+function cropPointerUp() { _cropDrag = null; }
+function clamp(v, min, max) { return Math.min(Math.max(v, min), max); }
+
+document.querySelectorAll('.crop-handle').forEach(h => {
+  h.addEventListener('touchstart', e => cropPointerDown(e, 'handle', h.dataset.handle), {passive:false});
+  h.addEventListener('mousedown', e => cropPointerDown(e, 'handle', h.dataset.handle));
+});
+document.getElementById('crop-rect').addEventListener('touchstart', e => {
+  if(e.target.closest('.crop-handle')) return;
+  cropPointerDown(e, 'move');
+}, {passive:false});
+document.getElementById('crop-rect').addEventListener('mousedown', e => {
+  if(e.target.closest('.crop-handle')) return;
+  cropPointerDown(e, 'move');
+});
+document.addEventListener('touchmove', cropPointerMove, {passive:false});
+document.addEventListener('mousemove', cropPointerMove);
+document.addEventListener('touchend', cropPointerUp);
+document.addEventListener('mouseup', cropPointerUp);
+
+document.getElementById('crop-reset-btn').addEventListener('click', resetCropRect);
+document.getElementById('crop-cancel-btn').addEventListener('click', () => {
+  document.getElementById('crop-overlay').classList.add('hidden');
+  _cropTargetId = null;
+});
+document.getElementById('crop-confirm-btn').addEventListener('click', async () => {
+  const page = _scanPages.find(p => p.id === _cropTargetId);
+  if(!page || !_cropRectPx || !_cropImgBox) { document.getElementById('crop-overlay').classList.add('hidden'); return; }
+  const img = document.getElementById('crop-image');
+  const scaleX = img.naturalWidth / _cropImgBox.width;
+  const scaleY = img.naturalHeight / _cropImgBox.height;
+  const sx = (_cropRectPx.left - _cropImgBox.left) * scaleX;
+  const sy = (_cropRectPx.top - _cropImgBox.top) * scaleY;
+  const sw = (_cropRectPx.right - _cropRectPx.left) * scaleX;
+  const sh = (_cropRectPx.bottom - _cropRectPx.top) * scaleY;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(sw); canvas.height = Math.round(sh);
+  canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  canvas.toBlob(blob => {
+    URL.revokeObjectURL(page.url);
+    page.blob = blob;
+    page.url = URL.createObjectURL(blob);
+    document.getElementById('crop-overlay').classList.add('hidden');
+    _cropTargetId = null;
+    renderPageStrip();
+    toast('Crop applied ✓');
+  }, 'image/jpeg', 0.9);
 });
 
 document.getElementById('camera-done-btn').addEventListener('click', () => {
@@ -2686,6 +2875,8 @@ function stopCameraStream() {
 document.getElementById('camera-close').addEventListener('click', () => {
   stopCameraStream();
   resetScanSession();
+  document.getElementById('crop-overlay').classList.add('hidden');
+  _cropTargetId = null;
   showScreen('docs-screen');
 });
 
