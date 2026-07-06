@@ -377,3 +377,61 @@ If PDF scans STILL fail unreliably after this: consider bringing the
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R13 SUMMARY — Real Root Cause Found: Save Button Never Reset After Success (v6.6)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG REPORTED (on confirmed v6.5)
+- First scan of a session (3 pages → PDF): worked correctly.
+- Second scan in the SAME session (1 page, JPEG default): Save appeared
+  to do nothing — button showed "Preparing PDF…" even though JPEG was
+  the visibly selected format.
+
+ACTUAL ROOT CAUSE (this was NOT a jsPDF/CDN problem — R12's multi-CDN
+work was solving a real but secondary issue, not this one)
+- #camera-save-btn is a single reused DOM node across every camera
+  session (screens are hidden/shown, never recreated). Its `disabled`
+  flag and `textContent` were only ever restored in the FAILURE catch
+  block — a SUCCESSFUL save left the button disabled with whatever
+  label it had mid-operation ("Preparing PDF…" from the first, 3-page
+  session) and never set it back to disabled=false / "Save to Vault".
+- Next time the camera opened, the Save button inherited that stuck
+  disabled+mislabeled state from the very first render. Because native
+  `disabled` buttons don't fire click events at all, tapping it on the
+  second attempt did literally nothing — matching "the app says saving
+  pdf... the feature now not working" exactly. The visible JPEG
+  selection was accurate; the button just couldn't respond to being
+  tapped.
+
+FIX
+- openCameraScreen() now unconditionally resets #camera-save-btn to
+  disabled=false / "Save to Vault" (and re-enables the JPEG/PDF toggle
+  buttons) at the START of every session — regardless of how the
+  previous session ended. This is the actual fix for the reported bug.
+- Belt-and-suspenders additions:
+  - Save handler now guards `if(btn.disabled) return;` at the very top,
+    so no re-entrant double-invocation can ever occur even if something
+    else fails to reset it.
+  - The JPEG/PDF toggle buttons are now disabled for the duration of an
+    in-flight save (re-enabled on failure or on the next session open),
+    so switching format mid-save can no longer create a mismatch
+    between the visible toggle and the operation already running.
+
+RELATIONSHIP TO R12's CDN WORK
+- The multi-CDN / fast-timeout jsPDF loading changes from last session
+  are still valid and kept — they address a real (separate) risk of
+  slow/blocked CDN fetches. But they were NOT the cause of this specific
+  bug. This session's fix is the one that actually resolves the "second
+  scan doesn't work" report.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+If PDF scans still fail unreliably due to CDN loading (separate from
+  this session's bug): consider bringing the jsPDF library source (as a
+  .js file) into the project so it can be pasted directly into
+  index.html as an inline <script>, removing the CDN dependency.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+Bug  → say "Bug: [describe]" for anything found in normal use.

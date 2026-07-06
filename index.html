@@ -820,6 +820,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .camera-format-row.hidden{display:none;}
 .camera-format-label{font-size:12px;color:rgba(255,255,255,.6);font-weight:600;margin-right:2px;}
 .camera-format-btn{padding:7px 16px;border-radius:20px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);}
+.camera-format-btn:disabled{opacity:.5;cursor:default;}
 .camera-format-btn.selected{background:var(--accent-g);border-color:transparent;}
 .camera-filename-input{flex:1;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.25);color:#fff;font-family:var(--font);font-size:14px;outline:none;}
 .camera-filename-input::placeholder{color:rgba(255,255,255,.5);}
@@ -2501,6 +2502,15 @@ async function openCameraScreen() {
   showScreen('camera-screen');
   document.getElementById('camera-confirm-bar').classList.add('hidden');
   document.getElementById('camera-toolbar').style.display = '';
+  // The Save button is a reused DOM node across sessions — after a
+  // successful save it was never restored from its disabled/"Preparing
+  // PDF…" state (only the failure path reset it), so a fresh session
+  // could inherit a stuck, disabled button from the previous one. Always
+  // force it back to its default state the moment the camera opens.
+  const saveBtn = document.getElementById('camera-save-btn');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save to Vault';
+  document.querySelectorAll('.camera-format-btn').forEach(b => b.disabled = false);
   renderPageStrip();
   waitForJsPDF().catch(() => {}); // warm-up only, ignore result here
   await startLiveView();
@@ -2766,9 +2776,11 @@ async function buildPdfFromPages(pages) {
 document.getElementById('camera-save-btn').addEventListener('click', async () => {
   if(!_scanPages.length) return;
   const btn = document.getElementById('camera-save-btn');
+  if(btn.disabled) return; // guard against any re-entrant double-tap
   const name = document.getElementById('camera-filename-input').value.trim() || _capturedFilename;
   const wantsPdf = !(_scanPages.length === 1 && _scanSaveFormat === 'jpeg');
   btn.disabled = true;
+  document.querySelectorAll('.camera-format-btn').forEach(b => b.disabled = true);
   const prevLabel = btn.textContent;
   btn.textContent = wantsPdf ? (_scanPages.length > 1 ? 'Preparing PDF…' : 'Saving…') : 'Saving…';
 
@@ -2818,6 +2830,7 @@ document.getElementById('camera-save-btn').addEventListener('click', async () =>
     toast('Could not save — try again');
     btn.disabled = false;
     btn.textContent = prevLabel;
+    document.querySelectorAll('.camera-format-btn').forEach(b => b.disabled = false);
   }
 });
 
