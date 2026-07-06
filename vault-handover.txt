@@ -307,3 +307,73 @@ If the hang recurs: first confirm Settings → About shows v6.4 (or
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R12 SUMMARY — Fast-Fail Multi-CDN jsPDF Loading (v6.5)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG REPORTED (confirmed on v6.3, ruling out caching as the cause)
+- First scan of a session works; subsequent scans in the same session
+  get stuck on the Saving/Preparing PDF button, requiring the camera's
+  ✕ to escape. No stale-cache explanation this time — Settings → About
+  confirmed the correct version was running.
+
+ROOT-CAUSE REASONING
+- Once jsPDF loads successfully, `window.jspdf` stays defined for the
+  rest of the page's life — so if PDF generation had genuinely worked
+  once, it should be INSTANT on every later attempt, not slower. The
+  fact that failures kept recurring points to jsPDF never actually
+  finishing its FIRST load reliably on this network — i.e. the earlier
+  "successful" attempts were likely JPEG saves (no jsPDF involved at
+  all), and every attempt that actually needed jsPDF for the first time
+  has been hitting a slow/blocked cdnjs.cloudflare.com fetch. R10/R11's
+  fixes prevented an infinite hang, but the worst-case wait was still
+  up to 28 seconds with no visible progress — long enough that tapping
+  ✕ before it resolved looked identical to a true hang.
+- I attempted to fetch the actual jsPDF library file to embed it
+  directly in index.html (removing the CDN dependency entirely), which
+  would be the most bulletproof fix, but my tools could only retrieve
+  it as opaque binary, not usable source text — so full inlining isn't
+  possible from my end this session. Worth revisiting if this keeps
+  recurring — bundling jsPDF's source directly into index.html (Krishna
+  pasting the library code, or fetching it via a different method) would
+  eliminate the network dependency for good.
+
+FIX (this session)
+- Two CDN mirrors now attempted in sequence, not just one:
+  cdnjs.cloudflare.com and cdn.jsdelivr.net (JSPDF_SOURCES[]). If the
+  first is slow/blocked, the second gets a real, fast, independent shot.
+- Every stage is now individually time-boxed instead of one big
+  best-effort wait: initial "is it already loaded" check (2.5s), each
+  CDN script tag load (4s), each post-load poll (3s). Worst case across
+  both mirrors is ~16.5s — down from 28s — and each failure surfaces
+  quickly rather than sitting silently.
+- Multi-page PDF failure no longer just shows an error and stops: the
+  captured pages are now saved as SEPARATE numbered JPEGs
+  (`name_page1.jpg`, `name_page2.jpg`, …) as a last-resort fallback, so
+  a scan session's photos are never simply lost to a PDF-library
+  failure. User sees "PDF unavailable — saved as N separate JPEGs
+  instead".
+- Single-page fallback behavior (auto-save as one JPEG) is unchanged
+  from R10/R11.
+
+NOT DONE / WORTH KNOWING
+- jsPDF is still CDN-dependent, just more resilient now (2 sources,
+  fast timeouts). If PDF generation keeps failing even after this,  the
+  real fix is bundling the library's source directly into index.html so
+  there's zero network dependency for this feature — flagged above,
+  blocked on getting the actual library source text into this session.
+- No live device available to verify actual timing/behavior on Krishna's
+  real network — the timeout numbers are reasoned estimates, not
+  measured against the actual failure conditions.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+If PDF scans STILL fail unreliably after this: consider bringing the
+  jsPDF library source (as a .js file) into the project so it can be
+  pasted directly into index.html as an inline <script>, removing the
+  CDN dependency for this feature entirely.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+Bug  → say "Bug: [describe]" for anything found in normal use.

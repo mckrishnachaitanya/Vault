@@ -2502,7 +2502,7 @@ async function openCameraScreen() {
   document.getElementById('camera-confirm-bar').classList.add('hidden');
   document.getElementById('camera-toolbar').style.display = '';
   renderPageStrip();
-  waitForJsPDF(3000).catch(() => {}); // warm-up only, ignore result here
+  waitForJsPDF().catch(() => {}); // warm-up only, ignore result here
   await startLiveView();
 }
 
@@ -2697,44 +2697,48 @@ function loadImageEl(src) {
     img.src = src;
   });
 }
-// jsPDF loads from a CDN <script> tag — on a slow/flaky connection (or if
-// the original tag failed outright, e.g. a service-worker fetch hiccup on
-// cold start) it may never become available on its own. Poll first; if it
-// still hasn't shown up, actively retry by injecting a fresh script tag
-// rather than waiting indefinitely on one load attempt.
-let _jsPdfLoadPromise = null;
-function injectJsPDFScript() {
-  if(_jsPdfLoadPromise) return _jsPdfLoadPromise;
-  _jsPdfLoadPromise = new Promise((resolve, reject) => {
+// jsPDF loads from a CDN <script> tag. Repeated reports show this can be
+// unreliable on some networks (blocked/slow CDN domain) — rather than
+// making the user wait a long time on one source, try two different CDN
+// mirrors in sequence with SHORT timeouts each, so a failure surfaces in
+// a few seconds instead of leaving Save looking stuck.
+const JSPDF_SOURCES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+];
+let _jsPdfAttempted = new Set();
+function injectScript(src) {
+  return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.src = src;
     s.onload = () => resolve();
-    s.onerror = () => { _jsPdfLoadPromise = null; reject(new Error('jsPDF script failed to load')); };
+    s.onerror = () => reject(new Error('script failed: ' + src));
     document.head.appendChild(s);
   });
-  return _jsPdfLoadPromise;
 }
-function waitForJsPDF(timeoutMs = 5000) {
+function pollJsPDF(timeoutMs) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     (function poll() {
       if(window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf.jsPDF);
-      if(Date.now() - start > timeoutMs) return reject(new Error('jsPDF failed to load'));
-      setTimeout(poll, 150);
+      if(Date.now() - start > timeoutMs) return reject(new Error('timed out'));
+      setTimeout(poll, 120);
     })();
-  }).catch(async () => {
-    // Passive wait timed out — actively retry once with a fresh <script>
-    // tag before giving up, in case the original tag never fired at all.
-    await injectJsPDFScript();
-    return new Promise((resolve, reject) => {
-      const start = Date.now();
-      (function poll() {
-        if(window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf.jsPDF);
-        if(Date.now() - start > 10000) return reject(new Error('jsPDF failed to load after retry'));
-        setTimeout(poll, 150);
-      })();
-    });
   });
+}
+async function waitForJsPDF() {
+  // Already loaded (from the original <head> tag, or a prior call)?
+  try { return await pollJsPDF(2500); } catch(e) { /* fall through to retries */ }
+  // Try each CDN mirror in turn, short-circuiting the moment one works.
+  for(const src of JSPDF_SOURCES) {
+    if(_jsPdfAttempted.has(src)) continue;
+    _jsPdfAttempted.add(src);
+    try {
+      await withTimeout(injectScript(src), 4000, 'script load timeout');
+      return await pollJsPDF(3000);
+    } catch(e) { /* try next source */ }
+  }
+  throw new Error('jsPDF unavailable — all sources failed');
 }
 function withTimeout(promise, ms, label) {
   return Promise.race([
@@ -2769,11 +2773,12 @@ document.getElementById('camera-save-btn').addEventListener('click', async () =>
   btn.textContent = wantsPdf ? (_scanPages.length > 1 ? 'Preparing PDF…' : 'Saving…') : 'Saving…';
 
   let file = null;
-  let fellBackToJpeg = false;
+  let files = null; // used only for the multi-page-as-separate-JPEGs fallback
+  let fallbackMsg = '';
 
   if(wantsPdf) {
     try {
-      const pdfBlob = await withTimeout(buildPdfFromPages(_scanPages), 28000, 'PDF build timed out');
+      const pdfBlob = await withTimeout(buildPdfFromPages(_scanPages), 22000, 'PDF build timed out');
       const finalName = name.toLowerCase().endsWith('.pdf') ? name : name + '.pdf';
       file = new File([pdfBlob], finalName, { type: 'application/pdf' });
     } catch(e) {
@@ -2783,12 +2788,15 @@ document.getElementById('camera-save-btn').addEventListener('click', async () =>
         // capture isn't lost just because PDF generation failed.
         const finalName = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.jpeg') ? name : name + '.jpg';
         file = new File([_scanPages[0].blob], finalName, { type: 'image/jpeg' });
-        fellBackToJpeg = true;
+        fallbackMsg = 'PDF unavailable — saved as JPEG instead';
       } else {
-        toast('Could not create PDF — check your connection and try again');
-        btn.disabled = false;
-        btn.textContent = prevLabel;
-        return; // keep pages so the user can retry without rescanning
+        // Multi-page — can't combine into one file without a PDF, but the
+        // captures shouldn't be lost either. Save each page as its own
+        // numbered JPEG instead of leaving the user with nothing.
+        files = _scanPages.map((p, i) => new File(
+          [p.blob], `${name}_page${i+1}.jpg`, { type: 'image/jpeg' }
+        ));
+        fallbackMsg = `PDF unavailable — saved as ${files.length} separate JPEGs instead`;
       }
     }
   } else {
@@ -2799,8 +2807,12 @@ document.getElementById('camera-save-btn').addEventListener('click', async () =>
   try {
     showScreen('docs-screen');
     resetScanSession();
-    await saveDocFromFile(file);
-    if(fellBackToJpeg) toast('PDF unavailable — saved as JPEG instead');
+    if(files) {
+      for(const f of files) await saveDocFromFile(f);
+    } else {
+      await saveDocFromFile(file);
+    }
+    if(fallbackMsg) toast(fallbackMsg);
   } catch(e) {
     console.error('[Scan] save failed:', e);
     toast('Could not save — try again');

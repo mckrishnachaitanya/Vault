@@ -1,9 +1,9 @@
 {
-  "version": "6.4",
+  "version": "6.5",
   "released": "2026-07-05",
   "whatsNew": [
-    "🐛 Fixed: scan Save could still stall preparing a PDF if the PDF library failed to load on first try — now retries automatically",
-    "🐛 Fixed: scan Save button could get stuck on \"Saving…\" indefinitely if the PDF library was slow to load",
+    "🐛 Fixed: scan Save could feel stuck for a long time if the PDF library's CDN was slow/unreachable — now tries a second CDN mirror and fails fast (~16s worst case, down from 28s)",
+    "🐛 Fixed: multi-page scans that fail to become a PDF now save as separate JPEGs instead of being lost",
     "🖼️📄 Save Format Choice — single-page scans let you pick JPEG or PDF before saving",
     "📑 Multi-Page Scan — capture several pages in one session and save them as a single PDF",
     "🗂️ Multi-Entry Share — tap ☑️ on Home to select several entries (filter-aware) and share them all in one link"
