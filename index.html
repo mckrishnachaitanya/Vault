@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <title>Vault</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" async></script>
 <style>
 /* ═══════════════════════════════════
    THEME VARIABLES
@@ -80,8 +80,8 @@ body::after{
 /* ═══════════════════════════════════
    SCREENS
 ═══════════════════════════════════ */
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;z-index:10;transition:opacity .22s,transform .22s;}
-.screen.hidden{opacity:0;pointer-events:none;transform:translateY(14px);}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;z-index:10;animation:screenIn .18s ease;}
+@keyframes screenIn{from{opacity:0}}
 .screen>*{position:relative;z-index:1;}
 
 /* ═══════════════════════════════════
@@ -176,18 +176,6 @@ body::after{
   background:transparent; border:none; color:var(--muted);
   font-size:18px; cursor:pointer; padding:2px 6px; line-height:1;
 }
-@keyframes bannerSlide{ from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-#update-banner .banner-icon{ font-size:16px; flex-shrink:0; }
-#update-banner .banner-text{ flex:1; font-weight:500; }
-#update-banner .banner-link{
-  color:var(--accent); font-weight:600; cursor:pointer;
-  text-decoration:underline; white-space:nowrap;
-}
-#update-banner .banner-close{
-  background:none; border:none; font-size:16px; cursor:pointer;
-  color:var(--muted); padding:2px 4px; flex-shrink:0;
-}
-
 /* ── Help Overlay ── */
 #help-overlay{
   position:fixed; inset:0; z-index:900;
@@ -395,7 +383,7 @@ body::after{
    HOME
 ═══════════════════════════════════ */
 #home-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
-.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 0;min-height:0;}
+.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;flex:1 1 0;min-height:0;}
 .home-header{padding:52px 20px 0;}
 .home-greeting{font-size:13px;color:var(--muted);font-weight:500;}
 .home-title{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-top:2px;font-family:var(--font-head);}
@@ -436,24 +424,6 @@ body::after{
 .stat-num{font-size:22px;font-weight:800;color:var(--accent);font-family:var(--font-head);}
 .stat-label{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500;}
 
-/* Password Health slim banner */
-.health-banner{
-  margin:0 20px 8px;padding:9px 14px;border-radius:var(--radius-sm);
-  display:flex;align-items:center;gap:10px;cursor:pointer;
-  transition:all .14s;
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  box-shadow:var(--shadow-sm);
-}
-.health-banner:active{transform:scale(.98);}
-.health-banner.good{background:rgba(16,185,129,.10);border:1.5px solid rgba(16,185,129,.25);}
-.health-banner.warn{background:rgba(245,158,11,.10);border:1.5px solid rgba(245,158,11,.25);}
-.health-banner.bad{background:rgba(239,68,68,.10);border:1.5px solid rgba(239,68,68,.25);}
-.health-banner-icon{font-size:16px;flex-shrink:0;}
-.health-banner-text{flex:1;font-size:13px;font-weight:700;color:var(--text);}
-.health-banner-sub{font-size:11px;color:var(--muted);font-weight:500;margin-left:6px;}
-.health-banner-chevron{font-size:16px;color:var(--muted);transition:transform .22s;}
-.health-banner-chevron.open{transform:rotate(90deg);}
-
 /* Backup nudge */
 .backup-nudge{
   margin:0 20px 12px;padding:13px 16px;border-radius:var(--radius-sm);
@@ -465,44 +435,7 @@ body::after{
 .backup-nudge-btn{padding:6px 13px;border-radius:9px;border:1.5px solid rgba(245,158,11,.4);background:rgba(245,158,11,.15);color:var(--yellow);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;white-space:nowrap;}
 .backup-nudge-dismiss{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1;}
 
-/* Password Health Card */
-.health-card{
-  margin:0 20px 12px;padding:14px 16px;border-radius:var(--radius-sm);
-  display:flex;align-items:center;gap:12px;cursor:pointer;
-  transition:all .14s;
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  box-shadow:var(--shadow-sm);
-}
-.health-card:active{transform:scale(.98);}
-.health-card.good{background:rgba(16,185,129,.10);border:1.5px solid rgba(16,185,129,.30);}
-.health-card.warn{background:rgba(245,158,11,.10);border:1.5px solid rgba(245,158,11,.30);}
-.health-card.bad{background:rgba(239,68,68,.10);border:1.5px solid rgba(239,68,68,.30);}
-.health-icon{font-size:22px;flex-shrink:0;}
-.health-info{flex:1;}
-.health-title{font-size:14px;font-weight:700;color:var(--text);}
-.health-sub{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500;}
-.health-chevron{font-size:18px;color:var(--muted);transition:transform .25s;}
-.health-chevron.open{transform:rotate(90deg);}
-
-/* Health panel — expandable */
-.health-panel{
-  margin:0 20px 12px;
-  max-height:0;overflow:hidden;
-  transition:max-height .35s cubic-bezier(.32,1,.28,1),opacity .25s;
-  opacity:0;
-}
-.health-panel.open{max-height:600px;opacity:1;}
-.health-panel-inner{
-  background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  box-shadow:var(--shadow-sm);overflow:hidden;
-}
-.health-section{padding:12px 14px;border-bottom:1px solid var(--border);}
-.health-section:last-child{border-bottom:none;}
-.health-section-title{
-  font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
-  margin-bottom:8px;display:flex;align-items:center;gap:6px;
-}
+/* Password Health overlay rows */
 .health-entry-row{
   display:flex;align-items:center;gap:10px;padding:8px 10px;
   border-radius:10px;cursor:pointer;transition:background .14s;
@@ -628,7 +561,7 @@ body::after{
    FORM SCREEN
 ═══════════════════════════════════ */
 #form-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
-.form-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
+.form-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 
 .field-group{display:flex;flex-direction:column;gap:6px;}
 .field-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;}
@@ -674,7 +607,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 
 
 /* Type picker */
-.type-picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;}
 
 /* ── Secure Share Screen ── */
 /* ── Secure Share Sheet ── */
@@ -718,7 +650,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .share-pin-prompt{width:100%;max-width:360px;}
 .share-pin-prompt-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px;text-align:center;}
 .share-pin-prompt-sub{font-size:13px;color:var(--muted);margin-bottom:20px;text-align:center;}
-.share-view-pin-row{display:flex;gap:10px;margin-bottom:16px;}
 .share-view-error{font-size:13px;color:var(--red);text-align:center;margin-top:10px;min-height:20px;}
 /* Digital card styles */
 .share-card{width:100%;max-width:360px;margin-top:24px;}
@@ -784,9 +715,15 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .carousel-count{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px;letter-spacing:.4px;}
 
 /* ── Doc Add Sheet ── */
-.bottom-sheet-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;}
+.bottom-sheet-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;animation:sheetFadeIn .2s ease;}
 .bottom-sheet-overlay.hidden{display:none;}
-.bottom-sheet{width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:12px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.3);}
+.bottom-sheet{width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:12px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.3);animation:sheetSlideUp .28s cubic-bezier(.22,1,.36,1);}
+.bottom-sheet-overlay.closing{animation:sheetFadeOut .2s ease forwards;}
+.bottom-sheet-overlay.closing .bottom-sheet{animation:sheetSlideDown .2s ease forwards;}
+@keyframes sheetFadeIn{from{opacity:0}}
+@keyframes sheetFadeOut{to{opacity:0}}
+@keyframes sheetSlideUp{from{transform:translateY(100%)}}
+@keyframes sheetSlideDown{to{transform:translateY(100%)}}
 .bottom-sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
 .bottom-sheet-title{font-size:17px;font-weight:800;color:var(--text);font-family:var(--font-head);margin-bottom:16px;}
 .doc-add-options{display:flex;flex-direction:column;gap:10px;}
@@ -899,18 +836,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .template-card-desc{font-size:12px;color:var(--muted);line-height:1.4;}
 .template-card-arrow{font-size:18px;color:var(--muted);flex-shrink:0;}
 
-.type-pick-btn{
-  display:flex;flex-direction:column;align-items:center;gap:6px;
-  padding:14px 8px;border-radius:var(--radius-sm);
-  border:1.5px solid var(--border);background:var(--surface);
-  cursor:pointer;transition:all .14s;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-}
-.type-pick-btn:active{transform:scale(.94);}
-.type-pick-btn.selected{border-color:var(--accent);background:rgba(91,95,245,.10);}
-.type-pick-icon{font-size:24px;}
-.type-pick-label{font-size:11px;font-weight:700;color:var(--text2);text-align:center;line-height:1.2;}
-.type-pick-btn.selected .type-pick-label{color:var(--accent);}
 .type-locked-badge{
   display:inline-flex;align-items:center;gap:6px;
   padding:8px 14px;border-radius:var(--radius-sm);
@@ -1011,7 +936,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 .detail-updated{font-size:11px;color:var(--muted);margin-top:8px;}
 
-.detail-fields{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
+.detail-fields{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 .detail-field{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
   padding:14px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -1039,7 +964,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
    DOCUMENTS SCREEN
 ═══════════════════════════════════ */
 #docs-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
-.docs-list{padding:14px 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 0;min-height:0;}
+.docs-list{padding:14px 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;flex:1 1 0;min-height:0;}
 .doc-card{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
   padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
@@ -1152,7 +1077,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
    DOCUMENT VIEWER SCREEN
 ═══════════════════════════════════ */
 #docview-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
-.docview-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;}
+.docview-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 20px calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;}
 .docview-preview{
   border-radius:var(--radius);overflow:hidden;
   background:var(--surface);border:1.5px solid var(--border);
@@ -1212,7 +1137,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
    LINKED DOCUMENTS (R6c)
 ═══════════════════════════════════ */
 .linked-docs-section{display:flex;flex-direction:column;gap:8px;}
-.linked-docs-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;margin-bottom:2px;}
 .linked-doc-row{
   display:flex;align-items:center;gap:10px;padding:11px 14px;
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
@@ -1274,7 +1198,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   background:var(--bg2);color:var(--text2);font-size:16px;
   cursor:pointer;display:flex;align-items:center;justify-content:center;
 }
-.link-picker-list{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 28px;display:flex;flex-direction:column;gap:8px;}
+.link-picker-list{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:12px 16px 28px;display:flex;flex-direction:column;gap:8px;}
 .link-picker-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;}
 .link-picker-doc-row{
   display:flex;align-items:center;gap:10px;padding:10px 12px;
@@ -1490,7 +1414,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 }
 
 /* Selected-entries summary sheet */
-.summary-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:44vh;overflow-y:auto;}
+.summary-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:44vh;overflow-y:auto;overscroll-behavior:contain;}
 .summary-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--surface);border:1.5px solid var(--border);}
 .summary-item-icon{font-size:20px;width:30px;text-align:center;flex-shrink:0;}
 .summary-item-info{flex:1;min-width:0;}
@@ -1524,7 +1448,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v5.8</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v6.8</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1935,7 +1859,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v5.8</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v6.8</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -2198,6 +2122,31 @@ DebugLog.init();
 // ═══════════════════════════════════════
 const Crypto = {
   enc: new TextEncoder(), dec: new TextDecoder(),
+  // PBKDF2 at 100k iterations costs ~100-300ms on a phone. Deriving a fresh
+  // key per operation (old behaviour: random salt every encrypt) made EVERY
+  // save, doc open, and sync pay that cost. Two changes fix this with zero
+  // storage-format change (blobs are still salt‖iv‖ct, old blobs decrypt fine):
+  //   1. Derived keys are memoized by pin+salt — repeat decrypts are instant.
+  //   2. encrypt() reuses one stable per-vault salt (created once, kept in
+  //      localStorage) so its derived key is a cache hit too. AES-GCM security
+  //      rests on the random per-message IV, which is unchanged; PBKDF2 salt
+  //      only needs to be unique per PIN, not per message.
+  // Cache is cleared on PIN change (keys derived from a dead PIN must not
+  // outlive it). It intentionally survives lock, matching the existing
+  // policy of keeping currentPIN in RAM for biometric re-unlock.
+  _keyCache: new Map(),
+  clearKeyCache() { this._keyCache.clear(); },
+  _saltHex(salt) { return Array.from(salt).map(b=>b.toString(16).padStart(2,'0')).join(''); },
+  vaultSalt() {
+    let hex = Store.get('vault_salt');
+    if(!hex){
+      const s = crypto.getRandomValues(new Uint8Array(16));
+      hex = this._saltHex(s);
+      Store.set('vault_salt', hex);
+      return s;
+    }
+    return new Uint8Array(hex.match(/.{2}/g).map(h=>parseInt(h,16)));
+  },
   async hashPIN(pin) {
     const buf = await crypto.subtle.digest('SHA-256', this.enc.encode(pin));
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -2206,17 +2155,31 @@ const Crypto = {
     const km = await crypto.subtle.importKey('raw', this.enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
     return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'}, km, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
   },
-  async encrypt(data, pin) {
-    const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
-    const key=await this.deriveKey(pin,salt);
-    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,this.enc.encode(JSON.stringify(data)));
-    const out=new Uint8Array(salt.length+iv.length+ct.byteLength);
+  // Memoized derivation. Caches the *promise* so concurrent callers share
+  // one derivation; a failed derivation is evicted so it can be retried.
+  getKey(pin, salt) {
+    const ck = pin + '|' + this._saltHex(salt);
+    if(!this._keyCache.has(ck)){
+      const p = this.deriveKey(pin, salt);
+      p.catch(()=>this._keyCache.delete(ck));
+      this._keyCache.set(ck, p);
+    }
+    return this._keyCache.get(ck);
+  },
+  // opts.ephemeralSalt:true → one-off random salt (used for share links so
+  // they stay fully self-contained and never embed the vault's salt).
+  async encrypt(data, pin, opts={}) {
+    const salt = opts.ephemeralSalt ? crypto.getRandomValues(new Uint8Array(16)) : this.vaultSalt();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await this.getKey(pin, salt);
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM',iv},key,this.enc.encode(JSON.stringify(data)));
+    const out = new Uint8Array(salt.length+iv.length+ct.byteLength);
     out.set(salt,0); out.set(iv,16); out.set(new Uint8Array(ct),28);
     return btoa(String.fromCharCode(...out));
   },
   async decrypt(b64, pin) {
     const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
-    const key=await this.deriveKey(pin,raw.slice(0,16));
+    const key=await this.getKey(pin, raw.slice(0,16));
     const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:raw.slice(16,28)},key,raw.slice(28));
     return JSON.parse(this.dec.decode(pt));
   },
@@ -2224,14 +2187,14 @@ const Crypto = {
   // Stores as plain object {salt:Uint8Array, iv:Uint8Array, ct:ArrayBuffer}
   // which IndexedDB serialises natively with no size limit issues.
   async encryptRaw(arrayBuffer, pin) {
-    const salt=crypto.getRandomValues(new Uint8Array(16));
+    const salt=this.vaultSalt();
     const iv=crypto.getRandomValues(new Uint8Array(12));
-    const key=await this.deriveKey(pin,salt);
+    const key=await this.getKey(pin,salt);
     const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,arrayBuffer);
     return {salt, iv, ct};
   },
   async decryptRaw(stored, pin) {
-    const key=await this.deriveKey(pin,stored.salt);
+    const key=await this.getKey(pin,stored.salt);
     return crypto.subtle.decrypt({name:'AES-GCM',iv:stored.iv},key,stored.ct);
   },
 };
@@ -2474,13 +2437,21 @@ function showScreen(id) {
 }
 
 // Bottom nav
+const NAV_SCREEN = { home:'home-screen', fav:'fav-screen', settings:'settings-screen', docs:'docs-screen' };
 document.querySelectorAll('[data-nav]').forEach(item => {
   item.addEventListener('click', () => {
     const nav = item.dataset.nav;
+    // Already on this tab and its screen is visible — nothing to do.
+    if(!document.getElementById(NAV_SCREEN[nav]).classList.contains('hidden')) return;
+    if(nav!=='home'){
+      // Leaving Home — collapse home-only panels/overlays.
+      catPanelOpen=false; closeHealthOverlay();
+      document.getElementById('cat-inline-panel').classList.remove('open');
+    }
     if(nav==='home'){ state.currentNav='home'; showScreen('home-screen'); renderEntries(); updateStats(); }
-    else if(nav==='fav'){ catPanelOpen=false; healthPanelOpen=false; closeHealthOverlay(); document.getElementById('cat-inline-panel').classList.remove('open'); state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
-    else if(nav==='settings'){ catPanelOpen=false; healthPanelOpen=false; closeHealthOverlay(); document.getElementById('cat-inline-panel').classList.remove('open'); state.currentNav='settings'; showScreen('settings-screen'); }
-    else if(nav==='docs'){ catPanelOpen=false; healthPanelOpen=false; closeHealthOverlay(); document.getElementById('cat-inline-panel').classList.remove('open'); openDocsTab(); }
+    else if(nav==='fav'){ state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
+    else if(nav==='settings'){ state.currentNav='settings'; showScreen('settings-screen'); }
+    else if(nav==='docs'){ openDocsTab(); }
   });
 });
 ['lock-top-btn-home','lock-top-btn-fav','lock-top-btn-settings','lock-top-btn-docs'].forEach(id=>{
@@ -2503,8 +2474,17 @@ document.getElementById('add-btn-settings').addEventListener('click', async () =
 function showDocAddSheet() {
   document.getElementById('doc-add-sheet-overlay').classList.remove('hidden');
 }
+// Shared close-with-animation for .bottom-sheet-overlay sheets. The open
+// animation is pure CSS (fires on display:none→flex); closing needs this
+// two-step so the slide-down can play before display:none kicks in.
+function animateSheetClose(overlayId){
+  const ov = document.getElementById(overlayId);
+  if(ov.classList.contains('hidden') || ov.classList.contains('closing')) return;
+  ov.classList.add('closing');
+  setTimeout(()=>{ ov.classList.add('hidden'); ov.classList.remove('closing'); }, 200);
+}
 function hideDocAddSheet() {
-  document.getElementById('doc-add-sheet-overlay').classList.add('hidden');
+  animateSheetClose('doc-add-sheet-overlay');
 }
 document.getElementById('add-btn-docs').addEventListener('click', () => { showDocAddSheet(); });
 document.getElementById('doc-add-cancel').addEventListener('click', hideDocAddSheet);
@@ -2715,6 +2695,7 @@ function openCropForPage(pageId) {
   const img = document.getElementById('crop-image');
   img.src = page.url;
   document.getElementById('crop-overlay').classList.remove('hidden');
+  attachCropDragListeners();
   img.onload = () => {
     // Wait a frame so layout has settled before measuring.
     requestAnimationFrame(() => {
@@ -2805,19 +2786,36 @@ document.getElementById('crop-rect').addEventListener('mousedown', e => {
   if(e.target.closest('.crop-handle')) return;
   cropPointerDown(e, 'move');
 });
-document.addEventListener('touchmove', cropPointerMove, {passive:false});
-document.addEventListener('mousemove', cropPointerMove);
-document.addEventListener('touchend', cropPointerUp);
-document.addEventListener('mouseup', cropPointerUp);
+// These document-level listeners are only attached while the crop overlay is
+// open. A permanently-attached {passive:false} touchmove on document would
+// force the browser to wait on JS before every scroll frame across the whole
+// app — measurable scroll jank for a feature that's almost never active.
+function attachCropDragListeners(){
+  document.addEventListener('touchmove', cropPointerMove, {passive:false});
+  document.addEventListener('mousemove', cropPointerMove);
+  document.addEventListener('touchend', cropPointerUp);
+  document.addEventListener('mouseup', cropPointerUp);
+}
+function detachCropDragListeners(){
+  document.removeEventListener('touchmove', cropPointerMove, {passive:false});
+  document.removeEventListener('mousemove', cropPointerMove);
+  document.removeEventListener('touchend', cropPointerUp);
+  document.removeEventListener('mouseup', cropPointerUp);
+}
+function closeCropOverlay(){
+  document.getElementById('crop-overlay').classList.add('hidden');
+  detachCropDragListeners();
+  _cropDrag = null;
+}
 
 document.getElementById('crop-reset-btn').addEventListener('click', resetCropRect);
 document.getElementById('crop-cancel-btn').addEventListener('click', () => {
-  document.getElementById('crop-overlay').classList.add('hidden');
+  closeCropOverlay();
   _cropTargetId = null;
 });
 document.getElementById('crop-confirm-btn').addEventListener('click', async () => {
   const page = _scanPages.find(p => p.id === _cropTargetId);
-  if(!page || !_cropRectPx || !_cropImgBox) { document.getElementById('crop-overlay').classList.add('hidden'); return; }
+  if(!page || !_cropRectPx || !_cropImgBox) { closeCropOverlay(); return; }
   const img = document.getElementById('crop-image');
   const scaleX = img.naturalWidth / _cropImgBox.width;
   const scaleY = img.naturalHeight / _cropImgBox.height;
@@ -2833,7 +2831,7 @@ document.getElementById('crop-confirm-btn').addEventListener('click', async () =
     URL.revokeObjectURL(page.url);
     page.blob = blob;
     page.url = URL.createObjectURL(blob);
-    document.getElementById('crop-overlay').classList.add('hidden');
+    closeCropOverlay();
     _cropTargetId = null;
     renderPageStrip();
     toast('Crop applied ✓');
@@ -2875,7 +2873,7 @@ function stopCameraStream() {
 document.getElementById('camera-close').addEventListener('click', () => {
   stopCameraStream();
   resetScanSession();
-  document.getElementById('crop-overlay').classList.add('hidden');
+  closeCropOverlay();
   _cropTargetId = null;
   showScreen('docs-screen');
 });
@@ -3121,6 +3119,7 @@ function lockVault() {
     state.preLockScreen=null; state.formDraft=null;
   }
   state.unlocked=false; state.unlockedViaBio=false; state.stepUpDone=false; state.docsStepUpDone=false;
+  _docsManifestLoaded=false; // docs re-decrypt on next Docs open, same as entries on unlock
   // Keep currentPIN in memory for biometric re-unlock — cleared only on PIN change
   clearTimeout(autoLockTimer);
   const ov=document.getElementById('lock-overlay');
@@ -3223,8 +3222,12 @@ async function handlePINDigit(d) {
     if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
     const oldPin=state.currentPIN;
     Store.set('vault_pin', await Crypto.hashPIN(entered));
-    state.currentPIN=entered; await saveEntries();
+    state.currentPIN=entered;
+    localStorage.removeItem('vault_salt'); // rotate the stable salt with the PIN — next encrypt creates a fresh one
+    Crypto.clearKeyCache();
+    await saveEntries();
     try{ await DocsDB.reencryptAll(oldPin, entered); } catch(e){ console.error('Docs re-encrypt failed', e); }
+    Crypto.clearKeyCache(); // drop keys derived from the old PIN during re-encrypt
     if(isBioEnabled()){ Store.set('vault_bio','0'); Store.set('vault_bio_cred',''); updateBioToggleUI(); }
     doExport();
     toast('PIN changed ✓ — backup exported with new PIN');
@@ -3508,45 +3511,58 @@ function renderEntries(animate=false) {
     </div>`;
   }).join('');
 
-  list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{
-    if(ev.target.classList.contains('fav-star')) return;
-    if(selMode){ toggleEntrySelected(c.dataset.id); return; }
-    openDetail(c.dataset.id);
-  }));
-  list.querySelectorAll('.fav-star').forEach(s=>s.addEventListener('click',async ev=>{
-    ev.stopPropagation();
-    const entry=state.entries.find(e=>e.id===s.dataset.fav);
+  if(!selMode) addSwipeActions(list);
+}
+
+// One-time delegated click handling for the Home entries list — rebuilding
+// per-card listeners on every render (every search keystroke, filter change,
+// star toggle) was pure churn. The HTML is regenerated; this listener isn't.
+function _snapCardClosed(btn){
+  const card=btn.closest('.entry-card-wrap').querySelector('.entry-card');
+  card.style.marginRight=''; card.classList.remove('swiped-actions');
+  const actions=btn.closest('.swipe-actions');
+  if(actions) setTimeout(()=>actions.classList.remove('revealed'),280);
+}
+document.getElementById('entries-list').addEventListener('click', async ev=>{
+  const shareBtn = ev.target.closest('.swipe-share-btn');
+  if(shareBtn){
+    const entry=state.entries.find(e=>e.id===shareBtn.dataset.share);
     if(!entry) return;
-    entry.fav=!entry.fav;
-    await saveEntries(); renderEntries(); updateStats();
-  }));
-  list.querySelectorAll('.swipe-share-btn').forEach(btn=>btn.addEventListener('click',ev=>{
-    ev.stopPropagation();
-    const entry=state.entries.find(e=>e.id===btn.dataset.share);
-    if(!entry) return;
-    const card=btn.closest('.entry-card-wrap').querySelector('.entry-card');
-    card.style.marginRight=''; card.classList.remove('swiped-actions');
-    const actions=btn.closest('.swipe-actions'); setTimeout(()=>actions.classList.remove('revealed'),280);
+    _snapCardClosed(shareBtn);
     openShareModal(entry);
-  }));
-  list.querySelectorAll('.swipe-delete-btn').forEach(btn=>btn.addEventListener('click',async ev=>{
-    ev.stopPropagation();
-    const id=btn.dataset.del;
+    return;
+  }
+  const delBtn = ev.target.closest('.swipe-delete-btn');
+  if(delBtn){
+    const id=delBtn.dataset.del;
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
     if(state.unlockedViaBio){
       const ok = await requirePIN('Enter PIN to delete');
-      if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped-actions'); const actions=btn.closest('.swipe-actions'); setTimeout(()=>actions.classList.remove('revealed'),280); return; }
+      if(!ok){ _snapCardClosed(delBtn); return; }
     }
     const ok = await confirmDelete(entry.name);
-    if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped-actions'); const actions=btn.closest('.swipe-actions'); setTimeout(()=>actions.classList.remove('revealed'),280); return; }
+    if(!ok){ _snapCardClosed(delBtn); return; }
     state.entries=state.entries.filter(e=>e.id!==id);
     state.selectedIds.delete(id);
     await saveEntries(); updateStats(); renderEntries(); updateSelectBar();
     toast('Deleted');
-  }));
-  if(!selMode) addSwipeActions(list);
-}
+    return;
+  }
+  const star = ev.target.closest('.fav-star');
+  if(star){
+    const entry=state.entries.find(e=>e.id===star.dataset.fav);
+    if(!entry) return;
+    entry.fav=!entry.fav;
+    await saveEntries(); renderEntries(); updateStats();
+    return;
+  }
+  const card = ev.target.closest('.entry-card');
+  if(card){
+    if(state.selectMode){ toggleEntrySelected(card.dataset.id); return; }
+    openDetail(card.dataset.id);
+  }
+});
 
 function renderFavs() {
   const list=document.getElementById('fav-list');
@@ -3574,29 +3590,41 @@ function renderFavs() {
       <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
     </div>`;
   }).join('');
-  list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{ if(ev.target.classList.contains('fav-star')) return; openDetail(c.dataset.id); }));
-  list.querySelectorAll('.fav-star').forEach(s=>s.addEventListener('click',async ev=>{
-    ev.stopPropagation();
-    const entry=state.entries.find(e=>e.id===s.dataset.fav);
-    if(entry){ entry.fav=false; await saveEntries(); renderFavs(); updateStats(); }
-  }));
-  list.querySelectorAll('.swipe-delete-bg').forEach(btn=>btn.addEventListener('click',async ev=>{
-    ev.stopPropagation();
-    const id=btn.dataset.del;
+  addSwipeToDelete(list);
+}
+
+// One-time delegated click handling for the Starred list.
+function _snapFavCardClosed(btn){
+  const card=btn.closest('.entry-card-wrap').querySelector('.entry-card');
+  if(card){ card.style.marginRight=''; card.classList.remove('swiped'); }
+  setTimeout(()=>btn.classList.remove('revealed'),280);
+}
+document.getElementById('fav-list').addEventListener('click', async ev=>{
+  const delBtn = ev.target.closest('.swipe-delete-bg');
+  if(delBtn){
+    const id=delBtn.dataset.del;
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
     if(state.unlockedViaBio){
       const ok = await requirePIN('Enter PIN to delete');
-      if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
+      if(!ok){ _snapFavCardClosed(delBtn); return; }
     }
     const ok = await confirmDelete(entry.name);
-    if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
+    if(!ok){ _snapFavCardClosed(delBtn); return; }
     state.entries=state.entries.filter(e=>e.id!==id);
     await saveEntries(); updateStats(); renderFavs();
     toast('Deleted');
-  }));
-  addSwipeToDelete(list);
-}
+    return;
+  }
+  const star = ev.target.closest('.fav-star');
+  if(star){
+    const entry=state.entries.find(e=>e.id===star.dataset.fav);
+    if(entry){ entry.fav=false; await saveEntries(); renderFavs(); updateStats(); }
+    return;
+  }
+  const card = ev.target.closest('.entry-card');
+  if(card) openDetail(card.dataset.id);
+});
 
 function updateStats() {
   document.getElementById('stat-total').textContent=state.entries.length;
@@ -3893,50 +3921,6 @@ function renderLinkedDocs(entry, container) {
 function openLinkPicker(entry, container) {
   const overlay = document.getElementById('link-picker-overlay');
   const list = document.getElementById('link-picker-list');
-  const alreadyLinked = new Set(entry.linkedDocIds || []);
-  const available = (state.docs||[]).filter(d => !alreadyLinked.has(d.id));
-
-  function renderPickerList(query='') {
-    const filtered = query
-      ? available.filter(d=>d.name.toLowerCase().includes(query)||((d.category||'').includes(query)))
-      : available;
-
-    if(!filtered.length){
-      list.innerHTML = `<div class="link-picker-empty">${query?'No documents match your search':'All documents are already linked to this entry.'}</div>`;
-      return;
-    }
-    list.innerHTML = filtered.map(d => {
-      const ft = docFileTypeMeta(d);
-      const catMeta = docCatMeta(d.category);
-      let thumbHtml = `<div class="linked-doc-icon" style="background:${ft.bg};width:40px;height:40px;border-radius:12px;flex-shrink:0">${ft.icon}</div>`;
-      if(d.thumb) thumbHtml = `<div style="width:40px;height:40px;border-radius:12px;overflow:hidden;flex-shrink:0"><img src="${d.thumb}" style="width:100%;height:100%;object-fit:cover"/></div>`;
-      const catBadge = d.category&&d.category!=='none'
-        ? `<span style="font-size:10px;font-weight:700;color:${catMeta.color}">${catMeta.icon} ${catMeta.label}</span>` : '';
-      return `<div class="link-picker-doc-row" data-pickid="${d.id}">
-        ${thumbHtml}
-        <div style="flex:1;min-width:0">
-          <div class="linked-doc-name">${esc(d.name)}</div>
-          <div class="linked-doc-meta">${ft.label} · ${formatBytes(d.size)} ${catBadge}</div>
-        </div>
-      </div>`;
-    }).join('');
-
-    list.querySelectorAll('[data-pickid]').forEach(row => {
-      row.addEventListener('click', async () => {
-        const docId = row.dataset.pickid;
-        if(!entry.linkedDocIds) entry.linkedDocIds = [];
-        if(entry.linkedDocIds.length >= 10){ toast('Maximum 10 linked documents per entry'); return; }
-        if(!entry.linkedDocIds.includes(docId)) entry.linkedDocIds.push(docId);
-        const idx = state.entries.findIndex(e=>e.id===entry.id);
-        if(idx>=0) state.entries[idx].linkedDocIds = entry.linkedDocIds;
-        await saveEntries();
-        closeLinkPicker();
-        renderLinkedDocs(entry, container);
-        toast('Document linked ✓');
-      });
-    });
-  }
-
   // Build search bar + list
   list.innerHTML = `
     <div style="position:relative;margin-bottom:10px">
@@ -3949,7 +3933,6 @@ function openLinkPicker(entry, container) {
     <div id="link-picker-results"></div>`;
 
   // Re-render list area only, not the search bar
-  const origList = list;
   function reRender(q){
     const results = document.getElementById('link-picker-results');
     if(!results) return;
@@ -4276,16 +4259,19 @@ function openSummarySheet() {
       <button class="summary-item-remove" data-remove="${e.id}">✕</button>
     </div>`;
   }).join('');
-  list.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', () => {
-    state.selectedIds.delete(btn.dataset.remove);
-    renderEntries(); updateSelectBar();
-    if(state.selectedIds.size === 0) { closeSummarySheet(); toggleSelectMode(false); return; }
-    openSummarySheet();
-  }));
   document.getElementById('share-summary-overlay').classList.remove('hidden');
 }
+// Delegated: remove buttons are re-rendered on every change; this listener isn't.
+document.getElementById('summary-list').addEventListener('click', ev=>{
+  const btn = ev.target.closest('[data-remove]');
+  if(!btn) return;
+  state.selectedIds.delete(btn.dataset.remove);
+  renderEntries(); updateSelectBar();
+  if(state.selectedIds.size === 0) { closeSummarySheet(); toggleSelectMode(false); return; }
+  openSummarySheet();
+});
 function closeSummarySheet() {
-  document.getElementById('share-summary-overlay').classList.add('hidden');
+  animateSheetClose('share-summary-overlay');
 }
 document.getElementById('select-mode-btn').addEventListener('click', () => toggleSelectMode());
 document.getElementById('select-bar-cancel').addEventListener('click', () => toggleSelectMode(false));
@@ -4601,7 +4587,7 @@ function nodeInlineMarkdown(node) {
   return out;
 }
 
-function escNote(str){ return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+const escNote = esc; // same escaping — kept as a named alias for note-editor call sites
 
 function initRichNoteEditor(currentValue) {
   const editor = document.getElementById('f-note');
@@ -5032,11 +5018,14 @@ function openForm(editId=null) {
 const searchInput = document.getElementById('search-input');
 const searchClear = document.getElementById('search-clear');
 
+let _searchDebounce=null;
 searchInput.addEventListener('input', () => {
   searchClear.classList.toggle('visible', searchInput.value.length > 0);
-  renderEntries();
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(renderEntries, 120);
 });
 searchClear.addEventListener('click', () => {
+  clearTimeout(_searchDebounce);
   searchInput.value = '';
   searchInput.focus();
   searchClear.classList.remove('visible');
@@ -5274,7 +5263,6 @@ function checkExpiryAlerts() {
 // ═══════════════════════════════════════
 //  PASSWORD HEALTH
 // ═══════════════════════════════════════
-let healthPanelOpen = false;
 
 function passwordScore(pw) {
   if(!pw) return 0;
@@ -6147,22 +6135,6 @@ function fileToArrayBuffer(file){
   });
 }
 // Used only by zip export/import (JSZip works with base64 strings)
-function arrayBufferToBase64(ab){
-  const bytes=new Uint8Array(ab);
-  let binary='';
-  // Use chunks to avoid stack overflow on large arrays
-  const CHUNK=8192;
-  for(let i=0;i<bytes.length;i+=CHUNK){
-    binary+=String.fromCharCode(...bytes.subarray(i,i+CHUNK));
-  }
-  return btoa(binary);
-}
-function base64ToArrayBuffer(b64){
-  const binary=atob(b64);
-  const bytes=new Uint8Array(binary.length);
-  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-  return bytes.buffer;
-}
 // For the viewer — turn decrypted ArrayBuffer directly into a Blob URL
 function arrayBufferToObjectUrl(ab, mimeType){
   const blob=new Blob([ab],{type:mimeType||'application/octet-stream'});
@@ -6217,10 +6189,17 @@ async function openDocsTab(){
   renderDocs();
 }
 
+// In-memory manifest cache. state.docs is authoritative once loaded — every
+// write path updates it then calls saveDocsManifest(), so re-reading and
+// re-decrypting IndexedDB on every Docs tab tap was pure waste. Invalidated
+// on lock (parity with entries, which are re-decrypted on unlock).
+let _docsManifestLoaded=false;
 async function loadDocsManifest(){
-  if(!state.currentPIN){ state.docs=[]; return; }
+  if(!state.currentPIN){ state.docs=[]; _docsManifestLoaded=false; return; }
+  if(_docsManifestLoaded && Array.isArray(state.docs)) return;
   try{
     state.docs = await DocsDB.loadManifest(state.currentPIN);
+    _docsManifestLoaded=true;
     console.log('[Docs] Manifest loaded —', state.docs.length, 'docs');
   } catch(e){
     console.error('Failed to load docs manifest', e);
@@ -6271,10 +6250,6 @@ function renderDocsCatPills(){
   row.innerHTML=pills.map(c=>`
     <div class="pill${docsActiveFilter===c.id?' active':''}" data-doccat="${c.id}">${c.icon?c.icon+' ':''}${c.label}</div>
   `).join('');
-  row.querySelectorAll('[data-doccat]').forEach(p=>p.addEventListener('click',()=>{
-    docsActiveFilter=p.dataset.doccat;
-    renderDocs();
-  }));
 }
 
 function renderDocs(){
@@ -6319,30 +6294,40 @@ function renderDocs(){
     </div>`;
   }).join('');
 
-  list.querySelectorAll('.doc-card').forEach(c=>c.addEventListener('click',ev=>{
-    if(ev.target.classList.contains('fav-star')) return;
-    openDocDetail(c.dataset.id);
-  }));
-  list.querySelectorAll('[data-docfav]').forEach(s=>s.addEventListener('click',async ev=>{
-    ev.stopPropagation();
-    const doc=(state.docs||[]).find(d=>d.id===s.dataset.docfav);
-    if(!doc) return;
-    doc.fav=!doc.fav; doc.updated=Date.now();
-    await saveDocsManifest(); renderDocs();
-  }));
-  list.querySelectorAll('[data-docdel]').forEach(btn=>btn.addEventListener('click',async ev=>{
-    ev.stopPropagation();
-    const id=btn.dataset.docdel;
+  addSwipeToDelete(list);
+}
+
+// One-time delegated click handling for the Docs list + its category pills.
+document.getElementById('docs-cat-pills').addEventListener('click', ev=>{
+  const pill = ev.target.closest('[data-doccat]');
+  if(!pill) return;
+  docsActiveFilter = pill.dataset.doccat;
+  renderDocs();
+});
+document.getElementById('docs-list').addEventListener('click', async ev=>{
+  const delBtn = ev.target.closest('[data-docdel]');
+  if(delBtn){
+    const id=delBtn.dataset.docdel;
     const doc=(state.docs||[]).find(d=>d.id===id); if(!doc) return;
-    if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to delete'); if(!ok){ snapDocCard(btn,false); return; } }
-    const ok=await confirmDelete(doc.name); if(!ok){ snapDocCard(btn,false); return; }
+    if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to delete'); if(!ok){ snapDocCard(delBtn,false); return; } }
+    const ok=await confirmDelete(doc.name); if(!ok){ snapDocCard(delBtn,false); return; }
     state.docs=(state.docs||[]).filter(d=>d.id!==id);
     await saveDocsManifest(); await DocsDB.deleteFile(id);
     await cleanStaleLinkFor(id);
     toast('Deleted'); renderDocs();
-  }));
-  addSwipeToDelete(list);
-}
+    return;
+  }
+  const star = ev.target.closest('[data-docfav]');
+  if(star){
+    const doc=(state.docs||[]).find(d=>d.id===star.dataset.docfav);
+    if(!doc) return;
+    doc.fav=!doc.fav; doc.updated=Date.now();
+    await saveDocsManifest(); renderDocs();
+    return;
+  }
+  const card = ev.target.closest('.doc-card');
+  if(card) openDocDetail(card.dataset.id);
+});
 
 function snapDocCard(delBtn, open){
   const card=delBtn.closest('.entry-card-wrap')?.querySelector('.doc-card');
@@ -6364,12 +6349,15 @@ document.getElementById('doc-file-input').addEventListener('change', async (e)=>
 });
 
 // Docs search
+let _docsSearchDebounce=null;
 document.getElementById('docs-search-input').addEventListener('input', e=>{
   docsSearchQuery=e.target.value.toLowerCase().trim();
   document.getElementById('docs-search-clear').classList.toggle('visible', docsSearchQuery.length>0);
-  renderDocs();
+  clearTimeout(_docsSearchDebounce);
+  _docsSearchDebounce = setTimeout(renderDocs, 120);
 });
 document.getElementById('docs-search-clear').addEventListener('click', ()=>{
+  clearTimeout(_docsSearchDebounce);
   docsSearchQuery='';
   document.getElementById('docs-search-input').value='';
   document.getElementById('docs-search-clear').classList.remove('visible');
@@ -7145,7 +7133,7 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
   if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
   if(!_shareTargetEntries.length) return;
   const payload = { entries: _shareTargetEntries, expiresAt: Date.now() + _shareSelectedTTL };
-  const encrypted = await Crypto.encrypt(payload, pin);
+  const encrypted = await Crypto.encrypt(payload, pin, {ephemeralSalt:true});
   const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   const link = `${location.origin}${location.pathname}#share/${urlSafe}`;
   const shortLink = link.length > 44 ? link.slice(0, 28) + '…' + link.slice(-12) : link;

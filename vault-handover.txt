@@ -510,3 +510,124 @@ Tier 2 crop (corner correction / perspective unwarp) → say "Let's build
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R15 SUMMARY — Performance Pass + Dead Code Cleanup (v6.8)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SCOPE
+- Full-app audit: performance, tab navigation, scrolling, bottom sheets,
+  dead code. All findings implemented this session (full scope approved).
+
+PERFORMANCE — THE BIG THREE
+1. CRYPTO KEY CACHING (largest win)
+   - Old behaviour: every Crypto.encrypt/encryptRaw generated a fresh
+     random salt → fresh 100k-iteration PBKDF2 derivation (~100-300ms on
+     a phone) for EVERY save, star toggle, doc open, manifest load, and
+     sync decrypt.
+   - New: Crypto.getKey(pin,salt) memoizes derived keys (Map keyed
+     pin|saltHex, caches the promise so concurrent callers share one
+     derivation; failed derivations evicted for retry). encrypt/encryptRaw
+     now reuse ONE stable per-vault salt (localStorage 'vault_salt',
+     created lazily) so their key is a cache hit too.
+   - SECURITY REASONING (important context for future sessions): AES-GCM
+     security rests on the unique random 96-bit IV per message, which is
+     UNCHANGED. PBKDF2 salt only needs to be unique per PIN. Stored blob
+     format is byte-identical (salt‖iv‖ct base64 / {salt,iv,ct} raw) —
+     all pre-v6.8 blobs decrypt unchanged, no migration.
+   - Share links pass {ephemeralSalt:true} → still one-off random salt,
+     fully self-contained, never embed the vault salt.
+   - Cache lifecycle: SURVIVES lock (deliberate — matches the existing
+     policy of keeping state.currentPIN in RAM for biometric re-unlock).
+     Cleared + vault_salt rotated on PIN change (twice: before saveEntries
+     and again after reencryptAll, so old-PIN keys never linger).
+   - Verified by standalone node test: roundtrip, legacy-blob decrypt,
+     share-salt separation, raw path, timing (45ms cold → ~0.4ms cached
+     on desktop; phone delta is much larger).
+2. GLOBAL NON-PASSIVE TOUCHMOVE REMOVED
+   - The crop feature had document.addEventListener('touchmove',
+     cropPointerMove, {passive:false}) attached PERMANENTLY — forcing the
+     browser to wait on JS before every scroll frame app-wide. Now
+     attachCropDragListeners()/detachCropDragListeners() scope all four
+     document-level drag listeners to crop-overlay open/close via new
+     closeCropOverlay() (wired at all 5 open/close sites incl. camera ✕).
+3. jsPDF <head> SCRIPT NOW `async`
+   - Was render-blocking: on a slow/blocked cdnjs, the whole app's first
+     paint waited on the CDN. Likely a real cause of slow cold starts on
+     Krishna's network. Runtime loader (R10-R12) already handles
+     late/failed loads, so async is safe.
+
+PERFORMANCE — SECONDARY
+- List event delegation: entries-list, fav-list, docs-list, docs-cat-pills,
+  summary-list each now have ONE delegated click listener attached at
+  startup; renderEntries/renderFavs/renderDocs/renderDocsCatPills/
+  openSummarySheet no longer re-attach per-card listeners on every render.
+  Swipe gesture attachment (addSwipeActions/addSwipeToDelete) deliberately
+  left untouched — battle-tested touch code, not worth the refactor risk.
+  Helper names: _snapCardClosed (home), _snapFavCardClosed (starred).
+- Search debounce: 120ms on both home and docs search (clear-✕ visibility
+  stays instant). Clear buttons cancel any pending debounce.
+- Docs manifest memory cache: _docsManifestLoaded flag — Docs tab no
+  longer re-reads + re-decrypts IndexedDB on every tab tap. state.docs is
+  authoritative once loaded (all writers update it then save). Invalidated
+  in lockVault() (parity with entries). DocsDB.reencryptAll still reads
+  fresh directly (needs old-PIN read).
+- Bottom nav: tapping the already-active tab is now a no-op (guard checks
+  the target screen isn't hidden). Side effect: tapping Docs while ON docs
+  no longer resets its search/filter — intended.
+- overscroll-behavior:contain added to entries-list, docs-list,
+  detail-fields, form-body, docview-body, link-picker-list, summary-list.
+
+UX / ANIMATIONS (#8)
+- Screens: dead transition CSS (killed by .hidden{display:none!important})
+  replaced with a working .18s opacity fade via @keyframes screenIn —
+  animations (unlike transitions) DO fire when display flips none→flex.
+  Opacity-only on purpose: transform would create a containing block and
+  risk position:fixed quirks.
+- Bottom sheets (doc-add + share-summary): slide-up + fade on open (pure
+  CSS), animated close via animateSheetClose(overlayId) — adds .closing,
+  hides after 200ms. Guards against double-close. Link-picker and
+  share-sheet already had their own class-based animations — untouched.
+
+DEAD CODE REMOVED
+- JS: arrayBufferToBase64 + base64ToArrayBuffer (unused since raw-binary
+  IndexedDB storage), the entire renderPickerList inner function in
+  openLinkPicker (superseded by reRender) + its orphaned locals,
+  write-only healthPanelOpen variable, unused origList.
+- escNote consolidated to `const escNote = esc` (was byte-identical).
+  escHtml KEPT — it additionally escapes quotes (attribute contexts).
+- CSS: .health-banner*, .health-card/.health-icon/.health-info/.health-
+  title/.health-sub/.health-chevron, .health-panel*, .health-section*
+  (old pre-overlay health UI — live overlay only uses .health-entry-row/
+  name/detail, which are kept), #update-banner .banner-* rules + the
+  duplicate @keyframes bannerSlide, .type-picker-grid, .type-pick-*,
+  .share-view-pin-row, .linked-docs-label.
+
+VERIFICATION DONE
+- node --check on extracted script (awk + async-wrap pattern): clean.
+- Standalone node crypto test (see above): all green.
+- HTML tag-balance parse: balanced (self-closing meta/link flags are
+  pre-existing style, harmless).
+- Grep sweeps: zero leftover references to removed symbols/classes.
+
+WORTH KNOWING / NOT DONE
+- Home cat-pills click handler still toggles ALL .pill elements
+  document-wide (pre-existing quirk, also matches docs pills; self-heals
+  because renderDocsCatPills re-renders on docs open). Left as-is.
+- Swipe listeners still attach per-card each render (see above —
+  deliberate).
+- No live device this session: worth a feel-check of sheet slide-up,
+  screen fade, and confirming scroll feels smoother (crop listener fix).
+- sw.js STILL not in project files. Deploy note below.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+Deploy v6.8: index.html + vault-info.json (+ sw.js if its cache version
+  needs bumping — it was not available to inspect this session).
+If PDF scans still fail unreliably due to CDN loading: bundling jsPDF
+  source inline remains the definitive fix (blocked on getting the
+  library source text into a session).
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+Bug  → say "Bug: [describe]" for anything found in normal use.

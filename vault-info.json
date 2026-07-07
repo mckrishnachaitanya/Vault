@@ -1,12 +1,12 @@
 {
-  "version": "6.7",
-  "released": "2026-07-05",
+  "version": "6.8",
+  "released": "2026-07-07",
   "whatsNew": [
-    "✂️ Crop — select any page in the scan strip and trim it with a draggable rectangle before saving",
-    "🐛 Fixed: second (and later) scan in the same session could show a stuck, unresponsive Save button reused from the previous scan",
-    "🐛 Fixed: scan Save could feel stuck for a long time if the PDF library's CDN was slow/unreachable — now tries a second CDN mirror and fails fast",
-    "🖼️📄 Save Format Choice — single-page scans let you pick JPEG or PDF before saving",
-    "📑 Multi-Page Scan — capture several pages in one session and save them as a single PDF"
+    "⚡ Performance pass — the app now derives its encryption key once and reuses it, so saving entries, starring, opening documents, and syncing are dramatically faster",
+    "📜 Smoother scrolling everywhere — removed a hidden listener that was slowing down every scroll in the app",
+    "🚀 Faster startup — the PDF library no longer blocks the app from rendering while it loads from the network",
+    "✨ Polish — bottom sheets now slide up/down and tab switches fade instead of snapping",
+    "🧹 Cleanup — removed dead code and duplicate logic throughout; searches are smoother on large lists"
   ],
   "features": [
     {
