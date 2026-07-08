@@ -805,8 +805,9 @@ R17 SUMMARY — Inline PDF viewer, Drive badge, zip-import fix (v7.0)
   ids → entry→doc links to imported docs break (documented R7 quirk).
 
 STATUS / NEXT
-- Drive restore still UNTESTED by Krishna (v6.9 backup+auto-backup paths
-  confirmed working on device). Test on second device / cleared site data.
+- Drive restore CONFIRMED working on device (Krishna, post-v7.1). Full
+  Drive cycle now validated end-to-end: connect, change-triggered auto-
+  backup (entries + docs independently), manual Back Up Now, and restore.
 - PDF viewer untested on device: check chip accuracy on mixed-size PDFs,
   fullscreen enter/exit, lock-while-fullscreen, CDN-blocked fallback.
 - Deploy v7.0: index.html + vault-info.json.
