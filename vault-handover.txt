@@ -746,3 +746,67 @@ Deploy v6.9: index.html + vault-info.json.
 Drive backup bug → say "Bug: [describe]" with a Debug Log screenshot.
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R17 SUMMARY — Inline PDF viewer, Drive badge, zip-import fix (v7.0)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1) INLINE PDF VIEWER (PdfViewer module, before DriveBackup in source)
+- Why: Android Chrome has no inline PDF renderer (<embed>/<iframe> blank or
+  hijack) — the old open-in-new-tab button was the workaround. PDF.js draws
+  pages onto canvases → works everywhere. Decrypted bytes: memory → canvas,
+  never leave device.
+- PDF.js 3.11.174 (LAST UMD build — 4.x is ESM-only) lazy <script>-injected
+  on first PDF open; cdnjs primary, jsdelivr fallback (jsPDF pattern).
+  Worker via GlobalWorkerOptions.workerSrc from same CDN. THIRD CDN dep —
+  too big (~1MB) to ever bundle into index.html (unlike parked jsPDF plan).
+- v1 scope (as agreed): fit-to-width, vertical scroll, "n / N" chip
+  (multi-page only), fullscreen toggle, ↗ new-tab secondary FAB. NO pinch-
+  zoom/text-select/search — pinch-zoom is first v2 candidate if small print
+  is a real problem.
+- Lazy rendering: IntersectionObserver root=scroll el, rootMargin 150% —
+  renders near pages, releasePage() drops far canvases (placeholder keeps
+  estPageH height, corrected to true height on render). DPR capped at 2.
+  pdf.js is handed a COPY (data:new Uint8Array(ab.slice(0))) because
+  getDocument may transfer/detach the buffer — currentDocArrayBuffer must
+  stay valid for Download/Share.
+- FULLSCREEN = DOM MOVE: node appended to <body> + .fullscreen (fixed inset
+  0, z-index 940), returned to saved anchor on close, layout() rerun both
+  ways. Plain position:fixed was rejected — screen-transition transforms
+  would trap it. z-map: toast 999 & share-view 9000 above; help 900 below.
+- destroy() call sites (all matter):
+  a) lockVault TOP, unconditional, before screen branches (R9 overlay
+     lesson) — fullscreen node on <body> would otherwise overlay the PIN
+     screen with decrypted content; also frees parsed PDF from RAM on lock.
+  b) docview-back handler.
+  c) openDocView start (before loading next doc).
+- Resize/orientation → debounced (250ms) layout() re-fit.
+- ANY open() failure (CDN down, corrupt, password-protected → pdf.js throws)
+  → caller in openDocView pdf-branch falls back to the ORIGINAL Open PDF
+  button markup (kept verbatim inside the catch).
+- Layout unchanged otherwise: viewer occupies the 60vh preview card slot;
+  category/expiry/meta/Download/Share untouched below it.
+
+2) DRIVE HOME BADGE (gap from R16 — status was Settings-only)
+- #home-drive-icon 🗄️ next to #home-cloud-icon, same .cloud-status-badge
+  styling. States: hidden (disconnected) / .drive-pulsing keyframe while
+  DriveBackup.syncing / .failed amber when vault_drive_last_error / quiet
+  idle. Driven from renderDriveUI() tail (already called on every backup
+  state change + init + settings nav). No tap action (matches cloud badge).
+
+3) ZIP-IMPORT FIELD DROP FIX (found by Krishna testing R16)
+- Import rebuilt manifest records from a HARDCODED field list → expiryDate
+  silently lost on zip round-trip (export was fine — manifest.json carries
+  all fields minus thumb). Now spreads source record ({id,thumb} excluded,
+  new id + fresh thumb + updated:now) — future manifest fields survive
+  automatically. Drive backup path never had this bug (manifest blob
+  verbatim).
+- Known-and-accepted (pre-existing, NOT fixed): zip import assigns NEW doc
+  ids → entry→doc links to imported docs break (documented R7 quirk).
+
+STATUS / NEXT
+- Drive restore still UNTESTED by Krishna (v6.9 backup+auto-backup paths
+  confirmed working on device). Test on second device / cleared site data.
+- PDF viewer untested on device: check chip accuracy on mixed-size PDFs,
+  fullscreen enter/exit, lock-while-fullscreen, CDN-blocked fallback.
+- Deploy v7.0: index.html + vault-info.json.

@@ -1,12 +1,11 @@
 {
-  "version": "6.9",
+  "version": "7.0",
   "released": "2026-07-08",
   "whatsNew": [
-    "🗄️ Google Drive Backup — connect your Drive in Settings and Vault automatically backs up encrypted entries and documents whenever they change",
-    "⬆️ Back Up Now — one tap uploads everything to Drive on demand, with a size estimate before it starts",
-    "⬇️ Restore from Drive — set up a new phone or recover after a data wipe by restoring your latest backup",
-    "🔒 Private by design — only encrypted data ever reaches Drive; backups live in hidden app storage and can only be opened with your PIN",
-    "🛟 Keeps your last 3 backup versions each of entries and documents, so a bad upload can never destroy a good backup"
+    "📕 Inline PDF viewer — PDFs now open right inside Vault: scroll through pages, see where you are with the page counter, and tap ⛶ for fullscreen reading",
+    "↗ Open in new tab is still there as a small button on the viewer — handy for printing or sending to another app",
+    "🗄️ Drive backup status on the home screen — the new badge pulses while a backup uploads and turns amber if one fails",
+    "🛠️ Fixed: importing a documents zip no longer loses expiry dates"
   ],
   "features": [
     {

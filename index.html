@@ -397,7 +397,21 @@ body::after{
 .cloud-status-badge.syncing{animation:cloudSpin 1.4s linear infinite;}
 .cloud-status-badge.failed{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);}
 .cloud-status-badge.offline{background:rgba(144,150,184,.14);}
+.cloud-status-badge.drive-pulsing{animation:drivePulse 1.1s ease-in-out infinite;}
+@keyframes drivePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.88)}}
 @keyframes cloudSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* Inline PDF viewer (v7.0) */
+.pdf-viewer{position:relative;width:100%;height:60vh;background:var(--bg);border-radius:inherit;}
+.pdf-viewer.fullscreen{position:fixed;inset:0;z-index:940;height:100%;border-radius:0;}
+.pdf-scroll{height:100%;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px 8px;}
+.pdf-page{position:relative;margin:0 auto 10px;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 1px 5px rgba(15,17,30,.22);}
+.pdf-page canvas{display:block;width:100%;height:100%;}
+.pdf-page .pdf-page-num{position:absolute;top:6px;left:8px;font-size:10px;color:#aab;font-weight:600;}
+.pdf-chip{position:absolute;top:10px;right:10px;background:rgba(20,22,34,.72);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;pointer-events:none;z-index:2;backdrop-filter:blur(4px);}
+.pdf-fab{position:absolute;width:38px;height:38px;border-radius:12px;border:none;background:rgba(20,22,34,.72);color:#fff;font-size:16px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);font-family:var(--font);}
+.pdf-fab.pdf-expand{bottom:10px;right:10px;}
+.pdf-fab.pdf-newtab{bottom:10px;left:10px;font-size:14px;}
 
 .stats-row{display:flex;gap:10px;padding:16px 20px;}
 .stat-card{
@@ -1486,7 +1500,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="home-header-row">
       <div>
         <div class="home-greeting">Welcome back 👋</div>
-        <div class="home-title">My Vault <span id="home-cloud-icon" class="cloud-status-badge" style="display:none"></span></div>
+        <div class="home-title">My Vault <span id="home-cloud-icon" class="cloud-status-badge" style="display:none"></span><span id="home-drive-icon" class="cloud-status-badge" style="display:none"></span></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="lock-top-btn" id="health-icon-btn" title="Password Health" style="display:none">🛡️</button>
@@ -1881,7 +1895,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v6.9</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v7.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -3116,6 +3130,11 @@ function resetAutoLock() {
 function lockVault() {
   state.bioPending = false;
   stopCameraStream(); // kill live camera if open
+  // Tear down any inline PDF viewer FIRST (R9 lesson: overlays before screen
+  // branches). In fullscreen mode its node lives on <body> at z-index 940 —
+  // left alive it would sit on top of the PIN screen with decrypted content.
+  // destroy() also frees the parsed PDF from memory on lock.
+  PdfViewer.destroy();
   // If Secure Share sheet is open, hide it immediately so it can never sit on
   // top of the PIN unlock screen — checked first since the underlying screen
   // (usually detail-screen) would otherwise match one of the branches below
@@ -6475,14 +6494,15 @@ async function openDocDetail(id){
 
   // Preview
   const preview=document.getElementById('docview-preview');
+  PdfViewer.destroy(); // tear down any viewer from a previously opened doc
   if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null; currentDocFile=null;
 
   const cat=docMimeCategory(doc.mimeType);
   if(cat==='pdf'){
-    // Load blob first, then offer to open in new tab.
-    // <embed> on Android Chrome hijacks the page; window.open() opens
-    // the system PDF viewer in a new tab so the user can come back
-    // to Vault via the tab switcher.
+    // Inline PDF.js viewer (R17) — Android Chrome can't render PDFs in
+    // <embed>/<iframe>, so pages are drawn onto canvases. Any failure
+    // (CDN unreachable, corrupt or password-protected PDF) falls back to
+    // the original open-in-new-tab button.
     preview.innerHTML=`<div class="doc-no-preview"><span>⏳</span>Loading PDF…</div>`;
     showScreen('docview-screen');
     try{
@@ -6491,7 +6511,11 @@ async function openDocDetail(id){
       currentDocArrayBuffer=ab;
       currentDocBlobUrl=arrayBufferToObjectUrl(ab,doc.mimeType);
       currentDocFile=new File([new Blob([ab],{type:doc.mimeType})],doc.name,{type:doc.mimeType||'application/octet-stream'});
-      preview.innerHTML=`
+      try{
+        await PdfViewer.open(preview, ab, currentDocBlobUrl);
+      } catch(pdfErr){
+        console.warn('[PDF] inline viewer failed — falling back to new-tab button', pdfErr);
+        preview.innerHTML=`
         <div class="doc-no-preview" style="gap:16px">
           <span>📕</span>
           <div style="font-size:15px;font-weight:700;color:var(--text)">${esc(doc.name)}</div>
@@ -6504,6 +6528,7 @@ async function openDocDetail(id){
           </button>
           <div style="font-size:12px;color:var(--muted)">Opens in new tab — use tab switcher to return</div>
         </div>`;
+      }
     } catch(e){
       console.error('PDF load failed',e);
       preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not decrypt PDF</div>`;
@@ -6559,6 +6584,7 @@ async function openDocDetail(id){
 }
 
 document.getElementById('docview-back').addEventListener('click',()=>{
+  PdfViewer.destroy();
   if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; } currentDocArrayBuffer=null; currentDocFile=null;
   const src = state.docViewSource;
   const entryId = state.docViewEntryId;
@@ -6889,11 +6915,15 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
       if((doc.mimeType||'').startsWith('image/')){
         try{ thumb = await arrayBufferToThumb(ab, doc.mimeType); } catch(e){}
       }
-      // Preserve ALL manifest fields including category and fav
+      // Preserve ALL manifest fields (category, fav, expiryDate, and any
+      // future additions) by spreading the source record — the previous
+      // hardcoded field list silently dropped expiryDate on import.
+      const {id:_oldId, thumb:_oldThumb, ...meta}=doc;
       state.docs.unshift({
-        id:newId, name:doc.name, mimeType:doc.mimeType, size:doc.size,
+        ...meta,
+        id:newId,
         created:doc.created||Date.now(), updated:Date.now(),
-        fav:!!doc.fav, category:doc.category||undefined, thumb,
+        fav:!!doc.fav, thumb,
       });
       imported++;
     }
@@ -7425,6 +7455,199 @@ document.getElementById('share-arrow-right').addEventListener('click', () => sha
 })();
 
 // ═══════════════════════════════════════
+//  R17 — INLINE PDF VIEWER (PDF.js)
+// ═══════════════════════════════════════
+// Android Chrome has no inline PDF renderer (<embed>/<iframe> are blank or
+// hijack the page), hence the old open-in-new-tab button. PDF.js renders
+// pages onto canvases so it works everywhere. Decrypted bytes go from memory
+// straight to canvas — nothing leaves the device.
+// - Lazy loaded from CDN (cdnjs → jsdelivr fallback) only when a PDF is
+//   opened. 3.11.174 = last UMD build, matching Vault's classic-script world.
+// - Fit-to-width, vertical scroll, "n / N" chip, lazy page rendering via
+//   IntersectionObserver (±1.5 viewports) with far-page canvas teardown so
+//   50-page PDFs don't eat phone RAM. DPR capped at 2 for canvas memory.
+// - Fullscreen: the viewer NODE IS MOVED to <body> (not just position:fixed —
+//   ancestor transforms from screen animations would trap it) and relaid out.
+// - destroy() is called from lockVault (unconditionally, before screen
+//   branches — R9 lesson) so a fullscreen PDF can never sit above the PIN
+//   screen, and from docview-back / next doc open.
+// - Any failure (CDN down, corrupt/password PDF) → caller falls back to the
+//   old Open PDF button.
+const PdfViewer={
+  lib:null, doc:null, node:null, scrollEl:null, chipEl:null, anchor:null,
+  numPages:0, cssWidth:0, scale:1, estPageH:0, blobUrl:null,
+  observer:null, renderedPages:new Map(), renderingPages:new Set(),
+
+  async loadLib(){
+    if(this.lib) return;
+    if(window.pdfjsLib){ this.lib=window.pdfjsLib; return; }
+    const builds=[
+      ['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'],
+      ['https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+       'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'],
+    ];
+    let lastErr=null;
+    for(const [libUrl, workerUrl] of builds){
+      try{
+        await new Promise((res,rej)=>{
+          const s=document.createElement('script');
+          s.src=libUrl; s.async=true;
+          s.onload=res; s.onerror=()=>rej(new Error('script load failed: '+libUrl));
+          document.head.appendChild(s);
+        });
+        if(!window.pdfjsLib) throw new Error('pdfjsLib missing after load');
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=workerUrl;
+        this.lib=window.pdfjsLib;
+        return;
+      } catch(e){ lastErr=e; console.warn('[PDF] CDN failed, trying next', e); }
+    }
+    throw lastErr||new Error('PDF.js unavailable');
+  },
+
+  // Renders into `container`. Throws on any failure — caller handles fallback.
+  async open(container, arrayBuffer, blobUrl){
+    this.destroy();
+    await this.loadLib();
+    // pdf.js may transfer the buffer it's given — hand it a private copy so
+    // currentDocArrayBuffer stays valid for Download/Share.
+    this.doc=await this.lib.getDocument({data:new Uint8Array(arrayBuffer.slice(0))}).promise;
+    this.numPages=this.doc.numPages;
+    this.blobUrl=blobUrl;
+
+    const node=document.createElement('div');
+    node.className='pdf-viewer';
+    node.innerHTML=`
+      <div class="pdf-scroll"></div>
+      ${this.numPages>1?'<div class="pdf-chip">1 / '+this.numPages+'</div>':''}
+      <button class="pdf-fab pdf-expand" title="Fullscreen">⛶</button>
+      <button class="pdf-fab pdf-newtab" title="Open in new tab">↗</button>
+    `;
+    container.innerHTML='';
+    container.appendChild(node);
+    this.node=node;
+    this.scrollEl=node.querySelector('.pdf-scroll');
+    this.chipEl=node.querySelector('.pdf-chip');
+    node.querySelector('.pdf-expand').addEventListener('click',()=>this.toggleFullscreen());
+    node.querySelector('.pdf-newtab').addEventListener('click',()=>{ if(this.blobUrl) window.open(this.blobUrl,'_blank'); });
+    this.scrollEl.addEventListener('scroll',()=>this.onScroll(),{passive:true});
+    // Orientation flip / window resize while reading → re-fit to new width
+    this._resizeHandler=()=>{
+      clearTimeout(this._resizeTimer);
+      this._resizeTimer=setTimeout(()=>{ if(this.doc) this.layout().catch(()=>{}); }, 250);
+    };
+    window.addEventListener('resize', this._resizeHandler);
+
+    await this.layout();
+  },
+
+  // (Re)build page placeholders for the current container width and start
+  // observing. Called on open and again after fullscreen toggles.
+  async layout(){
+    this.teardownPages();
+    this.cssWidth=Math.max(100, this.scrollEl.clientWidth-16);
+    const page1=await this.doc.getPage(1);
+    const vp1=page1.getViewport({scale:1});
+    this.scale=this.cssWidth/vp1.width;
+    this.estPageH=Math.round(vp1.height*this.scale);
+    const frag=document.createDocumentFragment();
+    for(let i=1;i<=this.numPages;i++){
+      const d=document.createElement('div');
+      d.className='pdf-page';
+      d.dataset.page=i;
+      d.style.width=this.cssWidth+'px';
+      d.style.height=this.estPageH+'px';
+      d.innerHTML=`<span class="pdf-page-num">${i}</span>`;
+      frag.appendChild(d);
+    }
+    this.scrollEl.innerHTML='';
+    this.scrollEl.appendChild(frag);
+    this.observer=new IntersectionObserver((ents)=>{
+      for(const ent of ents){
+        const n=parseInt(ent.target.dataset.page);
+        if(ent.isIntersecting) this.renderPage(n, ent.target);
+        else this.releasePage(n, ent.target);
+      }
+    }, {root:this.scrollEl, rootMargin:'150% 0px'});
+    this.scrollEl.querySelectorAll('.pdf-page').forEach(el=>this.observer.observe(el));
+  },
+
+  async renderPage(n, el){
+    if(!this.doc || this.renderedPages.has(n) || this.renderingPages.has(n)) return;
+    this.renderingPages.add(n);
+    try{
+      const page=await this.doc.getPage(n);
+      const dpr=Math.min(window.devicePixelRatio||1, 2); // cap canvas memory
+      const vp=page.getViewport({scale:this.scale*dpr});
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.floor(vp.width);
+      canvas.height=Math.floor(vp.height);
+      await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
+      if(!this.doc || !el.isConnected){ return; } // destroyed mid-render
+      el.style.height=Math.round(vp.height/dpr)+'px'; // true per-page height
+      el.appendChild(canvas);
+      this.renderedPages.set(n, canvas);
+    } catch(e){
+      console.warn('[PDF] page render failed', n, e);
+    } finally {
+      this.renderingPages.delete(n);
+    }
+  },
+
+  releasePage(n, el){
+    const canvas=this.renderedPages.get(n);
+    if(!canvas) return;
+    canvas.remove();
+    this.renderedPages.delete(n);
+    if(el) el.style.height=this.estPageH+'px';
+  },
+
+  onScroll(){
+    if(!this.chipEl) return;
+    const cur=Math.min(this.numPages, Math.max(1, Math.round(this.scrollEl.scrollTop/(this.estPageH+10))+1));
+    this.chipEl.textContent=`${cur} / ${this.numPages}`;
+  },
+
+  toggleFullscreen(){
+    if(!this.node) return;
+    const btn=this.node.querySelector('.pdf-expand');
+    if(this.node.classList.contains('fullscreen')){
+      this.node.classList.remove('fullscreen');
+      if(this.anchor && this.anchor.isConnected) this.anchor.appendChild(this.node);
+      this.anchor=null;
+      btn.textContent='⛶'; btn.title='Fullscreen';
+    } else {
+      this.anchor=this.node.parentElement;
+      document.body.appendChild(this.node);
+      this.node.classList.add('fullscreen');
+      btn.textContent='✕'; btn.title='Close fullscreen';
+    }
+    // Width changed — rebuild placeholders and re-render visible pages
+    this.layout().catch(e=>console.warn('[PDF] relayout failed', e));
+  },
+
+  teardownPages(){
+    if(this.observer){ this.observer.disconnect(); this.observer=null; }
+    this.renderedPages.forEach(c=>c.remove());
+    this.renderedPages.clear();
+    this.renderingPages.clear();
+    if(this.scrollEl) this.scrollEl.innerHTML='';
+  },
+
+  // Full cleanup: frees the parsed (decrypted) document from memory. Called
+  // from lockVault, docview back, and before opening the next doc.
+  destroy(){
+    this.teardownPages();
+    if(this._resizeHandler){ window.removeEventListener('resize', this._resizeHandler); this._resizeHandler=null; }
+    clearTimeout(this._resizeTimer);
+    if(this.doc){ try{ this.doc.destroy(); }catch(e){} this.doc=null; }
+    if(this.node){ this.node.remove(); this.node=null; }
+    this.scrollEl=null; this.chipEl=null; this.anchor=null; this.blobUrl=null;
+    this.numPages=0;
+  },
+};
+
+// ═══════════════════════════════════════
 //  R16 — GOOGLE DRIVE BACKUP (appDataFolder)
 // ═══════════════════════════════════════
 // Model (agreed this session): CHANGE-TRIGGERED backup, not daily.
@@ -7784,6 +8007,18 @@ function renderDriveUI(){
     const last=parseInt(Store.get('vault_drive_last_backup')||'0');
     line.textContent = last ? `Last backup ${formatSyncTime(last)}` : 'Uploads entries and all documents';
     line.style.color='';
+  }
+  // Home-screen Drive badge: hidden when disconnected, pulsing while an
+  // upload is in flight, amber on failure, quiet 🗄️ when idle.
+  const badge=document.getElementById('home-drive-icon');
+  if(badge){
+    if(!connected){
+      badge.style.display='none'; badge.className='cloud-status-badge'; badge.textContent='';
+    } else {
+      badge.textContent='🗄️';
+      badge.className='cloud-status-badge' + (DriveBackup.syncing ? ' drive-pulsing' : (Store.get('vault_drive_last_error')==='1' ? ' failed' : ''));
+      badge.style.display='inline-flex';
+    }
   }
 }
 
