@@ -864,3 +864,21 @@ painting over positioned siblings regardless of z-index (known bug class).
 - Added second diagnostic '[PDF] post-render' 900ms after layout:
   elementFromPoint at FAB centre (hit/hitIsFab) + computed opacity/
   visibility/zIndex/bg — if translateZ fix fails, this names the occluder.
+
+R17.5 (v7.0.5) — ROOT CAUSE FOUND via post-render diag: elementFromPoint at
+FAB centre returned DIV.doc-cat-picker → viewer was CLIPPED, not unpainted.
+#docview-screen is flex-column; .docview-preview is a shrinkable flex item
+that compressed to min-height:200px while the 60vh viewer inside stayed
+455px; align-items:center + overflow:hidden clipped viewer top AND bottom —
+chip (top band) and FABs (bottom band) both in clipped regions; user saw
+only the middle slice (also why page-num "1" never showed but "2" did).
+v7.0.1 (compositing/glyph) fixes were treating the wrong disease; harmless,
+kept.
+- Fix: .docview-preview.pdf-mode{flex-shrink:0;align-items:stretch} — class
+  added in PdfViewer.open, removed in destroy() AND in openDocView's
+  fallback catch.
+- Diagnostics ('[PDF] layout' + '[PDF] post-render') KEPT — cheap, capped
+  log, invaluable. Remove only if noise complaints.
+- LESSON for handover permanence: when a fixed-size element lives in
+  Vault's flex-column screens, set flex-shrink:0 on its card or it will be
+  silently squeezed to min-height and overflow:hidden will eat the edges.

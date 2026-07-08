@@ -402,6 +402,10 @@ body::after{
 @keyframes cloudSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 /* Inline PDF viewer (v7.0) */
+/* The preview card is a flex item in a column — by default it SHRINKS to
+   min-height when space is tight, clipping the 60vh viewer top+bottom
+   (v7.0.4 bug: chip and FABs lived in the clipped bands). pdf-mode pins it. */
+.docview-preview.pdf-mode{flex-shrink:0;align-items:stretch;}
 .pdf-viewer{position:relative;width:100%;height:60vh;background:var(--bg);border-radius:inherit;}
 .pdf-viewer.fullscreen{position:fixed;inset:0;z-index:940;height:100%;border-radius:0;}
 .pdf-scroll{height:100%;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px 8px;}
@@ -6533,6 +6537,7 @@ async function openDocDetail(id){
         await PdfViewer.open(preview, ab, currentDocBlobUrl);
       } catch(pdfErr){
         console.warn('[PDF] inline viewer failed — falling back to new-tab button', pdfErr);
+        preview.classList.remove('pdf-mode');
         preview.innerHTML=`
         <div class="doc-no-preview" style="gap:16px">
           <span>📕</span>
@@ -7535,6 +7540,8 @@ const PdfViewer={
 
     const node=document.createElement('div');
     node.className='pdf-viewer';
+    this.container=container;
+    container.classList.add('pdf-mode'); // stop flex squeeze of the card
     node.innerHTML=`
       <div class="pdf-scroll"></div>
       ${this.numPages>1?'<div class="pdf-chip">1 / '+this.numPages+'</div>':''}
@@ -7698,6 +7705,7 @@ const PdfViewer={
   // from lockVault, docview back, and before opening the next doc.
   destroy(){
     this.teardownPages();
+    if(this.container){ this.container.classList.remove('pdf-mode'); this.container=null; }
     if(this._resizeHandler){ window.removeEventListener('resize', this._resizeHandler); this._resizeHandler=null; }
     clearTimeout(this._resizeTimer);
     if(this.doc){ try{ this.doc.destroy(); }catch(e){} this.doc=null; }
