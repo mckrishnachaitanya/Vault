@@ -631,3 +631,118 @@ If PDF scans still fail unreliably due to CDN loading: bundling jsPDF
 Docs-in-share → say "Implement document sharing" to resume the parked
   Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.
 Bug  → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R16 SUMMARY — Google Drive Backup (v6.9)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT / WHY
+- R6b cloud document storage finally shipped — as Google Drive appDataFolder
+  SNAPSHOT BACKUP + explicit restore, NOT live sync. Firestore entries sync
+  is UNTOUCHED and remains the live cross-device layer. Drive is the
+  disaster-recovery layer for entries + documents together.
+- Model ported from Paisa Trail's CloudBackup (Krishna shared its source
+  this session), adapted: change-triggered instead of daily (vault data is
+  mostly static, unlike daily-growing expenses — Krishna's call), encrypted
+  payloads instead of plaintext, resumable upload instead of multipart.
+
+ARCHITECTURE
+- OAuth: GIS implicit token flow (accounts.google.com/gsi/client, lazy
+  <script> load). Client ID const DRIVE_CLIENT_ID (created this session in
+  the VAULT Firebase/Cloud project — consent screen already In production,
+  drive.appdata is non-sensitive, no verification needed). Token in memory
+  only. Silent re-issue (prompt:'') attempted first; interactive consent
+  ONLY from user-gesture paths (connect / Back Up Now / Restore). Background
+  auto-backup is silent-token-only — on failure it persists error + dirty
+  state, never pops a login mid-session.
+- TWO independent Drive files per backup cycle: vault-entries-<stamp>.json
+  and vault-docs-<stamp>.json. Each uploads only when its side changes, so
+  editing a password never re-uploads MBs of documents.
+- Dirty flags: vault_drive_dirty_entries / _docs in localStorage, set by
+  saveEntries() and saveDocsManifest() (the single choke points for both
+  sides), 2.5s debounce → runBackup. Flags PERSIST across failures/offline/
+  lock — checkDriveOnUnlock() retries them. "Backup on change" degrades to
+  "backup at next opportunity", never silent loss.
+- Version pruning: keep newest DRIVE_KEEP_VERSIONS(=3) per kind. NOTE:
+  design-chat idea "manual supersedes latest auto" was deliberately DROPPED
+  during implementation — keeping the pre-manual snapshot is strictly safer
+  and the version cap bounds growth anyway (flagged in session summary).
+- Empty-snapshot guard on BOTH kinds (Paisa Trail lesson): an empty side is
+  skipped (flag cleared). Consequence: deleting the last doc does not empty
+  the Drive docs backup — old versions linger until other changes push them
+  out. Accepted trade for wipe-safety.
+- Payloads are CIPHERTEXT ONLY. entries file: {app,kind,schemaVersion:1,
+  exportedAt,count,data:<vault_data blob as-is>}. docs file: {…,manifest:
+  <encrypted manifest blob as-is>,files:[{id,salt,iv,ct} base64]}. Built as
+  Blob-part arrays (no giant contiguous string). bytesToBase64/base64ToBytes
+  are NEW chunked helpers (32KB slices — String.fromCharCode spread
+  overflows on MB arrays; verified 3MB round-trip in node).
+- Upload: RESUMABLE (uploadType=resumable, POST session → PUT blob) because
+  multipart caps ~5MB and docs backups exceed it.
+- RESTORE (replace, never merge): walks versions newest-first per kind,
+  validates decryptability with CURRENT PIN + non-emptiness, skips bad/
+  undecryptable versions. All undecryptable → PIN_MISMATCH toast (backup
+  needs the PIN active when it was made). Entries: state.entries → 
+  saveEntries() (stamps vault_local_updated=now so Firestore push carries
+  restored state UP, never pulled back over). _restoring flag suppresses
+  markDirty during restore. Docs: encrypted manifest blob written AS-IS to
+  meta store, file records replaced, local files not in backup deleted,
+  state.docs + _docsManifestLoaded refreshed in place.
+- PIN change: change-confirm branch marks BOTH kinds dirty after
+  reencryptAll (old-PIN backups become undecryptable; restore validation
+  walks past them until pruned out).
+- Connect-on-empty / unlock-on-empty (entries AND docs both empty) → offers
+  restore instead of backing up (never uploads empty over good). Unlock
+  path uses silent token only.
+
+UI (Settings → new "Google Drive Backup" section after Cloud Sync)
+- s-drive-connect (🗄️, arrow hidden when connected; desc = connect hint /
+  "Connected — backs up automatically when data changes")
+- s-drive-backup-now (⬆️): confirm sheet with doc count + ~size estimate
+  (entries blob length + Σdoc.size×1.37 b64 overhead) → full upload of both
+  kinds, clears both dirty flags. Doubles as the tap-to-retry after errors
+  (drive-backup-line shows "Last backup failed <when> — tap to retry" in
+  amber, else "Last backup <formatSyncTime>").
+- s-drive-restore (⬇️): step-up PIN if unlockedViaBio (mirrors cloud-delete
+  precedent), lists newest of each kind with timestamps in the confirm
+  sheet, "Restore & Replace".
+- s-drive-disconnect (⛔ red): confirm sheet; revokes token, clears local
+  Drive state. Backups REMAIN on Drive (deliberate).
+- All confirms reuse confirmDelete() sheet. renderDriveUI() called from
+  init(), settings nav tap, and every backup state change.
+
+INTEGRATION POINTS (grep anchors)
+- saveEntries → DriveBackup.markDirty('entries')
+- saveDocsManifest → DriveBackup.markDirty('docs')  [covers every doc
+  mutation — add/delete/rename/fav/crop/import all end here]
+- unlockSuccess setTimeout batches (BOTH) → checkDriveOnUnlock()
+- pinMode change-confirm → markDirty both kinds post-reencrypt
+- nav settings handler + init() → renderDriveUI()
+
+WORTH KNOWING / NOT DONE
+- First-connect shows Google's "unverified app" interstitial once
+  (Continue link) — cosmetic, drive.appdata needs no verification.
+- Backups only restorable with same-PIN. Fresh backups auto-pushed after
+  PIN change; a device restored much later with an OLD pin sees
+  PIN_MISMATCH — restore with old PIN first, then change PIN.
+- If entries upload succeeds but docs upload fails in one run, last_backup
+  is NOT stamped (error state shown) though the entries flag clears —
+  intentional, docs retry later.
+- No per-version restore picker (always newest valid) — add only if a real
+  need appears.
+- appDataFolder is deleted by Google if the user revokes the app's access
+  from their Google account — local IndexedDB stays primary, Drive is the
+  backup, so survivable.
+- NOT live-device tested this session: GIS silent token re-issue behaviour
+  (esp. cold start), resumable upload Location header CORS, restore on a
+  second device. First real-device pass should exercise: connect → auto
+  backup → edit entry (watch 2.5s debounce) → add doc → Back Up Now →
+  Restore.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + this file.
+Deploy v6.9: index.html + vault-info.json.
+Drive backup bug → say "Bug: [describe]" with a Debug Log screenshot.
+Docs-in-share → say "Implement document sharing" to resume the parked
+  Firestore-backed (B1: compress+cap, lazy cleanup) design from R7 chat.

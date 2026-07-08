@@ -1,12 +1,12 @@
 {
-  "version": "6.8",
-  "released": "2026-07-07",
+  "version": "6.9",
+  "released": "2026-07-08",
   "whatsNew": [
-    "⚡ Performance pass — the app now derives its encryption key once and reuses it, so saving entries, starring, opening documents, and syncing are dramatically faster",
-    "📜 Smoother scrolling everywhere — removed a hidden listener that was slowing down every scroll in the app",
-    "🚀 Faster startup — the PDF library no longer blocks the app from rendering while it loads from the network",
-    "✨ Polish — bottom sheets now slide up/down and tab switches fade instead of snapping",
-    "🧹 Cleanup — removed dead code and duplicate logic throughout; searches are smoother on large lists"
+    "🗄️ Google Drive Backup — connect your Drive in Settings and Vault automatically backs up encrypted entries and documents whenever they change",
+    "⬆️ Back Up Now — one tap uploads everything to Drive on demand, with a size estimate before it starts",
+    "⬇️ Restore from Drive — set up a new phone or recover after a data wipe by restoring your latest backup",
+    "🔒 Private by design — only encrypted data ever reaches Drive; backups live in hidden app storage and can only be opened with your PIN",
+    "🛟 Keeps your last 3 backup versions each of entries and documents, so a bad upload can never destroy a good backup"
   ],
   "features": [
     {
@@ -43,6 +43,11 @@
       "icon": "☁️",
       "title": "Cloud Sync",
       "desc": "Sign in with Google to back up your encrypted vault to Firestore. Your data is encrypted before it leaves your device — the cloud never sees plaintext."
+    },
+    {
+      "icon": "🗄️",
+      "title": "Google Drive Backup",
+      "desc": "Connect Google Drive to back up encrypted entries and documents automatically whenever they change. Restore everything on a new device with one tap. Drive only ever sees ciphertext."
     },
     {
       "icon": "📤",
