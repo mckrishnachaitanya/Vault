@@ -408,10 +408,11 @@ body::after{
 .pdf-page{position:relative;margin:0 auto 10px;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 1px 5px rgba(15,17,30,.22);}
 .pdf-page canvas{display:block;width:100%;height:100%;}
 .pdf-page .pdf-page-num{position:absolute;top:6px;left:8px;font-size:10px;color:#aab;font-weight:600;}
-.pdf-chip{position:absolute;top:10px;right:10px;background:rgba(20,22,34,.72);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;pointer-events:none;z-index:2;backdrop-filter:blur(4px);}
-.pdf-fab{position:absolute;width:38px;height:38px;border-radius:12px;border:none;background:rgba(20,22,34,.72);color:#fff;font-size:16px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);font-family:var(--font);}
-.pdf-fab.pdf-expand{bottom:10px;right:10px;}
-.pdf-fab.pdf-newtab{bottom:10px;left:10px;font-size:14px;}
+.pdf-chip{position:absolute;top:10px;right:10px;background:rgba(20,22,34,.85);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;pointer-events:none;z-index:5;}
+.pdf-fab{position:absolute;width:40px;height:40px;border-radius:12px;border:none;background:rgba(20,22,34,.85);color:#fff;cursor:pointer;z-index:5;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(15,17,30,.35);}
+.pdf-fab svg{display:block;}
+.pdf-fab.pdf-expand{bottom:12px;right:12px;}
+.pdf-fab.pdf-newtab{bottom:12px;left:12px;}
 
 .stats-row{display:flex;gap:10px;padding:16px 20px;}
 .stat-card{
@@ -1093,6 +1094,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 #docview-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
 .docview-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 20px calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;}
 .docview-preview{
+  position:relative;
   border-radius:var(--radius);overflow:hidden;
   background:var(--surface);border:1.5px solid var(--border);
   box-shadow:var(--shadow-sm);
@@ -1500,7 +1502,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="home-header-row">
       <div>
         <div class="home-greeting">Welcome back 👋</div>
-        <div class="home-title">My Vault <span id="home-cloud-icon" class="cloud-status-badge" style="display:none"></span><span id="home-drive-icon" class="cloud-status-badge" style="display:none"></span></div>
+        <div class="home-title">My Vault <span id="home-cloud-icon" class="cloud-status-badge" style="display:none"></span></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="lock-top-btn" id="health-icon-btn" title="Password Health" style="display:none">🛡️</button>
@@ -5844,7 +5846,6 @@ function updateCloudUI(){
   const deleteItem = document.getElementById('s-cloud-delete');
   const account = document.getElementById('cloud-account');
   const statusLine = document.getElementById('cloud-status-line');
-  const homeIcon = document.getElementById('home-cloud-icon');
 
   toggle.classList.toggle('on', state.cloudSyncOn);
   desc.textContent = state.cloudSyncOn ? 'Syncing across your devices' : 'Sign in with Google to sync across devices';
@@ -5867,17 +5868,34 @@ function updateCloudUI(){
     statusLine.textContent = lines[state.syncStatus] || lines.idle;
     statusLine.style.color = state.syncStatus==='failed' ? '#f59e0b' : 'var(--muted)';
 
-    if(homeIcon){
-      const icons = { syncing:'🔄', synced:'☁️', failed:'⚠️', offline:'📴', idle:'☁️' };
-      homeIcon.textContent = icons[state.syncStatus] || '☁️';
-      homeIcon.className = 'cloud-status-badge ' + (state.syncStatus||'idle');
-      homeIcon.style.display = 'inline-flex';
-    }
   } else {
     statusItem.classList.add('hidden');
     deleteItem.classList.add('hidden');
-    if(homeIcon){ homeIcon.style.display = 'none'; homeIcon.className = 'cloud-status-badge'; homeIcon.textContent=''; }
   }
+  updateHomeCloudBadge();
+}
+
+// One home badge reports overall cloud health — Firestore sync AND Drive
+// backup (Krishna's pick over a second badge: cleaner, and both failure
+// states already show precise text in Settings).
+// Priority: FS syncing spin > Drive upload pulse > either failed > offline > quiet.
+function updateHomeCloudBadge(){
+  const el=document.getElementById('home-cloud-icon');
+  if(!el) return;
+  const fsOn = state.cloudSyncOn && !!(state.cloudUser || Store.get('vault_cloud_uid'));
+  const driveOn = DriveBackup.isConnected();
+  if(!fsOn && !driveOn){
+    el.style.display='none'; el.className='cloud-status-badge'; el.textContent='';
+    return;
+  }
+  let icon='☁️', cls='';
+  if(fsOn && state.syncStatus==='syncing'){ icon='🔄'; cls='syncing'; }
+  else if(driveOn && DriveBackup.syncing){ icon='☁️'; cls='drive-pulsing'; }
+  else if((fsOn && state.syncStatus==='failed') || (driveOn && Store.get('vault_drive_last_error')==='1')){ icon='⚠️'; cls='failed'; }
+  else if(fsOn && state.syncStatus==='offline'){ icon='📴'; cls='offline'; }
+  el.textContent=icon;
+  el.className='cloud-status-badge'+(cls?' '+cls:'');
+  el.style.display='inline-flex';
 }
 
 document.getElementById('cloud-toggle').addEventListener('click', async ()=>{
@@ -7520,8 +7538,8 @@ const PdfViewer={
     node.innerHTML=`
       <div class="pdf-scroll"></div>
       ${this.numPages>1?'<div class="pdf-chip">1 / '+this.numPages+'</div>':''}
-      <button class="pdf-fab pdf-expand" title="Fullscreen">⛶</button>
-      <button class="pdf-fab pdf-newtab" title="Open in new tab">↗</button>
+      <button class="pdf-fab pdf-expand" title="Fullscreen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
+      <button class="pdf-fab pdf-newtab" title="Open in new tab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
     `;
     container.innerHTML='';
     container.appendChild(node);
@@ -7611,16 +7629,18 @@ const PdfViewer={
   toggleFullscreen(){
     if(!this.node) return;
     const btn=this.node.querySelector('.pdf-expand');
+    const svgExpand='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+    const svgClose='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     if(this.node.classList.contains('fullscreen')){
       this.node.classList.remove('fullscreen');
       if(this.anchor && this.anchor.isConnected) this.anchor.appendChild(this.node);
       this.anchor=null;
-      btn.textContent='⛶'; btn.title='Fullscreen';
+      btn.innerHTML=svgExpand; btn.title='Fullscreen';
     } else {
       this.anchor=this.node.parentElement;
       document.body.appendChild(this.node);
       this.node.classList.add('fullscreen');
-      btn.textContent='✕'; btn.title='Close fullscreen';
+      btn.innerHTML=svgClose; btn.title='Close fullscreen';
     }
     // Width changed — rebuild placeholders and re-render visible pages
     this.layout().catch(e=>console.warn('[PDF] relayout failed', e));
@@ -8008,18 +8028,8 @@ function renderDriveUI(){
     line.textContent = last ? `Last backup ${formatSyncTime(last)}` : 'Uploads entries and all documents';
     line.style.color='';
   }
-  // Home-screen Drive badge: hidden when disconnected, pulsing while an
-  // upload is in flight, amber on failure, quiet 🗄️ when idle.
-  const badge=document.getElementById('home-drive-icon');
-  if(badge){
-    if(!connected){
-      badge.style.display='none'; badge.className='cloud-status-badge'; badge.textContent='';
-    } else {
-      badge.textContent='🗄️';
-      badge.className='cloud-status-badge' + (DriveBackup.syncing ? ' drive-pulsing' : (Store.get('vault_drive_last_error')==='1' ? ' failed' : ''));
-      badge.style.display='inline-flex';
-    }
-  }
+  // Home badge is unified with Firestore's ☁️ — one glanceable signal.
+  updateHomeCloudBadge();
 }
 
 // Shared restore runner — used by the Settings button, the connect-on-empty
