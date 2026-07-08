@@ -851,3 +851,16 @@ switched to instrumented debugging.
   all; FAB rect offscreen-bottom → positioning-context loss; FAB rect sane
   but invisible → paint/compositing issue (then try transform:translateZ(0)
   or remove border-radius on card).
+
+R17.4 (v7.0.4) — Debug Log diag from device DECODED the FAB mystery:
+geometry perfect (viewer 381x455 = 60vh exactly, viewerPos relative, FAB
+display:flex pos:absolute bottom:12px rect [331,381,40,40] — on-screen,
+correct spot) yet unpainted → Android Chrome canvas GPU-layer promotion
+painting over positioned siblings regardless of z-index (known bug class).
+- Fix: .pdf-fab/.pdf-chip forced onto own composited layers —
+  transform:translateZ(0) + will-change:transform; z-index 5→10; defensive
+  opacity/visibility/pointer-events explicit.
+- Width-retry from 7.0.3 CONFIRMED working (cssW 365, estH 516, sane).
+- Added second diagnostic '[PDF] post-render' 900ms after layout:
+  elementFromPoint at FAB centre (hit/hitIsFab) + computed opacity/
+  visibility/zIndex/bg — if translateZ fix fails, this names the occluder.

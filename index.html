@@ -408,8 +408,8 @@ body::after{
 .pdf-page{position:relative;margin:0 auto 10px;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 1px 5px rgba(15,17,30,.22);}
 .pdf-page canvas{display:block;width:100%;height:100%;}
 .pdf-page .pdf-page-num{position:absolute;top:6px;left:8px;font-size:10px;color:#aab;font-weight:600;}
-.pdf-chip{position:absolute;top:10px;right:10px;background:rgba(20,22,34,.85);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;pointer-events:none;z-index:5;}
-.pdf-fab{position:absolute;width:40px;height:40px;border-radius:12px;border:none;background:rgba(20,22,34,.85);color:#fff;cursor:pointer;z-index:5;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(15,17,30,.35);}
+.pdf-chip{position:absolute;top:10px;right:10px;background:rgba(20,22,34,.85);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;pointer-events:none;z-index:10;transform:translateZ(0);will-change:transform;opacity:1;visibility:visible;}
+.pdf-fab{position:absolute;width:40px;height:40px;border-radius:12px;border:none;background:rgba(20,22,34,.85);color:#fff;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(15,17,30,.35);transform:translateZ(0);will-change:transform;opacity:1;visibility:visible;pointer-events:auto;}
 .pdf-fab svg{display:block;}
 .pdf-fab.pdf-expand{bottom:12px;right:12px;}
 .pdf-fab.pdf-newtab{bottom:12px;left:12px;}
@@ -7613,6 +7613,21 @@ const PdfViewer={
         winH:window.innerHeight
       }));
     }catch(e){ console.warn('[PDF] diag failed', e); }
+    // Second diagnostic AFTER canvases have painted: what's actually on top
+    // at the FAB's centre, plus paint-relevant computed props.
+    setTimeout(()=>{
+      try{
+        const fab=this.node && this.node.querySelector('.pdf-expand');
+        if(!fab) return;
+        const r=fab.getBoundingClientRect(), cs=getComputedStyle(fab);
+        const hit=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+        console.log('[PDF] post-render', JSON.stringify({
+          hit: hit ? (hit.tagName+'.'+(hit.className&&hit.className.baseVal!==undefined?hit.className.baseVal:hit.className||'')) : 'none',
+          hitIsFab: hit===fab || (hit && fab.contains(hit)),
+          opacity:cs.opacity, visibility:cs.visibility, z:cs.zIndex, bg:cs.backgroundColor
+        }));
+      }catch(e){ console.warn('[PDF] post-render diag failed', e); }
+    }, 900);
   },
 
   async renderPage(n, el){
