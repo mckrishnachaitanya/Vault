@@ -810,3 +810,44 @@ STATUS / NEXT
 - PDF viewer untested on device: check chip accuracy on mixed-size PDFs,
   fullscreen enter/exit, lock-while-fullscreen, CDN-blocked fallback.
 - Deploy v7.0: index.html + vault-info.json.
+
+R17.1 HOTFIX (v7.0.1) — PDF viewer FABs invisible on Krishna's Android
+- Markup+CSS verified present in shipped file; buttons existed in DOM but
+  didn't paint. Two Android Chrome traps removed: (1) backdrop-filter on
+  elements inside a border-radius + overflow:hidden clip chain — known
+  Chrome compositing bug class that can stop the element painting; now
+  solid rgba(20,22,34,.85), no filter. (2) ⛶/↗ text glyphs (poor Android
+  font coverage) → inline stroke SVGs matching Vault icon style; fullscreen
+  toggle swaps SVG innerHTML. Also belt-and-braces: .docview-preview now
+  position:relative (FABs anchor to card even if .pdf-viewer positioning is
+  ever lost), z-index 2→5.
+- RULE OF THUMB going forward: no backdrop-filter on small floating
+  controls inside rounded clipped containers; no exotic unicode glyphs for
+  UI icons — SVG only.
+
+R17.2 (v7.0.2) — Unified home cloud badge (Krishna rejected the second 🗄️
+badge; chose fold-into-☁️ over tiny-dot / remove-entirely).
+- #home-drive-icon span REMOVED. Single #home-cloud-icon driven by NEW
+  updateHomeCloudBadge() (defined after updateCloudUI), called from tail of
+  BOTH updateCloudUI and renderDriveUI. Visible if Firestore sync on OR
+  Drive connected. Priority: FS syncing 🔄 spin > Drive upload ☁️
+  .drive-pulsing > either failed ⚠️ amber > FS offline 📴 > quiet ☁️.
+- Known ambiguity (accepted at design time): amber doesn't say WHICH system
+  failed — Settings rows carry the precise state.
+
+R17.3 (v7.0.3) — PDF viewer still broken on device after 7.0.1 blind fixes;
+switched to instrumented debugging.
+- Device evidence (screenshot 2): page placeholders TINY (short full-width
+  page divs, unrendered) → signature of scrollEl.clientWidth reading ~0 at
+  layout() → 100px fallback. FABs + chip still absent; .pdf-page-num "2"
+  visible → .pdf-page CSS applies but .pdf-viewer-child absolutes missing.
+- Fixes: layout() re-measures width after rAF+60ms if <150px, fallback
+  chain scrollEl→node→parent→innerWidth-48; floor 120.
+- DIAGNOSTIC console.log('[PDF] layout', {...}) — captured by DebugLog
+  (console interception) — reports pages/cssW/scale/estH/pdf page1 pts/
+  viewer clientW+H/viewer computed position/FAB display+position+bottom+
+  boundingRect/winH. NEXT: Krishna opens a PDF, screenshots Debug Log.
+  Interpretation guide: viewer height≈0 → .pdf-viewer CSS not applying at
+  all; FAB rect offscreen-bottom → positioning-context loss; FAB rect sane
+  but invisible → paint/compositing issue (then try transform:translateZ(0)
+  or remove border-radius on card).

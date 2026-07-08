@@ -7563,7 +7563,18 @@ const PdfViewer={
   // observing. Called on open and again after fullscreen toggles.
   async layout(){
     this.teardownPages();
-    this.cssWidth=Math.max(100, this.scrollEl.clientWidth-16);
+    // clientWidth can read ~0 if measured mid screen-transition — the 100px
+    // fallback then produced tiny pages (seen on device, v7.0.2). Re-measure
+    // after a frame, then walk up the fallback chain.
+    let w=this.scrollEl.clientWidth;
+    if(w<150){
+      await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,60)));
+      w=this.scrollEl.clientWidth || this.node.clientWidth
+        || (this.node.parentElement ? this.node.parentElement.clientWidth : 0)
+        || (window.innerWidth-48);
+      console.log('[PDF] width re-measured after frame:', w);
+    }
+    this.cssWidth=Math.max(120, w-16);
     const page1=await this.doc.getPage(1);
     const vp1=page1.getViewport({scale:1});
     this.scale=this.cssWidth/vp1.width;
@@ -7588,6 +7599,20 @@ const PdfViewer={
       }
     }, {root:this.scrollEl, rootMargin:'150% 0px'});
     this.scrollEl.querySelectorAll('.pdf-page').forEach(el=>this.observer.observe(el));
+    // Diagnostic (lands in Settings → Debug Log): everything needed to see
+    // whether the viewer CSS is applying and where the FABs actually are.
+    try{
+      const fab=this.node.querySelector('.pdf-expand');
+      const cs=getComputedStyle(fab), r=fab.getBoundingClientRect(), vs=getComputedStyle(this.node);
+      console.log('[PDF] layout', JSON.stringify({
+        pages:this.numPages, cssW:this.cssWidth, scale:+this.scale.toFixed(3), estH:this.estPageH,
+        pdfPage1:[Math.round(vp1.width),Math.round(vp1.height)],
+        viewer:[this.node.clientWidth,this.node.clientHeight], viewerPos:vs.position,
+        fab:{display:cs.display, pos:cs.position, bottom:cs.bottom,
+             rect:[Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]},
+        winH:window.innerHeight
+      }));
+    }catch(e){ console.warn('[PDF] diag failed', e); }
   },
 
   async renderPage(n, el){
