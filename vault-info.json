@@ -1,7 +1,9 @@
 {
-  "version": "7.0.5",
+  "version": "7.1",
   "released": "2026-07-08",
   "whatsNew": [
+    "📕 PDF viewer now stays pinned in place while you scroll — category, expiry, and file details scroll underneath it",
+    "📐 Reduced the top spacing on every screen so headers sit closer to the status bar, adapting to your phone's notch/camera cutout",
     "☁️ One cloud badge on home now covers everything — it spins during sync, pulses during a Drive backup, and turns amber if either fails",
     "🛠️ Fixed: the fullscreen and open-in-new-tab buttons on the PDF viewer were invisible on some Android devices — now drawn with solid backgrounds and proper icons",
     "📕 Inline PDF viewer — PDFs now open right inside Vault: scroll through pages, see where you are with the page counter, and tap ⛶ for fullscreen reading",

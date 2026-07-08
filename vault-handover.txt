@@ -882,3 +882,19 @@ kept.
 - LESSON for handover permanence: when a fixed-size element lives in
   Vault's flex-column screens, set flex-shrink:0 on its card or it will be
   silently squeezed to min-height and overflow:hidden will eat the edges.
+
+R18 (v7.1) — Sticky PDF viewer + app-wide top-padding reduction
+- TOP PADDING (Krishna: mockup shown, chose "reduce", applied everywhere):
+  new --safe-top var: max(24px, env(safe-area-inset-top)+8px), replacing
+  hardcoded 52px in .topbar, .home-header, #debug-overlay. Adaptive per
+  device notch/cutout rather than one guessed flat number.
+- STICKY PDF VIEWER: .docview-preview.pdf-mode now position:sticky;top:0;
+  z-index:15 (below topbar's z-index:20, above scrolling content). Since
+  docview-body (overflow-y:auto) is the nearest scroll ancestor and preview
+  is its first flex child, category/expiry/meta/Download-Share now scroll
+  UP AND UNDER the pinned viewer instead of the whole screen moving as one.
+  Card's own --surface background (base rule, unchanged) keeps it opaque
+  as content passes behind — do NOT override to --bg here, tried and
+  reverted, wrong layer of the design system.
+- NOT touched: image/other preview modes — sticky behavior is pdf-mode
+  scoped only, per the request's framing (fields moving under "pdf").
