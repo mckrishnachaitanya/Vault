@@ -1,14 +1,13 @@
 {
-  "version": "7.1",
-  "released": "2026-07-08",
+  "version": "7.2",
+  "released": "2026-07-13",
   "whatsNew": [
-    "📕 PDF viewer now stays pinned in place while you scroll — category, expiry, and file details scroll underneath it",
-    "📐 Reduced the top spacing on every screen so headers sit closer to the status bar, adapting to your phone's notch/camera cutout",
-    "☁️ One cloud badge on home now covers everything — it spins during sync, pulses during a Drive backup, and turns amber if either fails",
-    "🛠️ Fixed: the fullscreen and open-in-new-tab buttons on the PDF viewer were invisible on some Android devices — now drawn with solid backgrounds and proper icons",
-    "📕 Inline PDF viewer — PDFs now open right inside Vault: scroll through pages, see where you are with the page counter, and tap ⛶ for fullscreen reading",
-    "↗ Open in new tab is still there as a small button on the viewer — handy for printing or sending to another app",
-    "🛠️ Fixed: importing a documents zip no longer loses expiry dates"
+    "🔗 NEW: Secure Document Sharing (part 1) — share encrypted documents via a link + PIN. Select docs from the Documents list (☑️) or tap 'Create Secure Link' on any document",
+    "☁️ Shared files are encrypted with the share PIN on your phone before upload — Google Drive and the cloud only ever see ciphertext",
+    "⬇️ Per-share 'Allow download' toggle — turn it off to make a share view-only for the recipient",
+    "⏱️ Document share links expire in 1, 6, or 24 hours (24h max), and every upload shows its size before you send",
+    "📁 Shared files live in a visible 'Vault Shares' folder in your Google Drive, separate from backups",
+    "ℹ️ Note: the recipient page (share.html) ships in the next update — links generated now will work once it's live"
   ],
   "features": [
     {

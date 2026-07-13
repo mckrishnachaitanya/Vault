@@ -1412,7 +1412,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .entry-checkbox.checked{background:var(--accent-g);border-color:transparent;}
 .entry-checkbox.checked::after{content:'✓';color:#fff;font-size:13px;font-weight:800;}
 .entry-card.select-mode .entry-avatar{margin-left:12px;}
-#select-mode-btn.active{background:var(--accent);color:#fff;}
+#select-mode-btn.active,#docs-select-btn.active{background:var(--accent);color:#fff;}
 
 .select-bar{
   position:absolute;left:12px;right:12px;bottom:86px;
@@ -1469,7 +1469,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v6.8</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.2</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1594,7 +1594,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 
 <!-- ══════════ DOCUMENTS SCREEN ══════════ -->
 <div class="screen hidden" id="docs-screen">
-  <div class="topbar"><h2>📄 Documents</h2><button class="lock-top-btn" id="lock-top-btn-docs" title="Lock Vault">🔒</button></div>
+  <div class="topbar"><h2>📄 Documents</h2><div style="display:flex;gap:8px"><button class="lock-top-btn" id="docs-select-btn" title="Select documents to share">☑️</button><button class="lock-top-btn" id="lock-top-btn-docs" title="Lock Vault">🔒</button></div></div>
   <div class="docs-search-wrap">
     <div class="docs-search-input-wrap">
       <span class="docs-search-icon">🔍</span>
@@ -1604,6 +1604,11 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
   <div class="docs-filter-row" id="docs-cat-pills"></div>
   <div class="docs-list" id="docs-list"></div>
+  <div class="select-bar" id="docs-select-bar">
+    <button class="select-bar-cancel" id="docs-select-cancel">✕</button>
+    <div class="select-bar-count" id="docs-select-count">0 selected</div>
+    <button class="select-bar-share" id="docs-select-share">🔗 Share</button>
+  </div>
   <input type="file" id="doc-file-input" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none"/>
   <input type="file" id="doc-camera-input" accept="image/*" capture="environment" style="display:none"/>
   <div class="bottom-nav">
@@ -1652,6 +1657,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <button class="btn-primary" id="docview-download-btn" style="flex:1;font-size:15px;padding:14px 10px">⬇️ Download</button>
       <button class="btn-primary" id="docview-share-btn" style="flex:1;font-size:15px;padding:14px 10px;background:linear-gradient(135deg,#10b981,#06b6d4)">↗️ Share</button>
     </div>
+    <button class="btn-primary" id="docview-securelink-btn" style="width:100%;margin-top:10px;font-size:15px;padding:14px 10px">🔗 Create Secure Link</button>
   </div>
 </div>
 
@@ -1902,7 +1908,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v7.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v7.2</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -2045,11 +2051,22 @@ select.field-input option{background:var(--bg2);color:var(--text);}
         <button class="num-btn empty"></button><button class="num-btn" data-sp="0">0</button>
         <button class="num-btn del" id="sp-del">⌫</button>
       </div>
+      <div id="share-doc-opts" style="display:none;margin-bottom:14px">
+        <div id="share-doc-size" style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.4"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg2);border-radius:var(--radius);padding:12px 14px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Allow download</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Off = view-only on the recipient's screen</div>
+          </div>
+          <div class="entry-checkbox checked" id="share-allow-dl" style="cursor:pointer;flex-shrink:0"></div>
+        </div>
+      </div>
       <div class="field-label" style="margin-bottom:8px">Link expires after</div>
       <div class="share-expiry-row" style="margin-bottom:14px">
         <button class="share-expiry-btn" data-ttl="3600000">1 hour</button>
+        <button class="share-expiry-btn" id="share-exp-6h" data-ttl="21600000" style="display:none">6 hours</button>
         <button class="share-expiry-btn selected" data-ttl="86400000">24 hours</button>
-        <button class="share-expiry-btn" data-ttl="604800000">7 days</button>
+        <button class="share-expiry-btn" id="share-exp-7d" data-ttl="604800000">7 days</button>
       </div>
       <button class="share-generate-btn" id="share-generate-btn" style="margin-bottom:0">Generate Link</button>
     </div>
@@ -2239,6 +2256,17 @@ const Crypto = {
   async decryptRaw(stored, pin) {
     const key=await this.getKey(pin,stored.salt);
     return crypto.subtle.decrypt({name:'AES-GCM',iv:stored.iv},key,stored.ct);
+  },
+  // Like encryptRaw but with a one-off random salt and a single Blob
+  // (salt‖iv‖ct) output — used for Secure Doc Share uploads, which are
+  // encrypted with the 4-digit SHARE PIN (never the vault PIN) and must be
+  // fully self-contained so share.html can decrypt them with PIN alone.
+  async encryptRawShare(arrayBuffer, pin){
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const key=await this.getKey(pin,salt);
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,arrayBuffer);
+    return new Blob([salt,iv,new Uint8Array(ct)],{type:'application/octet-stream'});
   },
 };
 
@@ -3146,7 +3174,7 @@ function lockVault() {
   // top of the PIN unlock screen — checked first since the underlying screen
   // (usually detail-screen) would otherwise match one of the branches below
   // and short-circuit before this ever runs.
-  const shareSheetOpen = document.getElementById('share-sheet-overlay').classList.contains('show') && _shareTargetEntries.length;
+  const shareSheetOpen = document.getElementById('share-sheet-overlay').classList.contains('show') && (_shareTargetEntries.length || _shareTargetDocs.length);
   if(shareSheetOpen) {
     document.getElementById('share-sheet-overlay').classList.remove('show');
   }
@@ -6304,6 +6332,8 @@ function docCatMeta(catId){ return DOC_CATEGORIES.find(c=>c.id===(catId||'none')
 
 let docsActiveFilter='all';
 let docsSearchQuery='';
+let docsSelectMode=false;
+const docsSelectedIds=new Set();
 
 // ═══════════════════════════════════════
 //  DOCS — LIST RENDERING
@@ -6355,16 +6385,48 @@ function renderDocs(){
           ${catBadge}
         </div>
         <div class="doc-actions">
-          <span class="fav-star" data-docfav="${d.id}">${d.fav?'⭐':'☆'}</span>
-          <span class="entry-arrow">›</span>
+          ${docsSelectMode
+            ? `<div class="entry-checkbox${docsSelectedIds.has(d.id)?' checked':''}" data-doccheck="${d.id}"></div>`
+            : `<span class="fav-star" data-docfav="${d.id}">${d.fav?'⭐':'☆'}</span>
+          <span class="entry-arrow">›</span>`}
         </div>
       </div>
-      <div class="swipe-delete-bg" data-docdel="${d.id}"><span>🗑️</span><small>DELETE</small></div>
+      ${docsSelectMode?'':`<div class="swipe-delete-bg" data-docdel="${d.id}"><span>🗑️</span><small>DELETE</small></div>`}
     </div>`;
   }).join('');
 
-  addSwipeToDelete(list);
+  if(!docsSelectMode) addSwipeToDelete(list);
 }
+
+// ── Docs multi-select (Secure Doc Share entry point) ──────────────────────
+function toggleDocsSelectMode(on){
+  docsSelectMode = (on!==undefined) ? on : !docsSelectMode;
+  if(!docsSelectMode) docsSelectedIds.clear();
+  document.getElementById('docs-select-btn').classList.toggle('active', docsSelectMode);
+  updateDocsSelectBar();
+  renderDocs();
+}
+function toggleDocSelected(id){
+  if(docsSelectedIds.has(id)) docsSelectedIds.delete(id);
+  else docsSelectedIds.add(id);
+  updateDocsSelectBar();
+  const box=document.querySelector(`[data-doccheck="${id}"]`);
+  if(box) box.classList.toggle('checked', docsSelectedIds.has(id));
+}
+function updateDocsSelectBar(){
+  const bar=document.getElementById('docs-select-bar');
+  const n=docsSelectedIds.size;
+  bar.classList.toggle('show', docsSelectMode && n>0);
+  document.getElementById('docs-select-count').textContent=`${n} selected`;
+}
+document.getElementById('docs-select-btn').addEventListener('click', ()=>toggleDocsSelectMode());
+document.getElementById('docs-select-cancel').addEventListener('click', ()=>toggleDocsSelectMode(false));
+document.getElementById('docs-select-share').addEventListener('click', async ()=>{
+  const docs=(state.docs||[]).filter(d=>docsSelectedIds.has(d.id));
+  if(!docs.length) return;
+  if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to share'); if(!ok) return; }
+  openDocShareModal(docs);
+});
 
 // One-time delegated click handling for the Docs list + its category pills.
 document.getElementById('docs-cat-pills').addEventListener('click', ev=>{
@@ -6374,6 +6436,11 @@ document.getElementById('docs-cat-pills').addEventListener('click', ev=>{
   renderDocs();
 });
 document.getElementById('docs-list').addEventListener('click', async ev=>{
+  if(docsSelectMode){
+    const card = ev.target.closest('.doc-card');
+    if(card) toggleDocSelected(card.dataset.id);
+    return;
+  }
   const delBtn = ev.target.closest('[data-docdel]');
   if(delBtn){
     const id=delBtn.dataset.docdel;
@@ -6781,6 +6848,12 @@ document.getElementById('docview-share-btn').addEventListener('click', async ()=
   }
 });
 
+document.getElementById('docview-securelink-btn').addEventListener('click', async ()=>{
+  if(!currentDocDetail){ toast('File not ready — try again in a moment'); return; }
+  if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to share'); if(!ok) return; }
+  openDocShareModal([currentDocDetail]);
+});
+
 // ═══════════════════════════════════════
 //  DOCS — EXPORT / IMPORT (JSZip, CDN lazy-load)
 // ═══════════════════════════════════════
@@ -7158,8 +7231,21 @@ document.getElementById('s-force-update').addEventListener('click', async () => 
 
 // ── Secure Share (sender side, full screen) ────────────────────────────────
 let _shareTargetEntries = [];
+let _shareTargetDocs = [];       // Secure Doc Share (Drive-backed) targets
+let _shareAllowDownload = true;  // per-share toggle; stored per-file in manifest
 let _shareSelectedTTL = 86400000;
 let _spPin = '';
+
+// One sheet, two modes: 'entries' (link-embedded payload, unchanged) and
+// 'docs' (Drive-backed doc share — size line, allow-download toggle, expiry
+// capped at 24h so the 7-day preset is swapped for a 6-hour one).
+function setShareSheetMode(mode){
+  const docMode = mode==='docs';
+  document.getElementById('share-doc-opts').style.display = docMode ? '' : 'none';
+  document.getElementById('share-exp-6h').style.display = docMode ? '' : 'none';
+  document.getElementById('share-exp-7d').style.display = docMode ? 'none' : '';
+  document.getElementById('share-generate-btn').textContent = docMode ? 'Encrypt & Upload' : 'Generate Link';
+}
 
 function spUpdateDots() {
   document.querySelectorAll('#sp-dots .pin-dot').forEach((dot, i) => {
@@ -7177,6 +7263,8 @@ function hideShareSheet() {
 // Accepts either a single entry or an array of entries (bulk share).
 function openShareModal(entryOrEntries) {
   _shareTargetEntries = Array.isArray(entryOrEntries) ? entryOrEntries : [entryOrEntries];
+  _shareTargetDocs = [];
+  setShareSheetMode('entries');
   _shareSelectedTTL = 86400000;
   _spPin = '';
   spUpdateDots();
@@ -7189,6 +7277,35 @@ function openShareModal(entryOrEntries) {
   });
   showShareSheet();
 }
+
+// Secure Doc Share — same sheet in 'docs' mode. Requires Cloud Sync (for the
+// Firestore share record) and Drive drive.file consent (first share only).
+function openDocShareModal(docsArr){
+  _shareTargetDocs = Array.isArray(docsArr) ? docsArr : [docsArr];
+  _shareTargetEntries = [];
+  _shareSelectedTTL = 86400000;
+  _spPin = '';
+  spUpdateDots();
+  _shareAllowDownload = true;
+  document.getElementById('share-allow-dl').classList.add('checked');
+  const n = _shareTargetDocs.length;
+  document.querySelector('.share-sheet-title').textContent = n > 1 ? `🔗 Share Documents (${n})` : '🔗 Share Document';
+  const total = _shareTargetDocs.reduce((s,d)=>s+(d.size||0), 0);
+  document.getElementById('share-doc-size').innerHTML =
+    `Upload size: <b>${formatBytes(total)}</b> — encrypted on your phone before upload.` +
+    (total > 8*1024*1024 ? ' <span style="color:#f59e0b">Large upload — Wi-Fi recommended.</span>' : '');
+  document.getElementById('share-step-setup').style.display = '';
+  document.getElementById('share-step-link').style.display = 'none';
+  document.querySelectorAll('.share-expiry-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.ttl === '86400000');
+  });
+  setShareSheetMode('docs');
+  showShareSheet();
+}
+document.getElementById('share-allow-dl').addEventListener('click', ()=>{
+  _shareAllowDownload = !_shareAllowDownload;
+  document.getElementById('share-allow-dl').classList.toggle('checked', _shareAllowDownload);
+});
 
 document.getElementById('share-sheet-overlay').addEventListener('click', e => {
   if(e.target === document.getElementById('share-sheet-overlay')) hideShareSheet();
@@ -7209,14 +7326,8 @@ document.querySelectorAll('.share-expiry-btn').forEach(btn => {
   });
 });
 
-document.getElementById('share-generate-btn').addEventListener('click', async () => {
-  const pin = _spPin;
-  if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
-  if(!_shareTargetEntries.length) return;
-  const payload = { entries: _shareTargetEntries, expiresAt: Date.now() + _shareSelectedTTL };
-  const encrypted = await Crypto.encrypt(payload, pin, {ephemeralSalt:true});
-  const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-  const link = `${location.origin}${location.pathname}#share/${urlSafe}`;
+// Shared "here's your link" step — used by both entry shares and doc shares.
+function presentShareLink(link){
   const shortLink = link.length > 44 ? link.slice(0, 28) + '…' + link.slice(-12) : link;
   document.getElementById('share-link-box').textContent = shortLink;
   document.getElementById('share-link-box').title = link;
@@ -7232,7 +7343,99 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
       navigator.clipboard.writeText(link).then(() => toast('Link copied ✓'));
     }
   };
+}
+
+document.getElementById('share-generate-btn').addEventListener('click', async () => {
+  const pin = _spPin;
+  if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
+  if(_shareTargetDocs.length) { await generateDocShare(pin); return; }
+  if(!_shareTargetEntries.length) return;
+  const payload = { entries: _shareTargetEntries, expiresAt: Date.now() + _shareSelectedTTL };
+  const encrypted = await Crypto.encrypt(payload, pin, {ephemeralSalt:true});
+  const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  presentShareLink(`${location.origin}${location.pathname}#share/${urlSafe}`);
 });
+
+// ── Secure Doc Share pipeline (sender side) ───────────────────────────────
+// Per doc: decrypt with vault PIN → re-encrypt with SHARE PIN (ephemeral
+// salt, self-contained blob) → upload ciphertext to Drive (drive.file) →
+// anyone-with-link. Then one encrypted manifest + tiny record in Firestore.
+// Drive and Firestore only ever see ciphertext; the share PIN travels
+// out-of-band exactly like entry shares.
+async function ensureCloudUser(timeoutMs=5000){
+  const ok = await CloudSync.loadSDK();
+  if(!ok) return null;
+  if(CloudSync.auth.currentUser) return CloudSync.auth.currentUser;
+  if(!Store.get('vault_cloud_uid')) return null;
+  // Auth session restore is async on cold start — wait briefly for it.
+  return new Promise(res=>{
+    const t=setTimeout(()=>{ unsub(); res(null); }, timeoutMs);
+    const unsub=CloudSync.authMod.onAuthStateChanged(CloudSync.auth, u=>{
+      if(u){ clearTimeout(t); unsub(); res(u); }
+    });
+  });
+}
+
+// Sender-side ledger of shares this device created — needed for expiry
+// cleanup and Manage Shares. Contains filenames, so stored encrypted with
+// the vault PIN like everything else in localStorage.
+async function loadLocalDocShares(){
+  const enc=Store.get('vault_doc_shares');
+  if(!enc) return [];
+  try{ return await Crypto.decrypt(enc, state.currentPIN); }
+  catch(e){ console.error('Doc-share ledger decrypt failed', e); return []; }
+}
+async function saveLocalDocShares(list){
+  Store.set('vault_doc_shares', await Crypto.encrypt(list, state.currentPIN));
+}
+
+async function generateDocShare(pin){
+  const btn=document.getElementById('share-generate-btn');
+  const setP=t=>{ btn.textContent=t; };
+  btn.disabled=true;
+  const uploaded=[];
+  try{
+    setP('Connecting…');
+    const user=await ensureCloudUser();
+    if(!user){ toast('Turn on Cloud Sync in Settings first'); return; }
+    const shareId=DriveShare.newShareId();
+    const total=_shareTargetDocs.length;
+    const files=[];
+    for(let i=0;i<total;i++){
+      const d=_shareTargetDocs[i];
+      setP(`Encrypting ${i+1}/${total}…`);
+      const ab=await DocsDB.loadFile(d.id, state.currentPIN);
+      if(!ab) throw new Error('Could not load '+d.name);
+      const encBlob=await Crypto.encryptRawShare(ab, pin);
+      setP(`Uploading ${i+1}/${total}…`);
+      const fid=await DriveShare.uploadShareFile(`vault-share-${shareId}-${i+1}.bin`, encBlob);
+      uploaded.push(fid);
+      await DriveShare.makePublic(fid);
+      files.push({ fid, name:d.name, mimeType:d.mimeType||'application/octet-stream', size:d.size||0, dl:_shareAllowDownload });
+    }
+    setP('Finalizing…');
+    const encManifest=await Crypto.encrypt({v:1, files}, pin, {ephemeralSalt:true});
+    const expiresAt=Date.now() + Math.min(_shareSelectedTTL, 86400000); // hard 24h cap
+    await CloudSync.fsMod.setDoc(
+      CloudSync.fsMod.doc(CloudSync.db, 'shares', shareId),
+      { m:encManifest, fids:uploaded, exp:expiresAt, revoked:false, uid:user.uid, created:Date.now() }
+    );
+    const ledger=await loadLocalDocShares();
+    ledger.push({ shareId, fids:uploaded, exp:expiresAt, names:files.map(f=>f.name), created:Date.now() });
+    await saveLocalDocShares(ledger);
+    const base=location.pathname.replace(/[^/]*$/,'');
+    presentShareLink(`${location.origin}${base}share.html#${shareId}`);
+    if(docsSelectMode) toggleDocsSelectMode(false);
+  } catch(e){
+    console.error('Doc share failed', e);
+    // Best-effort rollback — a half-published share must not linger on Drive.
+    for(const fid of uploaded){ DriveShare.deleteFile(fid).catch(()=>{}); }
+    toast('Share failed — nothing was published');
+  } finally{
+    btn.disabled=false;
+    btn.textContent=_shareTargetDocs.length ? 'Encrypt & Upload' : 'Generate Link';
+  }
+}
 
 document.getElementById('share-done-btn').addEventListener('click', () => {
   hideShareSheet();
@@ -8096,6 +8299,119 @@ async function doDriveRestore(){
     else toast('Restore failed — please try again');
   }
 }
+
+// ═══════════════════════════════════════
+//  SECURE DOC SHARE — DRIVE SIDE (drive.file scope)
+// ═══════════════════════════════════════
+// COMPLETELY separate from DriveBackup: different scope (drive.file, which
+// can only see files this app created — never the rest of the user's Drive),
+// its own token client, and files that live in a VISIBLE "Vault Shares"
+// folder (appDataFolder files can't be shared, which is why this exists).
+// Everything uploaded here is ciphertext encrypted with the SHARE PIN;
+// anyone-with-link permission on the Drive file exposes nothing readable.
+// Token requests may go interactive — share creation is always
+// user-gesture-initiated, so a consent popup here is acceptable.
+const DRIVE_SHARE_SCOPE='https://www.googleapis.com/auth/drive.file';
+const DriveShare={
+  tokenClient:null, accessToken:null, tokenExpiresAt:0,
+
+  newShareId(){
+    const b=crypto.getRandomValues(new Uint8Array(16));
+    return Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
+  },
+
+  async getToken(interactive){
+    if(this.accessToken && Date.now() < this.tokenExpiresAt - 60000) return this.accessToken;
+    await DriveBackup.loadGsi();
+    if(!this.tokenClient){
+      this.tokenClient=google.accounts.oauth2.initTokenClient({
+        client_id: DRIVE_CLIENT_ID,
+        scope: DRIVE_SHARE_SCOPE,
+        callback: ()=>{},
+      });
+    }
+    return new Promise((resolve,reject)=>{
+      this.tokenClient.callback=(resp)=>{
+        if(resp && resp.access_token){
+          this.accessToken=resp.access_token;
+          this.tokenExpiresAt=Date.now() + (resp.expires_in||3600)*1000;
+          resolve(this.accessToken);
+        } else reject(new Error('No access token returned'));
+      };
+      this.tokenClient.error_callback=(err)=>{ reject(err||new Error('Auth failed')); };
+      try{ this.tokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' }); }
+      catch(err){ reject(err); }
+    });
+  },
+
+  async apiFetch(url, opts={}){
+    const token=await this.getToken(false).catch(()=>this.getToken(true));
+    const res=await fetch(url, { ...opts, headers:{ ...(opts.headers||{}), 'Authorization':`Bearer ${token}` } });
+    if(!res.ok){
+      const body=await res.text().catch(()=>'');
+      throw new Error(`Drive API ${res.status}: ${body.slice(0,200)}`);
+    }
+    return res;
+  },
+
+  // Find-or-create the visible "Vault Shares" folder. drive.file only sees
+  // app-created files, so this query can't collide with the user's own
+  // folders of the same name. Cached id is re-verified (user may delete it).
+  async getShareFolder(){
+    const cached=Store.get('vault_share_folder_id');
+    if(cached){
+      try{
+        const f=await this.apiFetch(`https://www.googleapis.com/drive/v3/files/${cached}?fields=id,trashed`).then(r=>r.json());
+        if(!f.trashed) return cached;
+      } catch(e){ /* fall through to re-create */ }
+      Store.set('vault_share_folder_id','');
+    }
+    const q=encodeURIComponent("name='Vault Shares' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+    const data=await this.apiFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`).then(r=>r.json());
+    let id=data.files && data.files[0] && data.files[0].id;
+    if(!id){
+      const created=await this.apiFetch('https://www.googleapis.com/drive/v3/files?fields=id',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:'Vault Shares', mimeType:'application/vnd.google-apps.folder'}),
+      }).then(r=>r.json());
+      id=created.id;
+    }
+    Store.set('vault_share_folder_id', id);
+    return id;
+  },
+
+  // Resumable upload (same pattern as DriveBackup.uploadFile) — returns the
+  // new file id, which the recipient page fetches by id via API key.
+  async uploadShareFile(filename, blob){
+    const folderId=await this.getShareFolder();
+    const initRes=await this.apiFetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+      {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json; charset=UTF-8', 'X-Upload-Content-Type':'application/octet-stream' },
+        body: JSON.stringify({ name:filename, parents:[folderId], mimeType:'application/octet-stream' }),
+      }
+    );
+    const sessionUri=initRes.headers.get('Location');
+    if(!sessionUri) throw new Error('No resumable session URI');
+    const putRes=await fetch(sessionUri, { method:'PUT', headers:{'Content-Type':'application/octet-stream'}, body: blob });
+    if(!putRes.ok) throw new Error(`Drive upload ${putRes.status}`);
+    const meta=await putRes.json().catch(()=>null);
+    if(!meta || !meta.id) throw new Error('Upload returned no file id');
+    return meta.id;
+  },
+
+  async makePublic(fileId){
+    await this.apiFetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ role:'reader', type:'anyone' }),
+    });
+  },
+
+  async deleteFile(fileId){
+    await this.apiFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method:'DELETE' });
+  },
+};
 
 // If any backup exists on Drive, offer to restore it (used when the vault is
 // empty: fresh device / post-wipe). allowInteractive=false → silent token
