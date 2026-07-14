@@ -1,10 +1,10 @@
 {
-  "version": "7.6",
+  "version": "7.7",
   "released": "2026-07-14",
   "whatsNew": [
-    "🔗 Secure Share now works for entries too: if an entry has linked documents, sharing it offers an 'Include documents' toggle — the recipient gets one link showing both the entry's fields and the documents together",
-    "🔒 Plain entry shares (no documents) are unchanged — still fully self-contained in the link, no cloud connection needed",
-    "⏱️ When documents are included, the share link is capped at 24 hours (same as document-only shares) instead of the usual 7-day option"
+    "⚡ Smoother scrolling: heavy blur effects removed from entry, document, and settings list cards (they sit on a flat background, so nothing looks different — lists just scroll better on Android)",
+    "🚀 Faster app start: the PDF library no longer downloads on every launch — it now loads only when you first open the scanner or save a PDF",
+    "🧹 Internal cleanup: removed leftover unused code"
   ],
   "features": [
     {

@@ -12,7 +12,6 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <title>Vault</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" async></script>
 <style>
 /* ═══════════════════════════════════
    THEME VARIABLES
@@ -423,7 +422,6 @@ body::after{
 .stat-card{
   flex:1;padding:14px 16px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);
   position:relative;overflow:hidden;
 }
@@ -503,7 +501,6 @@ body::after{
   width:100%;padding:13px 40px 13px 44px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);color:var(--text);
   font-family:var(--font);font-size:14px;outline:none;transition:border .2s;
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);
 }
 .search-wrap input:focus{border-color:var(--accent);}
@@ -525,7 +522,6 @@ body::after{
   padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);
   background:var(--surface);color:var(--muted);font-size:12px;font-weight:700;
   white-space:nowrap;cursor:pointer;transition:all .14s;flex-shrink:0;
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   min-height:36px;display:flex;align-items:center;
 }
 .pill.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(91,95,245,.3);}
@@ -537,7 +533,6 @@ body::after{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
   padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
   transition:all .15s;position:relative;
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);flex-shrink:0;
 }
 .entry-card::after{content:'';position:absolute;inset:0;border-radius:var(--radius);background:linear-gradient(135deg,rgba(255,255,255,.06),transparent);pointer-events:none;}
@@ -589,7 +584,6 @@ body::after{
   width:100%;padding:14px 16px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);color:var(--text);
   font-family:var(--font);font-size:15px;outline:none;transition:border .2s;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   -webkit-appearance:none;box-shadow:var(--shadow-sm);
 }
 .field-input:focus{border-color:var(--accent);}
@@ -842,7 +836,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   padding:16px 16px;border-radius:var(--radius);
   border:1.5px solid var(--border);background:var(--surface);
   cursor:pointer;transition:all .15s;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   text-align:left;width:100%;
 }
 .template-card:active{transform:scale(.97);}
@@ -932,8 +925,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .detail-top-actions{position:absolute;top:14px;right:14px;display:flex;gap:8px;align-items:center;}
 .detail-icon-btn{
   width:36px;height:36px;border-radius:11px;border:1.5px solid var(--border);
-  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+  background:var(--glass);  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
   transition:all .14s;
 }
 .detail-icon-btn:active{transform:scale(.88);background:var(--surface2);}
@@ -959,8 +951,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .detail-fields{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 .detail-field{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
-  padding:14px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  box-shadow:var(--shadow-sm);
+  padding:14px 16px;  box-shadow:var(--shadow-sm);
 }
 .detail-field-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;margin-bottom:7px;}
 .detail-field-row{display:flex;align-items:center;gap:10px;}
@@ -989,7 +980,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
   padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
   transition:all .15s;position:relative;
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);flex-shrink:0;
 }
 .doc-card::after{content:'';position:absolute;inset:0;border-radius:var(--radius);background:linear-gradient(135deg,rgba(255,255,255,.06),transparent);pointer-events:none;}
@@ -1038,7 +1028,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   width:100%;padding:11px 40px 11px 40px;border-radius:var(--radius-sm);
   background:var(--surface);border:1.5px solid var(--border);color:var(--text);
   font-family:var(--font);font-size:14px;outline:none;transition:border .2s;
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);
 }
 .docs-search-wrap input:focus{border-color:var(--accent);}
@@ -1112,8 +1101,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .docview-preview .doc-no-preview span{font-size:48px;display:block;margin-bottom:12px;opacity:.4;}
 .docview-meta-card{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
-  padding:14px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:8px;
+  padding:14px 16px;  box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:8px;
 }
 .docview-meta-row{display:flex;justify-content:space-between;font-size:13px;}
 .docview-meta-row span:first-child{color:var(--muted);font-weight:600;}
@@ -1133,8 +1121,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .settings-item{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
   padding:15px 16px;display:flex;align-items:center;gap:13px;cursor:pointer;
-  transition:all .14s;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  box-shadow:var(--shadow-sm);
+  transition:all .14s;  box-shadow:var(--shadow-sm);
 }
 .settings-item:active{background:var(--surface2);}
 .s-icon{font-size:20px;width:34px;text-align:center;}
@@ -1161,7 +1148,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .linked-doc-row{
   display:flex;align-items:center;gap:10px;padding:11px 14px;
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   box-shadow:var(--shadow-sm);cursor:pointer;transition:all .14s;
 }
 .linked-doc-row:active{transform:scale(.98);background:var(--surface2);}
@@ -2996,7 +2982,9 @@ function loadImageEl(src) {
     img.src = src;
   });
 }
-// jsPDF loads from a CDN <script> tag. Repeated reports show this can be
+// jsPDF is loaded lazily on first need (camera-open warm-up or a PDF save)
+// — there is deliberately NO eager <head> tag, so users who never scan or
+// export a PDF never pay the ~350KB download/parse. CDN loading can be
 // unreliable on some networks (blocked/slow CDN domain) — rather than
 // making the user wait a long time on one source, try two different CDN
 // mirrors in sequence with SHORT timeouts each, so a failure surfaces in
@@ -3005,7 +2993,6 @@ const JSPDF_SOURCES = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
 ];
-let _jsPdfAttempted = new Set();
 function injectScript(src) {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -3025,19 +3012,27 @@ function pollJsPDF(timeoutMs) {
     })();
   });
 }
-async function waitForJsPDF() {
-  // Already loaded (from the original <head> tag, or a prior call)?
-  try { return await pollJsPDF(2500); } catch(e) { /* fall through to retries */ }
-  // Try each CDN mirror in turn, short-circuiting the moment one works.
-  for(const src of JSPDF_SOURCES) {
-    if(_jsPdfAttempted.has(src)) continue;
-    _jsPdfAttempted.add(src);
-    try {
-      await withTimeout(injectScript(src), 4000, 'script load timeout');
-      return await pollJsPDF(3000);
-    } catch(e) { /* try next source */ }
-  }
-  throw new Error('jsPDF unavailable — all sources failed');
+let _jsPdfPromise = null;
+function waitForJsPDF() {
+  // Already loaded (from a prior call)? Resolve instantly — no polling.
+  if(window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+  // A load is already in flight (e.g. camera warm-up) — share that promise
+  // instead of injecting the same script twice.
+  if(_jsPdfPromise) return _jsPdfPromise;
+  _jsPdfPromise = (async () => {
+    // Try each CDN mirror in turn, short-circuiting the moment one works.
+    for(const src of JSPDF_SOURCES) {
+      try {
+        await withTimeout(injectScript(src), 4000, 'script load timeout');
+        return await pollJsPDF(3000);
+      } catch(e) { /* try next source */ }
+    }
+    // Total failure — clear the memo so a LATER attempt retries both
+    // mirrors fresh (the network may have recovered by then).
+    _jsPdfPromise = null;
+    throw new Error('jsPDF unavailable — all sources failed');
+  })();
+  return _jsPdfPromise;
 }
 function withTimeout(promise, ms, label) {
   return Promise.race([
@@ -5166,9 +5161,6 @@ document.getElementById('stat-cats-card').addEventListener('click', () => {
 // ═══════════════════════════════════════
 //  CATEGORIES INLINE PANEL
 // ═══════════════════════════════════════
-const CAT_DOT_COLOR = Object.fromEntries(Object.entries(TYPE_META).map(([k,v])=>[k,v.color]));
-const CAT_NAMES = Object.fromEntries(Object.entries(TYPE_META).map(([k,v])=>[k,v.label]));
-
 let catPanelOpen = false;
 
 function toggleCatPanel() {
@@ -7115,7 +7107,6 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
   }
 
   // Run check after unlock, not on page load
-  window._vaultUpdatePending = false;
   window.addEventListener('load', () => setTimeout(async () => {
     await checkForUpdate();
   }, 1500));
