@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vault-v1';
+const CACHE_NAME = 'vault-v2';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -26,6 +26,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // share.html (Secure Doc Share recipient page) must NEVER be treated as
+  // the app shell — a navigate-mode request would otherwise be answered
+  // with cached index.html. Let it bypass the service worker entirely.
+  if (url.pathname.endsWith('/share.html')) return;
+
   const isAppShell = event.request.mode === 'navigate'
     || url.pathname.endsWith('/index.html')
     || url.pathname.endsWith('/');

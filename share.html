@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Vault · Secure Share</title>
+<!--
+  Secure Doc Share — recipient page.
+  Lives at the GitHub Pages root as a static file, OUTSIDE Vault's service
+  worker scope (sw.js explicitly bypasses share.html — see the fetch handler
+  bypass added for this feature). Not part of the PWA: recipients open this
+  in a plain browser tab, no install, no offline support, no vault PIN.
+
+  Security model (matches the "B" design agreed with Krishna):
+    - Google Drive holds ONLY ciphertext. Files are "anyone with link"
+      readable, but that link exposes salt‖iv‖ct — useless without the PIN.
+    - Firestore holds a small record: encrypted manifest + Drive file ids +
+      expiry + revoked flag. Firestore rules gate reads to non-revoked,
+      non-expired records only (see vault-handover.txt for the rules text).
+    - The share PIN (4 digits, sent out-of-band by the sender) derives an
+      AES-256-GCM key via PBKDF2 — same primitives as the main Vault app,
+      just re-implemented standalone here since this file has zero
+      dependency on index.html.
+    - Everything here is read-only: this page fetches, decrypts, and
+      displays/downloads. It cannot revoke, extend, or modify a share —
+      that only happens from the main app (Krishna's device).
+-->
+<style>
+:root{
+  --bg:#0f1117; --bg2:#161922; --surface:rgba(30,34,50,.80);
+  --border:rgba(80,90,130,.35); --accent:#5b5ff5;
+  --accent-g:linear-gradient(135deg,#5b5ff5,#8b5ff5);
+  --red:#ef4444; --text:#eef0ff; --muted:#8288a8;
+  --font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-head:'Outfit',-apple-system,sans-serif;
+  --radius:20px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{
+  margin:0;min-height:100vh;background:var(--bg);color:var(--text);
+  font-family:var(--font);display:flex;flex-direction:column;align-items:center;
+  padding:40px 20px 60px;overflow-x:hidden;
+}
+.logo{font-size:28px;font-weight:900;font-family:var(--font-head);color:var(--accent);margin-bottom:6px;letter-spacing:-1px;}
+.tagline{font-size:12px;color:var(--muted);margin-bottom:32px;}
+.card{width:100%;max-width:380px;}
+.prompt-title{font-size:17px;font-weight:700;text-align:center;margin-bottom:6px;}
+.prompt-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:24px;line-height:1.5;}
+.pin-dots{display:flex;justify-content:center;gap:16px;margin:0 auto 28px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);transition:all .15s;}
+.pin-dot.filled{background:var(--accent-g);border-color:transparent;}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:280px;margin:0 auto 8px;}
+.num-btn{
+  aspect-ratio:1;border-radius:50%;border:1px solid var(--border);background:var(--surface);
+  color:var(--text);font-size:22px;font-weight:600;font-family:var(--font);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.num-btn:active{background:var(--bg2);}
+.num-btn.empty{visibility:hidden;pointer-events:none;}
+.num-btn.del{font-size:18px;color:var(--muted);}
+.error-line{font-size:13px;color:var(--red);text-align:center;margin-top:14px;min-height:20px;}
+.status-line{font-size:13px;color:var(--muted);text-align:center;margin-top:14px;min-height:20px;}
+.center-msg{width:100%;max-width:380px;text-align:center;padding:20px 0;}
+.center-msg .icon{font-size:40px;margin-bottom:14px;}
+.center-msg .title{font-size:17px;font-weight:700;margin-bottom:8px;}
+.center-msg .sub{font-size:13px;color:var(--muted);line-height:1.5;}
+.spinner{
+  width:28px;height:28px;border-radius:50%;border:3px solid var(--border);
+  border-top-color:var(--accent);animation:spin .8s linear infinite;margin:0 auto 16px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.file-list{display:flex;flex-direction:column;gap:10px;}
+.file-row{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;
+  background:var(--surface);border:1px solid var(--border);cursor:pointer;
+}
+.file-icon{font-size:22px;width:28px;text-align:center;flex-shrink:0;}
+.file-info{flex:1;min-width:0;}
+.file-name{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.file-arrow{color:var(--muted);font-size:16px;flex-shrink:0;}
+
+.viewer-overlay{
+  position:fixed;inset:0;background:var(--bg);z-index:20;display:none;
+  flex-direction:column;
+}
+.viewer-overlay.show{display:flex;}
+.viewer-top{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.viewer-back{
+  width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border);
+  color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+}
+.viewer-title{font-size:14px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.viewer-dl{
+  padding:8px 14px;border-radius:12px;border:none;background:var(--accent-g);color:#fff;
+  font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;
+}
+.viewer-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:16px;gap:14px;}
+.viewer-body img{max-width:100%;border-radius:12px;}
+.viewer-body canvas{max-width:100%;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,.4);}
+.view-only-badge{
+  font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--border);
+  padding:5px 12px;border-radius:20px;margin-bottom:2px;
+}
+.footer-note{font-size:11px;color:var(--muted);text-align:center;margin-top:36px;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="logo">🔐 Vault</div>
+<div class="tagline">Secure Share</div>
+
+<!-- Loading state -->
+<div class="card center-msg" id="state-loading">
+  <div class="spinner"></div>
+  <div class="sub">Loading share…</div>
+</div>
+
+<!-- Unavailable (not found / expired / revoked — deliberately generic) -->
+<div class="card center-msg hidden" id="state-unavailable">
+  <div class="icon">🔒</div>
+  <div class="title">This link is no longer available</div>
+  <div class="sub">It may have expired or been revoked by the sender. Ask them to send a new link if you still need this document.</div>
+</div>
+
+<!-- PIN entry -->
+<div class="card hidden" id="state-pin">
+  <div class="prompt-title">Enter PIN to view</div>
+  <div class="prompt-sub">The sender shared a 4-digit PIN with you separately.</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="numpad" id="numpad">
+    <button class="num-btn" data-n="1">1</button><button class="num-btn" data-n="2">2</button><button class="num-btn" data-n="3">3</button>
+    <button class="num-btn" data-n="4">4</button><button class="num-btn" data-n="5">5</button><button class="num-btn" data-n="6">6</button>
+    <button class="num-btn" data-n="7">7</button><button class="num-btn" data-n="8">8</button><button class="num-btn" data-n="9">9</button>
+    <button class="num-btn empty"></button><button class="num-btn" data-n="0">0</button><button class="num-btn del" id="pin-del">⌫</button>
+  </div>
+  <div class="error-line" id="pin-error"></div>
+</div>
+
+<!-- File list -->
+<div class="card hidden" id="state-files">
+  <div class="prompt-title" id="files-title">Shared with you</div>
+  <div class="prompt-sub" id="files-sub" style="margin-bottom:18px"></div>
+  <div class="file-list" id="file-list"></div>
+</div>
+
+<div class="footer-note">Shared via Vault · End-to-end encrypted · Drive never sees the unencrypted file</div>
+
+<!-- Per-file viewer -->
+<div class="viewer-overlay" id="viewer-overlay">
+  <div class="viewer-top">
+    <div class="viewer-back" id="viewer-back">‹</div>
+    <div class="viewer-title" id="viewer-title">Document</div>
+    <button class="viewer-dl hidden" id="viewer-dl-btn">⬇️ Download</button>
+  </div>
+  <div class="viewer-body" id="viewer-body"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════
+// Restricted API key — HTTP-referrer-locked to this GitHub Pages origin,
+// API-restricted to Google Drive API + Cloud Firestore API only. NOT the
+// same key as Vault's Firebase config (that one is unrestricted-by-referrer,
+// appropriate for an installed PWA but not for a key embedded in a page
+// anyone can view-source). Create via Cloud Console → Credentials.
+const API_KEY = 'AIzaSyDnO-j9NIwsnfvVSFrUQYOIE9ej86qg0HQ';
+const PROJECT_ID = 'vault-6207a';
+
+// ═══════════════════════════════════════
+//  CRYPTO (standalone — mirrors Vault's Crypto module)
+// ═══════════════════════════════════════
+const Crypto = {
+  enc:new TextEncoder(), dec:new TextDecoder(),
+  async deriveKey(pin, salt){
+    const km = await crypto.subtle.importKey('raw', this.enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'}, km, {name:'AES-GCM',length:256}, false, ['decrypt']);
+  },
+  // Manifest blob — same base64(salt‖iv‖ct) + JSON format as the main app's
+  // Crypto.encrypt/decrypt.
+  async decrypt(b64, pin){
+    const raw = Uint8Array.from(atob(b64), c=>c.charCodeAt(0));
+    const key = await this.deriveKey(pin, raw.slice(0,16));
+    const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:raw.slice(16,28)}, key, raw.slice(28));
+    return JSON.parse(this.dec.decode(pt));
+  },
+  // Raw file blob — same salt‖iv‖ct layout as Crypto.encryptRawShare, but as
+  // raw bytes (ArrayBuffer) fetched directly from Drive, not base64.
+  async decryptRawBytes(bytes, pin){
+    const salt = bytes.slice(0,16), iv = bytes.slice(16,28), ct = bytes.slice(28);
+    const key = await this.deriveKey(pin, salt);
+    return crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+  },
+};
+
+// ═══════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════
+let shareId = null;
+let shareRecord = null;   // raw Firestore doc (still-encrypted manifest)
+let manifest = null;      // decrypted {v, files:[{fid,name,mimeType,size,dl}]}
+let sharePin = '';
+
+function show(id){
+  ['state-loading','state-unavailable','state-pin','state-files'].forEach(s=>{
+    document.getElementById(s).classList.toggle('hidden', s!==id);
+  });
+}
+
+// ═══════════════════════════════════════
+//  FIRESTORE (plain REST — no SDK needed for one anonymous doc read)
+// ═══════════════════════════════════════
+function firestoreValue(v){
+  if('stringValue' in v) return v.stringValue;
+  if('booleanValue' in v) return v.booleanValue;
+  if('integerValue' in v) return parseInt(v.integerValue,10);
+  if('doubleValue' in v) return v.doubleValue;
+  if('arrayValue' in v) return (v.arrayValue.values||[]).map(firestoreValue);
+  if('nullValue' in v) return null;
+  return null;
+}
+async function fetchShareRecord(id){
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/shares/${id}?key=${API_KEY}`;
+  const res = await fetch(url);
+  if(res.status===404 || res.status===403) return null; // gone, or blocked by rules (revoked/expired)
+  if(!res.ok) throw new Error('Firestore fetch failed: '+res.status);
+  const data = await res.json();
+  const f = data.fields || {};
+  return {
+    m: firestoreValue(f.m),
+    fids: firestoreValue(f.fids) || [],
+    exp: firestoreValue(f.exp),
+    revoked: firestoreValue(f.revoked),
+    created: firestoreValue(f.created),
+  };
+}
+
+// ═══════════════════════════════════════
+//  DRIVE — fetch raw ciphertext bytes for one file
+// ═══════════════════════════════════════
+async function fetchDriveFileBytes(fileId){
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Drive fetch failed: '+res.status);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+async function init(){
+  shareId = location.hash.slice(1).trim();
+  if(!shareId){ show('state-unavailable'); return; }
+  try{
+    shareRecord = await fetchShareRecord(shareId);
+  } catch(e){
+    console.error(e);
+    show('state-unavailable');
+    return;
+  }
+  // Deliberately generic message either way — see design note: recipients
+  // shouldn't be able to distinguish "never existed" / "expired" / "revoked".
+  if(!shareRecord || shareRecord.revoked || (shareRecord.exp && Date.now() > shareRecord.exp)){
+    show('state-unavailable');
+    return;
+  }
+  show('state-pin');
+}
+
+// ═══════════════════════════════════════
+//  PIN ENTRY
+// ═══════════════════════════════════════
+function updateDots(){
+  document.querySelectorAll('#pin-dots .pin-dot').forEach((d,i)=>d.classList.toggle('filled', i<sharePin.length));
+}
+document.querySelectorAll('#numpad [data-n]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(sharePin.length<4){
+      sharePin += btn.dataset.n;
+      updateDots();
+      if(sharePin.length===4) attemptUnlock();
+    }
+  });
+});
+document.getElementById('pin-del').addEventListener('click', ()=>{
+  sharePin = sharePin.slice(0,-1); updateDots();
+  document.getElementById('pin-error').textContent='';
+});
+
+async function attemptUnlock(){
+  const pin = sharePin;
+  document.getElementById('pin-error').textContent = '';
+  try{
+    manifest = await Crypto.decrypt(shareRecord.m, pin);
+  } catch(e){
+    document.getElementById('pin-error').textContent = 'Incorrect PIN — try again';
+    sharePin=''; updateDots();
+    return;
+  }
+  if(!manifest || !Array.isArray(manifest.files) || !manifest.files.length){
+    document.getElementById('pin-error').textContent = 'Incorrect PIN — try again';
+    sharePin=''; updateDots();
+    return;
+  }
+  renderFileList();
+  show('state-files');
+}
+
+// ═══════════════════════════════════════
+//  FILE LIST
+// ═══════════════════════════════════════
+function formatBytes(n){
+  if(!n) return '';
+  if(n<1024) return n+' B';
+  if(n<1024*1024) return (n/1024).toFixed(1)+' KB';
+  return (n/1024/1024).toFixed(1)+' MB';
+}
+function iconFor(mimeType){
+  if(!mimeType) return '📄';
+  if(mimeType.startsWith('image/')) return '🖼️';
+  if(mimeType==='application/pdf') return '📕';
+  return '📄';
+}
+function renderFileList(){
+  const n = manifest.files.length;
+  document.getElementById('files-title').textContent = n>1 ? `${n} documents shared with you` : 'A document shared with you';
+  document.getElementById('files-sub').textContent = 'Tap a file to view it.';
+  const list = document.getElementById('file-list');
+  list.innerHTML = manifest.files.map((f,i)=>`
+    <div class="file-row" data-idx="${i}">
+      <div class="file-icon">${iconFor(f.mimeType)}</div>
+      <div class="file-info">
+        <div class="file-name">${escHtml(f.name||'Document')}</div>
+        <div class="file-meta">${formatBytes(f.size)}${f.dl===false ? ' · View only' : ''}</div>
+      </div>
+      <div class="file-arrow">›</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-idx]').forEach(row=>{
+    row.addEventListener('click', ()=>openViewer(manifest.files[parseInt(row.dataset.idx,10)]));
+  });
+}
+function escHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ═══════════════════════════════════════
+//  PER-FILE VIEWER — fetch + decrypt on tap, not all upfront
+// ═══════════════════════════════════════
+let pdfjsLoaded = false;
+async function loadPdfJs(){
+  if(pdfjsLoaded) return;
+  const sources = [
+    ['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'],
+    ['https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+     'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'],
+  ];
+  for(const [libUrl, workerUrl] of sources){
+    try{
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src=libUrl; s.onload=resolve; s.onerror=()=>reject(new Error('load failed'));
+        document.head.appendChild(s);
+      });
+      if(!window.pdfjsLib) throw new Error('pdfjsLib missing after load');
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+      pdfjsLoaded = true;
+      return;
+    } catch(e){ console.warn('pdf.js source failed, trying fallback', e); }
+  }
+  throw new Error('Could not load PDF viewer');
+}
+
+async function openViewer(file){
+  const overlay = document.getElementById('viewer-overlay');
+  const body = document.getElementById('viewer-body');
+  const title = document.getElementById('viewer-title');
+  const dlBtn = document.getElementById('viewer-dl-btn');
+  title.textContent = file.name || 'Document';
+  body.innerHTML = '<div class="spinner" style="margin-top:60px"></div><div class="sub" style="color:var(--muted);font-size:13px">Decrypting…</div>';
+  dlBtn.classList.add('hidden');
+  overlay.classList.add('show');
+
+  let plainBuf;
+  try{
+    const raw = await fetchDriveFileBytes(file.fid);
+    plainBuf = await Crypto.decryptRawBytes(raw, sharePin);
+  } catch(e){
+    console.error('Decrypt/fetch failed', e);
+    body.innerHTML = '<div class="center-msg"><div class="icon">⚠️</div><div class="title">Could not open this file</div><div class="sub">Please close and try again.</div></div>';
+    return;
+  }
+
+  const isImage = (file.mimeType||'').startsWith('image/');
+  const isPdf = file.mimeType==='application/pdf';
+  const blob = new Blob([plainBuf], {type:file.mimeType||'application/octet-stream'});
+  const blobUrl = URL.createObjectURL(blob);
+
+  body.innerHTML = '';
+  if(file.dl !== false){
+    dlBtn.classList.remove('hidden');
+    dlBtn.onclick = ()=>{
+      const a=document.createElement('a'); a.href=blobUrl; a.download=file.name||'document';
+      a.click();
+    };
+  } else {
+    const badge=document.createElement('div');
+    badge.className='view-only-badge'; badge.textContent='👁️ View only — download disabled by sender';
+    body.appendChild(badge);
+  }
+
+  if(isImage){
+    const img=document.createElement('img');
+    img.src=blobUrl;
+    img.oncontextmenu = e=>{ if(file.dl===false) e.preventDefault(); };
+    img.draggable = file.dl !== false;
+    body.appendChild(img);
+  } else if(isPdf){
+    try{
+      await loadPdfJs();
+      const pdf = await window.pdfjsLib.getDocument({data:new Uint8Array(plainBuf)}).promise;
+      for(let p=1;p<=pdf.numPages;p++){
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({scale: Math.min(1.6, (document.body.clientWidth-32)/page.getViewport({scale:1}).width)});
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({canvasContext:ctx, viewport}).promise;
+        if(file.dl===false) canvas.oncontextmenu = e=>e.preventDefault();
+        body.appendChild(canvas);
+      }
+    } catch(e){
+      console.error('PDF render failed', e);
+      body.innerHTML += '<div class="sub" style="color:var(--muted)">Could not render preview. Use download to view the file.</div>';
+    }
+  } else {
+    body.innerHTML = '<div class="center-msg"><div class="icon">📄</div><div class="sub">Preview not available for this file type.'+(file.dl!==false?' Use the download button above.':'')+'</div></div>';
+  }
+}
+
+document.getElementById('viewer-back').addEventListener('click', ()=>{
+  document.getElementById('viewer-overlay').classList.remove('show');
+  document.getElementById('viewer-body').innerHTML='';
+});
+
+init();
+</script>
+</body>
+</html>
