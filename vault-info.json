@@ -1,9 +1,9 @@
 {
-  "version": "7.4",
+  "version": "7.5",
   "released": "2026-07-14",
   "whatsNew": [
-    "🛠️ Fixed (properly this time): Secure Doc Share could still auto-lock during Google sign-in — a separate 2-minute idle timer was locking the vault independently of the previous fix. Locking is now blocked at the source while Drive sign-in is in progress",
-    "🛠️ Drive sign-in for Secure Doc Share now happens immediately when you tap Encrypt & Upload, before any other processing — reduces the chance of the browser converting the sign-in popup into a full page reload"
+    "🧹 Secure Doc Share (part 2): expired shares now clean themselves up automatically — the Drive files and cloud record are removed the next time you unlock Vault",
+    "🔗 New Settings → Manage Shares: see every share still active, with time-to-expiry, and revoke any of them instantly"
   ],
   "features": [
     {

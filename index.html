@@ -1469,7 +1469,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.4</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.5</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1688,6 +1688,16 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
 </div>
 
+<!-- ══════════ MANAGE SHARES SHEET ══════════ -->
+<div class="bottom-sheet-overlay hidden" id="manage-shares-overlay">
+  <div class="bottom-sheet" id="manage-shares-sheet" style="max-height:75vh;display:flex;flex-direction:column">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-title">🔗 Manage Shares</div>
+    <div id="manage-shares-list" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:4px"></div>
+    <button class="doc-add-cancel" id="manage-shares-close" style="margin-top:14px">Close</button>
+  </div>
+</div>
+
 <!-- ══════════ CAMERA PREVIEW SCREEN ══════════ -->
 <div class="screen hidden" id="camera-screen">
   <div class="camera-topbar">
@@ -1891,6 +1901,13 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       <span class="s-arrow">›</span>
     </div>
 
+    <div class="settings-section-label">Secure Doc Share</div>
+    <div class="settings-item" id="s-manage-shares">
+      <span class="s-icon">🔗</span>
+      <div class="s-info"><div class="s-title">Manage Shares</div><div class="s-desc" id="manage-shares-line">No active shares</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+
     <div class="settings-section-label">Help</div>
     <div class="settings-item" id="s-help-guide">
       <span class="s-icon">📖</span>
@@ -1908,7 +1925,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v7.4</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v7.5</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -2524,7 +2541,7 @@ document.querySelectorAll('[data-nav]').forEach(item => {
     }
     if(nav==='home'){ state.currentNav='home'; showScreen('home-screen'); renderEntries(); updateStats(); }
     else if(nav==='fav'){ state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
-    else if(nav==='settings'){ state.currentNav='settings'; showScreen('settings-screen'); renderDriveUI(); }
+    else if(nav==='settings'){ state.currentNav='settings'; showScreen('settings-screen'); renderDriveUI(); updateManageSharesLine(); }
     else if(nav==='docs'){ openDocsTab(); }
   });
 });
@@ -3331,7 +3348,7 @@ function unlockSuccess() {
   if(sub) sub.textContent='Your private password vault';
   applyTheme(Store.get('vault_theme')==='dark');
   document.getElementById('bio-unlock-btn').style.display='none';
-  setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkPasswordHealth(); checkCloudOnUnlock(); checkDriveOnUnlock(); checkPendingUpdateNudge(); },300);
+  setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkPasswordHealth(); checkCloudOnUnlock(); checkDriveOnUnlock(); checkPendingUpdateNudge(); cleanupExpiredDocShares(); },300);
 }
 
 // WebAuthn requires document focus — visibilitychange can fire slightly
@@ -3371,7 +3388,7 @@ async function tryBiometricUnlock() {
     lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
     applyTheme(Store.get('vault_theme')==='dark');
     document.getElementById('bio-unlock-btn').style.display='none';
-    setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkPasswordHealth(); checkCloudOnUnlock(); checkDriveOnUnlock(); checkPendingUpdateNudge(); },300);
+    setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkPasswordHealth(); checkCloudOnUnlock(); checkDriveOnUnlock(); checkPendingUpdateNudge(); cleanupExpiredDocShares(); },300);
   } else {
     if(!state.unlocked){ lbl.textContent='Use PIN instead'; lbl.className='pin-label'; }
   }
@@ -7470,6 +7487,113 @@ async function generateDocShare(pin){
     }
   }
 }
+
+// ── Cleanup — runs once per unlock ────────────────────────────────────────
+// Deleting the Firestore record IS the revoke: recipients' read rule needs
+// it to exist (and be unexpired/unrevoked), so removing it blocks access
+// immediately, same as if it never existed. Drive file deletion is then
+// pure tidiness — best-effort, silent on failure (an orphaned ciphertext
+// file with no surviving record pointing at it is harmless and, unlike the
+// record, isn't something recipients can rediscover on their own).
+async function cleanupExpiredDocShares(){
+  if(!state.cloudSyncOn || !state.cloudUser) return;
+  let ledger;
+  try{ ledger = await loadLocalDocShares(); } catch(e){ return; }
+  if(!ledger.length) return;
+  const now = Date.now();
+  const stillActive = [];
+  let changed = false;
+  for(const s of ledger){
+    if(s.exp > now && !s._revoke){ stillActive.push(s); continue; }
+    try{
+      await CloudSync.fsMod.deleteDoc(CloudSync.fsMod.doc(CloudSync.db, 'shares', s.shareId));
+    } catch(e){
+      console.warn('Share cleanup: Firestore delete failed, will retry next unlock', s.shareId, e);
+      stillActive.push(s); // keep for retry — don't touch Drive until the record is gone
+      continue;
+    }
+    changed = true;
+    for(const fid of s.fids){ DriveShare.deleteFile(fid).catch(()=>{}); }
+  }
+  if(changed) await saveLocalDocShares(stillActive);
+  updateManageSharesLine();
+}
+
+// ── Manage Shares (Settings) ──────────────────────────────────────────────
+function fmtShareExpiry(exp){
+  const diff = exp - Date.now();
+  if(diff <= 0) return 'Expired';
+  const mins = Math.round(diff/60000);
+  if(mins < 60) return `Expires in ${mins}m`;
+  const hrs = Math.round(mins/60);
+  return `Expires in ${hrs}h`;
+}
+async function updateManageSharesLine(){
+  const line = document.getElementById('manage-shares-line');
+  if(!line) return;
+  if(!state.cloudSyncOn){ line.textContent = 'Requires Cloud Sync'; return; }
+  try{
+    const ledger = await loadLocalDocShares();
+    const active = ledger.filter(s=>s.exp>Date.now() && !s._revoke);
+    line.textContent = active.length ? `${active.length} active share${active.length===1?'':'s'}` : 'No active shares';
+  } catch(e){ line.textContent = 'No active shares'; }
+}
+async function renderManageShares(){
+  const list = document.getElementById('manage-shares-list');
+  list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px 0">Loading…</div>';
+  let ledger;
+  try{ ledger = await loadLocalDocShares(); }
+  catch(e){ list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px 0">Could not load shares</div>'; return; }
+  const active = ledger.filter(s=>s.exp>Date.now() && !s._revoke).sort((a,b)=>b.created-a.created);
+  if(!active.length){
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px 0">No active shares</div>';
+    return;
+  }
+  list.innerHTML = active.map(s=>`
+    <div class="settings-item" style="border-radius:14px;background:var(--bg2)" data-shareid="${s.shareId}">
+      <span class="s-icon">🔗</span>
+      <div class="s-info">
+        <div class="s-title" style="font-size:14px">${esc(s.names.join(', '))}</div>
+        <div class="s-desc">${fmtShareExpiry(s.exp)}</div>
+      </div>
+      <button class="doc-add-cancel" data-revoke="${s.shareId}" style="width:auto;padding:8px 14px;font-size:13px;margin:0;color:var(--red)">Revoke</button>
+    </div>
+  `).join('');
+}
+function showManageSharesSheet(){
+  document.getElementById('manage-shares-overlay').classList.remove('hidden');
+  renderManageShares();
+}
+function hideManageSharesSheet(){
+  animateSheetClose('manage-shares-overlay');
+}
+document.getElementById('s-manage-shares').addEventListener('click', showManageSharesSheet);
+document.getElementById('manage-shares-close').addEventListener('click', hideManageSharesSheet);
+document.getElementById('manage-shares-overlay').addEventListener('click', e=>{
+  if(e.target === document.getElementById('manage-shares-overlay')) hideManageSharesSheet();
+});
+document.getElementById('manage-shares-list').addEventListener('click', async ev=>{
+  const btn = ev.target.closest('[data-revoke]');
+  if(!btn) return;
+  const shareId = btn.dataset.revoke;
+  const ok = await confirmDelete('', { title:'Revoke this share?', icon:'🔗', message:'The link will stop working immediately. This cannot be undone.', confirmLabel:'Revoke' });
+  if(!ok) return;
+  btn.textContent='Revoking…'; btn.disabled=true;
+  try{
+    const ledger = await loadLocalDocShares();
+    const entry = ledger.find(s=>s.shareId===shareId);
+    await CloudSync.fsMod.deleteDoc(CloudSync.fsMod.doc(CloudSync.db, 'shares', shareId));
+    if(entry) for(const fid of entry.fids){ DriveShare.deleteFile(fid).catch(()=>{}); }
+    await saveLocalDocShares(ledger.filter(s=>s.shareId!==shareId));
+    toast('Share revoked');
+    renderManageShares();
+    updateManageSharesLine();
+  } catch(e){
+    console.error('Revoke failed', e);
+    toast('Could not revoke — try again');
+    btn.textContent='Revoke'; btn.disabled=false;
+  }
+});
 
 document.getElementById('share-done-btn').addEventListener('click', () => {
   hideShareSheet();
