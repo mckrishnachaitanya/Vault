@@ -81,6 +81,10 @@ body::after{
    SCREENS
 ═══════════════════════════════════ */
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;z-index:10;animation:screenIn .18s ease;}
+/* Belt-and-braces: the PIN screen outranks every sheet/overlay (max z:940)
+   so even an overlay a future feature forgets to close in lockVault() can
+   never paint over the lock screen. Toast (999) stays above deliberately. */
+#pin-screen{z-index:950;}
 @keyframes screenIn{from{opacity:0}}
 .screen>*{position:relative;z-index:1;}
 
@@ -3200,6 +3204,20 @@ function lockVault() {
   // left alive it would sit on top of the PIN screen with decrypted content.
   // destroy() also frees the parsed PDF from memory on lock.
   PdfViewer.destroy();
+  // R9 lesson GENERALISED: every overlay stacks above the PIN screen
+  // (.screen is z:10, sheets are z:200-940), so ALL of them must be closed
+  // unconditionally BEFORE the screen branches below — any one left open
+  // paints on top of the PIN screen after auto-lock. Promise-backed modals
+  // (step-up, confirm) are resolved false via their own cancel paths so no
+  // awaiting caller is left hanging.
+  if(document.getElementById('stepup-overlay').classList.contains('active')) closeStepUp(false);
+  if(document.getElementById('delete-overlay').classList.contains('active')) document.getElementById('delete-sheet-cancel').click();
+  document.getElementById('link-picker-overlay').classList.remove('active');
+  ['share-summary-overlay','doc-add-sheet-overlay','manage-shares-overlay']
+    .forEach(id => document.getElementById(id).classList.add('hidden'));
+  closeCropOverlay(); // captured page photo must never sit over the PIN screen
+  closeHelpOverlay();
+  DebugLog.close();
   // If Secure Share sheet is open, hide it immediately so it can never sit on
   // top of the PIN unlock screen — checked first since the underlying screen
   // (usually detail-screen) would otherwise match one of the branches below
@@ -3845,6 +3863,12 @@ async function openDetail(id) {
     </div>`;
   }).join('');
 
+  // Cold-start race fix: linked docs resolve against state.docs, which is
+  // loaded lazily — on a fresh launch nothing guarantees it's populated
+  // before the first entry detail opens, making valid links render as
+  // "Document not found". No-op after first load (_docsManifestLoaded).
+  if((entry.linkedDocIds||[]).length) await loadDocsManifest();
+
   // Append linked documents section after the entry fields
   renderLinkedDocs(entry, container);
 
@@ -4009,7 +4033,10 @@ function renderLinkedDocs(entry, container) {
     btn.addEventListener('click', async () => {
       // No additional step-up needed here — sensitive entries already require
       // step-up to open the detail screen itself. That's sufficient.
-      if(!state.docs) await loadDocsManifest();
+      // Unconditional: a failed earlier load leaves state.docs=[] (truthy),
+      // so an `if(!state.docs)` guard would skip the retry and wrongly show
+      // "No documents". loadDocsManifest() is a no-op when already loaded.
+      await loadDocsManifest();
       if(!state.docs || !state.docs.length){
         toast('No documents in vault yet — add one in the Docs tab first');
         return;
@@ -5305,7 +5332,10 @@ function updateDocExpiryBadge() {
   });
 }
 
-function checkExpiryAlerts() {
+async function checkExpiryAlerts() {
+  // Doc expiry checks below read state.docs — make sure the manifest is
+  // loaded on cold starts (no-op once _docsManifestLoaded is set).
+  await loadDocsManifest();
   const wrap = document.getElementById('expiry-nudge-wrap');
   wrap.innerHTML = '';
   const now = Date.now();

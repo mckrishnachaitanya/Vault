@@ -1,10 +1,10 @@
 {
-  "version": "7.7",
+  "version": "7.8",
   "released": "2026-07-14",
   "whatsNew": [
-    "⚡ Smoother scrolling: heavy blur effects removed from entry, document, and settings list cards (they sit on a flat background, so nothing looks different — lists just scroll better on Android)",
-    "🚀 Faster app start: the PDF library no longer downloads on every launch — it now loads only when you first open the scanner or save a PDF",
-    "🧹 Internal cleanup: removed leftover unused code"
+    "🔒 Lock screen fixes: bottom sheets and dialogs (share summary, add-document, manage shares, link picker, confirm/PIN dialogs, crop screen, help) now always close when the vault locks — nothing can sit on top of the PIN screen anymore",
+    "📎 Linked documents fix: on a fresh app launch, opening an entry no longer briefly shows 'Document not found' for documents that are actually there",
+    "⚡ Smoother scrolling + faster app start (blur effects trimmed from list cards; PDF library now loads only when needed)"
   ],
   "features": [
     {
