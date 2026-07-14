@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Vault · Secure Share</title>
+<meta name="description" content="You've received an encrypted document via Vault. Enter the PIN to view it.">
+<meta property="og:title" content="🔐 Vault — Secure Document Share">
+<meta property="og:description" content="You've received an encrypted document. Open this link and enter the PIN to view it.">
+<meta property="og:type" content="website">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%90%3C/text%3E%3C/svg%3E">
 <!--
   Secure Doc Share — recipient page.
   Lives at the GitHub Pages root as a static file, OUTSIDE Vault's service
@@ -380,7 +386,13 @@ async function loadPdfJs(){
   throw new Error('Could not load PDF viewer');
 }
 
+// Monotonic token — if the user opens file B before file A's decrypt
+// finishes, A's late-arriving result must not overwrite B's UI. Every
+// async checkpoint below re-checks this before touching the DOM.
+let _viewerToken = 0;
+
 async function openViewer(file){
+  const myToken = ++_viewerToken;
   const overlay = document.getElementById('viewer-overlay');
   const body = document.getElementById('viewer-body');
   const title = document.getElementById('viewer-title');
@@ -388,13 +400,17 @@ async function openViewer(file){
   title.textContent = file.name || 'Document';
   body.innerHTML = '<div class="spinner" style="margin-top:60px"></div><div class="sub" style="color:var(--muted);font-size:13px">Decrypting…</div>';
   dlBtn.classList.add('hidden');
+  dlBtn.onclick = null;
   overlay.classList.add('show');
 
   let plainBuf;
   try{
     const raw = await fetchDriveFileBytes(file.fid);
+    if(myToken !== _viewerToken) return; // superseded while fetching
     plainBuf = await Crypto.decryptRawBytes(raw, sharePin);
+    if(myToken !== _viewerToken) return; // superseded while decrypting
   } catch(e){
+    if(myToken !== _viewerToken) return;
     console.error('Decrypt/fetch failed', e);
     body.innerHTML = '<div class="center-msg"><div class="icon">⚠️</div><div class="title">Could not open this file</div><div class="sub">Please close and try again.</div></div>';
     return;
@@ -413,6 +429,8 @@ async function openViewer(file){
       a.click();
     };
   } else {
+    dlBtn.classList.add('hidden');
+    dlBtn.onclick = null;
     const badge=document.createElement('div');
     badge.className='view-only-badge'; badge.textContent='👁️ View only — download disabled by sender';
     body.appendChild(badge);
@@ -427,18 +445,22 @@ async function openViewer(file){
   } else if(isPdf){
     try{
       await loadPdfJs();
+      if(myToken !== _viewerToken) return; // superseded while loading pdf.js
       const pdf = await window.pdfjsLib.getDocument({data:new Uint8Array(plainBuf)}).promise;
       for(let p=1;p<=pdf.numPages;p++){
+        if(myToken !== _viewerToken) return; // superseded mid-render
         const page = await pdf.getPage(p);
         const viewport = page.getViewport({scale: Math.min(1.6, (document.body.clientWidth-32)/page.getViewport({scale:1}).width)});
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width; canvas.height = viewport.height;
         const ctx = canvas.getContext('2d');
         await page.render({canvasContext:ctx, viewport}).promise;
+        if(myToken !== _viewerToken) return; // superseded mid-render
         if(file.dl===false) canvas.oncontextmenu = e=>e.preventDefault();
         body.appendChild(canvas);
       }
     } catch(e){
+      if(myToken !== _viewerToken) return;
       console.error('PDF render failed', e);
       body.innerHTML += '<div class="sub" style="color:var(--muted)">Could not render preview. Use download to view the file.</div>';
     }
@@ -448,6 +470,7 @@ async function openViewer(file){
 }
 
 document.getElementById('viewer-back').addEventListener('click', ()=>{
+  _viewerToken++; // invalidate any in-flight decrypt/render for the closed file
   document.getElementById('viewer-overlay').classList.remove('show');
   document.getElementById('viewer-body').innerHTML='';
 });
