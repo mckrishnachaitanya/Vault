@@ -87,6 +87,18 @@ body{
 .file-meta{font-size:11px;color:var(--muted);margin-top:2px;}
 .file-arrow{color:var(--muted);font-size:16px;flex-shrink:0;}
 
+.entry-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:18px;
+  padding:18px;
+}
+.entry-eyebrow{font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:4px;}
+.entry-name{font-size:17px;font-weight:800;font-family:var(--font-head);margin-bottom:14px;}
+.entry-field{margin-bottom:12px;}
+.entry-field:last-child{margin-bottom:0;}
+.entry-field-label{font-size:11px;color:var(--muted);margin-bottom:3px;}
+.entry-field-value{font-size:14px;font-weight:600;word-break:break-word;font-family:var(--mono,monospace);}
+.entry-field-value.prose{font-weight:400;white-space:pre-wrap;line-height:1.5;font-family:var(--font);}
+
 .viewer-overlay{
   position:fixed;inset:0;background:var(--bg);z-index:20;display:none;
   flex-direction:column;
@@ -154,6 +166,7 @@ body{
 <div class="card hidden" id="state-files">
   <div class="prompt-title" id="files-title">Shared with you</div>
   <div class="prompt-sub" id="files-sub" style="margin-bottom:18px"></div>
+  <div class="entry-list" id="entry-list" style="display:flex;flex-direction:column;gap:14px;margin-bottom:18px"></div>
   <div class="file-list" id="file-list"></div>
 </div>
 
@@ -311,7 +324,9 @@ async function attemptUnlock(){
     sharePin=''; updateDots();
     return;
   }
-  if(!manifest || !Array.isArray(manifest.files) || !manifest.files.length){
+  const hasFiles = manifest && Array.isArray(manifest.files) && manifest.files.length;
+  const hasEntries = manifest && Array.isArray(manifest.entries) && manifest.entries.length;
+  if(!manifest || (!hasFiles && !hasEntries)){
     document.getElementById('pin-error').textContent = 'Incorrect PIN — try again';
     sharePin=''; updateDots();
     return;
@@ -322,6 +337,100 @@ async function attemptUnlock(){
 
 // ═══════════════════════════════════════
 //  FILE LIST
+// ═══════════════════════════════════════
+// ═══════════════════════════════════════
+//  ENTRY RENDERING (ported from index.html — pure functions, no DOM deps)
+// ═══════════════════════════════════════
+function groupDigits(raw) {
+  if(!raw) return raw;
+  const str = String(raw);
+  if(!/^\d+$/.test(str)) return str;
+  return str.replace(/(\d{4})(?=\d)/g, '$1 ');
+}
+function idCardModel(entry) {
+  const eyebrowFor = {
+    app:      'App / Website',
+    wifi:     'WiFi Network',
+    note:     'Secure Note',
+    card:     'Payment Card',
+    bank:     'Bank Account',
+    identity: {aadhaar:'Identity · Aadhaar',pan:'Identity · PAN',passport:'Identity · Passport',dl:'Identity · Driving Licence',voterid:'Identity · Voter ID',other:'Identity'}[entry.docType] || 'Identity',
+  };
+  const eyebrow = eyebrowFor[entry.type] || 'Entry';
+  const f = (label, value, opts={}) => value ? { label, value: String(value), ...opts } : null;
+
+  let name, fields;
+  switch(entry.type) {
+    case 'card':
+      name = entry.cardHolder || entry.name;
+      fields = [
+        f('Card Number', entry.cardNumber ? groupDigits(entry.cardNumber) : '•••• •••• •••• ••••', {wide:true, emphasis:true}),
+        f('Expiry', entry.expiry),
+        f('CVV', entry.cvv),
+        f('ATM PIN', entry.pin),
+      ];
+      break;
+    case 'identity':
+      name = entry.idName || entry.name;
+      fields = [
+        f('Date of Birth', entry.dob),
+        f('Nationality', entry.nationality),
+        f('Issuing State', entry.issuingState),
+        f('Expiry', entry.expiry),
+        f('Document Number', entry.docNumber ? groupDigits(entry.docNumber) : null, {wide:true, emphasis:true}),
+      ];
+      break;
+    case 'bank':
+      name = entry.bankName || entry.name;
+      fields = [
+        f('Account Type', entry.accountType),
+        f('IFSC Code', entry.ifsc),
+        f('Account Number', entry.accountNo ? groupDigits(entry.accountNo) : null, {wide:true, emphasis:true}),
+        f('Net Banking ID', entry.netBankingId),
+        f('Net Banking Password', entry.netBankingPassword),
+      ];
+      break;
+    case 'wifi':
+      name = entry.ssid || entry.name;
+      fields = [
+        f('Security Type', entry.securityType),
+        f('Password', entry.password, {wide:true, emphasis:true}),
+      ];
+      break;
+    case 'note':
+      name = entry.name;
+      fields = [ f('Note', entry.note, {wide:true, prose:true}) ];
+      break;
+    default: // app
+      name = entry.name;
+      fields = [
+        f('Username / Email', entry.username),
+        f('Password', entry.password, {emphasis:true}),
+        f('Website', entry.url, {wide:true}),
+        f('Notes', entry.notes, {wide:true, prose:true}),
+      ];
+  }
+  return { eyebrow, name, fields: fields.filter(Boolean) };
+}
+function entryCardHtml(entry){
+  const model = idCardModel(entry);
+  const fieldsHtml = model.fields.map(f=>`
+    <div class="entry-field">
+      <div class="entry-field-label">${escHtml(f.label)}</div>
+      <div class="entry-field-value${f.prose?' prose':''}">${escHtml(f.value)}</div>
+    </div>
+  `).join('');
+  return `
+    <div class="entry-card">
+      <div class="entry-eyebrow">${escHtml(model.eyebrow)}</div>
+      <div class="entry-name">${escHtml(model.name||'Entry')}</div>
+      ${fieldsHtml}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════
+//  FILE LIST (+ ENTRY CARDS, if this share includes entry data — v2 manifests)
 // ═══════════════════════════════════════
 function formatBytes(n){
   if(!n) return '';
@@ -336,11 +445,29 @@ function iconFor(mimeType){
   return '📄';
 }
 function renderFileList(){
-  const n = manifest.files.length;
-  document.getElementById('files-title').textContent = n>1 ? `${n} documents shared with you` : 'A document shared with you';
-  document.getElementById('files-sub').textContent = 'Tap a file to view it.';
+  const files = manifest.files || [];
+  const entries = manifest.entries || []; // present only on v2 (entry+docs) shares
+
+  let titleText;
+  if(entries.length && files.length) titleText = 'Shared with you';
+  else if(entries.length) titleText = entries.length>1 ? `${entries.length} items shared with you` : 'An item shared with you';
+  else titleText = files.length>1 ? `${files.length} documents shared with you` : 'A document shared with you';
+  document.getElementById('files-title').textContent = titleText;
+  document.getElementById('files-sub').textContent = files.length ? 'Tap a file to view it.' : '';
+
+  const entryList = document.getElementById('entry-list');
+  if(entries.length){
+    entryList.style.display = '';
+    entryList.innerHTML = entries.map(entryCardHtml).join('');
+  } else {
+    entryList.style.display = 'none';
+    entryList.innerHTML = '';
+  }
+
   const list = document.getElementById('file-list');
-  list.innerHTML = manifest.files.map((f,i)=>`
+  if(!files.length){ list.style.display = 'none'; list.innerHTML = ''; return; }
+  list.style.display = '';
+  list.innerHTML = files.map((f,i)=>`
     <div class="file-row" data-idx="${i}">
       <div class="file-icon">${iconFor(f.mimeType)}</div>
       <div class="file-info">
@@ -351,7 +478,7 @@ function renderFileList(){
     </div>
   `).join('');
   list.querySelectorAll('[data-idx]').forEach(row=>{
-    row.addEventListener('click', ()=>openViewer(manifest.files[parseInt(row.dataset.idx,10)]));
+    row.addEventListener('click', ()=>openViewer(files[parseInt(row.dataset.idx,10)]));
   });
 }
 function escHtml(s){

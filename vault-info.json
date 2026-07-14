@@ -1,9 +1,10 @@
 {
-  "version": "7.5",
+  "version": "7.6",
   "released": "2026-07-14",
   "whatsNew": [
-    "🧹 Secure Doc Share (part 2): expired shares now clean themselves up automatically — the Drive files and cloud record are removed the next time you unlock Vault",
-    "🔗 New Settings → Manage Shares: see every share still active, with time-to-expiry, and revoke any of them instantly"
+    "🔗 Secure Share now works for entries too: if an entry has linked documents, sharing it offers an 'Include documents' toggle — the recipient gets one link showing both the entry's fields and the documents together",
+    "🔒 Plain entry shares (no documents) are unchanged — still fully self-contained in the link, no cloud connection needed",
+    "⏱️ When documents are included, the share link is capped at 24 hours (same as document-only shares) instead of the usual 7-day option"
   ],
   "features": [
     {

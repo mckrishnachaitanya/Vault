@@ -1469,7 +1469,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.5</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.6</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1925,7 +1925,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v7.5</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v7.6</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -2067,6 +2067,15 @@ select.field-input option{background:var(--bg2);color:var(--text);}
         <button class="num-btn" data-sp="7">7</button><button class="num-btn" data-sp="8">8</button><button class="num-btn" data-sp="9">9</button>
         <button class="num-btn empty"></button><button class="num-btn" data-sp="0">0</button>
         <button class="num-btn del" id="sp-del">⌫</button>
+      </div>
+      <div id="share-includedocs-row" style="display:none;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg2);border-radius:var(--radius);padding:12px 14px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Include documents</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px" id="share-includedocs-sub"></div>
+          </div>
+          <div class="entry-checkbox" id="share-includedocs-toggle" style="cursor:pointer;flex-shrink:0"></div>
+        </div>
       </div>
       <div id="share-doc-opts" style="display:none;margin-bottom:14px">
         <div id="share-doc-size" style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.4"></div>
@@ -7258,20 +7267,66 @@ document.getElementById('s-force-update').addEventListener('click', async () => 
 // ── Secure Share (sender side, full screen) ────────────────────────────────
 let _shareTargetEntries = [];
 let _shareTargetDocs = [];       // Secure Doc Share (Drive-backed) targets
+let _entryLinkedDocs = [];       // linked docs available to include on an entry share
+let _entryIncludeDocs = false;   // whether the entry share should include them
 let _shareAllowDownload = true;  // per-share toggle; stored per-file in manifest
 let _shareSelectedTTL = 86400000;
 let _spPin = '';
 
-// One sheet, two modes: 'entries' (link-embedded payload, unchanged) and
-// 'docs' (Drive-backed doc share — size line, allow-download toggle, expiry
-// capped at 24h so the 7-day preset is swapped for a 6-hour one).
-function setShareSheetMode(mode){
-  const docMode = mode==='docs';
-  document.getElementById('share-doc-opts').style.display = docMode ? '' : 'none';
-  document.getElementById('share-exp-6h').style.display = docMode ? '' : 'none';
-  document.getElementById('share-exp-7d').style.display = docMode ? 'none' : '';
-  document.getElementById('share-generate-btn').textContent = docMode ? 'Encrypt & Upload' : 'Generate Link';
+// Union of linkedDocIds across all selected entries, resolved to actual doc
+// objects (silently drops ids whose document has since been deleted).
+function collectLinkedDocs(entries){
+  const ids = new Set();
+  entries.forEach(e => (e.linkedDocIds||[]).forEach(id=>ids.add(id)));
+  return (state.docs||[]).filter(d=>ids.has(d.id));
 }
+
+// Single source of truth for the share sheet's variable UI: the "Include
+// documents" row (entry mode only, only if linked docs exist), the doc
+// upload options (size + allow-download — shown whenever docs are actually
+// involved, whether this is a pure doc share OR an entry share with docs
+// included), and the expiry presets (docs cap the link to 24h, so the
+// 7-day option is swapped for 6h whenever docs are in play).
+function refreshShareSheetUI(){
+  const inEntryMode = _shareTargetEntries.length>0;
+  const showIncludeRow = inEntryMode && _entryLinkedDocs.length>0;
+  document.getElementById('share-includedocs-row').style.display = showIncludeRow ? '' : 'none';
+  if(showIncludeRow){
+    const sub = document.getElementById('share-includedocs-sub');
+    const toggle = document.getElementById('share-includedocs-toggle');
+    const n = _entryLinkedDocs.length;
+    if(!state.cloudSyncOn){
+      sub.textContent = 'Enable Cloud Sync in Settings to include documents';
+      toggle.style.opacity='0.35'; toggle.style.pointerEvents='none';
+    } else {
+      sub.textContent = `Also share ${n} linked document${n===1?'':'s'} with this link`;
+      toggle.style.opacity=''; toggle.style.pointerEvents='';
+    }
+  }
+  const hasDocs = _shareTargetDocs.length>0 || (inEntryMode && _entryIncludeDocs && _entryLinkedDocs.length>0);
+  const docsForSize = _shareTargetDocs.length ? _shareTargetDocs : _entryLinkedDocs;
+  document.getElementById('share-doc-opts').style.display = hasDocs ? '' : 'none';
+  if(hasDocs){
+    const total = docsForSize.reduce((s,d)=>s+(d.size||0), 0);
+    document.getElementById('share-doc-size').innerHTML =
+      `Upload size: <b>${formatBytes(total)}</b> — encrypted on your phone before upload.` +
+      (total > 8*1024*1024 ? ' <span style="color:#f59e0b">Large upload — Wi-Fi recommended.</span>' : '');
+  }
+  document.getElementById('share-exp-6h').style.display = hasDocs ? '' : 'none';
+  document.getElementById('share-exp-7d').style.display = hasDocs ? 'none' : '';
+  if(hasDocs && _shareSelectedTTL > 86400000){
+    _shareSelectedTTL = 86400000;
+    document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b.dataset.ttl==='86400000'));
+  }
+  document.getElementById('share-generate-btn').textContent =
+    _shareTargetDocs.length ? 'Encrypt & Upload' : (hasDocs ? 'Include & Share' : 'Generate Link');
+}
+document.getElementById('share-includedocs-toggle').addEventListener('click', ()=>{
+  if(!state.cloudSyncOn){ toast('Turn on Cloud Sync in Settings to include documents'); return; }
+  _entryIncludeDocs = !_entryIncludeDocs;
+  document.getElementById('share-includedocs-toggle').classList.toggle('checked', _entryIncludeDocs);
+  refreshShareSheetUI();
+});
 
 function spUpdateDots() {
   document.querySelectorAll('#sp-dots .pin-dot').forEach((dot, i) => {
@@ -7290,7 +7345,11 @@ function hideShareSheet() {
 function openShareModal(entryOrEntries) {
   _shareTargetEntries = Array.isArray(entryOrEntries) ? entryOrEntries : [entryOrEntries];
   _shareTargetDocs = [];
-  setShareSheetMode('entries');
+  _entryLinkedDocs = collectLinkedDocs(_shareTargetEntries);
+  _entryIncludeDocs = false;
+  document.getElementById('share-includedocs-toggle').classList.remove('checked');
+  _shareAllowDownload = true;
+  document.getElementById('share-allow-dl').classList.add('checked');
   _shareSelectedTTL = 86400000;
   _spPin = '';
   spUpdateDots();
@@ -7301,14 +7360,17 @@ function openShareModal(entryOrEntries) {
   document.querySelectorAll('.share-expiry-btn').forEach(b => {
     b.classList.toggle('selected', b.dataset.ttl === '86400000');
   });
+  refreshShareSheetUI();
   showShareSheet();
 }
 
-// Secure Doc Share — same sheet in 'docs' mode. Requires Cloud Sync (for the
+// Secure Doc Share — same sheet, doc-only mode. Requires Cloud Sync (for the
 // Firestore share record) and Drive drive.file consent (first share only).
 function openDocShareModal(docsArr){
   _shareTargetDocs = Array.isArray(docsArr) ? docsArr : [docsArr];
   _shareTargetEntries = [];
+  _entryLinkedDocs = [];
+  _entryIncludeDocs = false;
   _shareSelectedTTL = 86400000;
   _spPin = '';
   spUpdateDots();
@@ -7316,16 +7378,12 @@ function openDocShareModal(docsArr){
   document.getElementById('share-allow-dl').classList.add('checked');
   const n = _shareTargetDocs.length;
   document.querySelector('.share-sheet-title').textContent = n > 1 ? `🔗 Share Documents (${n})` : '🔗 Share Document';
-  const total = _shareTargetDocs.reduce((s,d)=>s+(d.size||0), 0);
-  document.getElementById('share-doc-size').innerHTML =
-    `Upload size: <b>${formatBytes(total)}</b> — encrypted on your phone before upload.` +
-    (total > 8*1024*1024 ? ' <span style="color:#f59e0b">Large upload — Wi-Fi recommended.</span>' : '');
   document.getElementById('share-step-setup').style.display = '';
   document.getElementById('share-step-link').style.display = 'none';
   document.querySelectorAll('.share-expiry-btn').forEach(b => {
     b.classList.toggle('selected', b.dataset.ttl === '86400000');
   });
-  setShareSheetMode('docs');
+  refreshShareSheetUI();
   showShareSheet();
 }
 document.getElementById('share-allow-dl').addEventListener('click', ()=>{
@@ -7374,8 +7432,12 @@ function presentShareLink(link){
 document.getElementById('share-generate-btn').addEventListener('click', async () => {
   const pin = _spPin;
   if(pin.length !== 4) { toast('Enter a 4-digit PIN'); return; }
-  if(_shareTargetDocs.length) { await generateDocShare(pin); return; }
+  if(_shareTargetDocs.length) { await generateHybridShare(pin, {docsToUpload:_shareTargetDocs, entriesToInclude:null}); return; }
   if(!_shareTargetEntries.length) return;
+  if(_entryIncludeDocs && _entryLinkedDocs.length) {
+    await generateHybridShare(pin, {docsToUpload:_entryLinkedDocs, entriesToInclude:_shareTargetEntries});
+    return;
+  }
   const payload = { entries: _shareTargetEntries, expiresAt: Date.now() + _shareSelectedTTL };
   const encrypted = await Crypto.encrypt(payload, pin, {ephemeralSalt:true});
   const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
@@ -7423,7 +7485,7 @@ async function saveLocalDocShares(list){
 // after an await re-checks its own generation against the current one.
 let _shareGen = 0;
 
-async function generateDocShare(pin){
+async function generateHybridShare(pin, {docsToUpload, entriesToInclude}){
   const myGen = ++_shareGen;
   const btn=document.getElementById('share-generate-btn');
   const setP=t=>{ if(myGen===_shareGen) btn.textContent=t; };
@@ -7436,54 +7498,60 @@ async function generateDocShare(pin){
     // it behind other awaits and some mobile browsers silently convert it
     // into a full top-level redirect instead of a popup, which reloads the
     // whole page and aborts everything mid-share.
-    setP('Connecting to Drive…');
+    setP('Connecting to Drive\u2026');
     await DriveShare.getToken(true);
     if(myGen!==_shareGen) return; // superseded while authorizing
 
-    setP('Connecting…');
+    setP('Connecting\u2026');
     const user=await ensureCloudUser();
     if(myGen!==_shareGen) return; // superseded while connecting
     if(!user){ if(myGen===_shareGen) toast('Turn on Cloud Sync in Settings first'); return; }
     const shareId=DriveShare.newShareId();
-    const total=_shareTargetDocs.length;
+    const total=docsToUpload.length;
     const files=[];
     for(let i=0;i<total;i++){
-      const d=_shareTargetDocs[i];
-      setP(`Encrypting ${i+1}/${total}…`);
+      const d=docsToUpload[i];
+      setP(`Encrypting ${i+1}/${total}\u2026`);
       const ab=await DocsDB.loadFile(d.id, state.currentPIN);
       if(!ab) throw new Error('Could not load '+d.name);
       const encBlob=await Crypto.encryptRawShare(ab, pin);
-      setP(`Uploading ${i+1}/${total}…`);
+      setP(`Uploading ${i+1}/${total}\u2026`);
       const fid=await DriveShare.uploadShareFile(`vault-share-${shareId}-${i+1}.bin`, encBlob);
       uploaded.push(fid);
       await DriveShare.makePublic(fid);
       files.push({ fid, name:d.name, mimeType:d.mimeType||'application/octet-stream', size:d.size||0, dl:_shareAllowDownload });
     }
-    setP('Finalizing…');
-    const encManifest=await Crypto.encrypt({v:1, files}, pin, {ephemeralSalt:true});
+    setP('Finalizing\u2026');
+    // v2 manifest \u2014 entries is new; empty for pure doc shares, and older
+    // v1 manifests (no entries field at all) stay backward-compatible in
+    // share.html since it just treats a missing/empty entries array as none.
+    const encManifest=await Crypto.encrypt({v:2, entries: entriesToInclude||[], files}, pin, {ephemeralSalt:true});
     const expiresAt=Date.now() + Math.min(_shareSelectedTTL, 86400000); // hard 24h cap
     await CloudSync.fsMod.setDoc(
       CloudSync.fsMod.doc(CloudSync.db, 'shares', shareId),
       { m:encManifest, fids:uploaded, exp:expiresAt, revoked:false, uid:user.uid, created:Date.now() }
     );
     const ledger=await loadLocalDocShares();
-    ledger.push({ shareId, fids:uploaded, exp:expiresAt, names:files.map(f=>f.name), created:Date.now() });
+    const names=[...(entriesToInclude||[]).map(e=>e.name), ...files.map(f=>f.name)];
+    ledger.push({ shareId, fids:uploaded, exp:expiresAt, names, created:Date.now() });
     await saveLocalDocShares(ledger);
-    // The share is now fully created and safe regardless of what follows —
+    // The share is now fully created and safe regardless of what follows \u2014
     // only the UI reveal below is conditional on still being the active attempt.
-    if(myGen!==_shareGen) return; // superseded — share exists, just not shown here
+    if(myGen!==_shareGen) return; // superseded \u2014 share exists, just not shown here
     const base=location.pathname.replace(/[^/]*$/,'');
     presentShareLink(`${location.origin}${base}share.html#${shareId}`);
     if(docsSelectMode) toggleDocsSelectMode(false);
+    if(entriesToInclude && entriesToInclude.length>1 && state.selectMode) toggleSelectMode(false);
   } catch(e){
-    console.error('Doc share failed', e);
-    // Best-effort rollback — a half-published share must not linger on Drive.
+    console.error('Share failed', e);
+    // Best-effort rollback \u2014 a half-published share must not linger on Drive.
     for(const fid of uploaded){ DriveShare.deleteFile(fid).catch(()=>{}); }
-    if(myGen===_shareGen) toast('Share failed — nothing was published');
+    if(myGen===_shareGen) toast('Share failed \u2014 nothing was published');
   } finally{
     if(myGen===_shareGen){
       btn.disabled=false;
-      btn.textContent=_shareTargetDocs.length ? 'Encrypt & Upload' : 'Generate Link';
+      btn.textContent = (docsToUpload.length && !(entriesToInclude&&entriesToInclude.length)) ? 'Encrypt & Upload'
+        : ((entriesToInclude && entriesToInclude.length) ? 'Include & Share' : 'Generate Link');
     }
   }
 }
