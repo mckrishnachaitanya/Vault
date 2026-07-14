@@ -1,11 +1,9 @@
 {
-  "version": "7.3",
+  "version": "7.4",
   "released": "2026-07-14",
   "whatsNew": [
-    "🛠️ Fixed: Vault could auto-lock mid-way through the Google sign-in step when creating a Secure Doc Share, interrupting the process",
-    "🛠️ Fixed: if a share attempt was interrupted, a stale copy of it could finish in the background and hijack a later share attempt's screen",
-    "🛠️ Fixed: opening one shared document quickly after another in share.html could show the wrong download availability",
-    "🔗 Link previews for Secure Doc Share links (e.g. in WhatsApp) now show 'Vault — Secure Document Share' instead of looking like the main app link"
+    "🛠️ Fixed (properly this time): Secure Doc Share could still auto-lock during Google sign-in — a separate 2-minute idle timer was locking the vault independently of the previous fix. Locking is now blocked at the source while Drive sign-in is in progress",
+    "🛠️ Drive sign-in for Secure Doc Share now happens immediately when you tap Encrypt & Upload, before any other processing — reduces the chance of the browser converting the sign-in popup into a full page reload"
   ],
   "features": [
     {

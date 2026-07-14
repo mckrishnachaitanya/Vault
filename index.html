@@ -1469,7 +1469,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.3</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.4</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1908,7 +1908,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v7.3</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v7.4</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -3166,6 +3166,12 @@ function resetAutoLock() {
   autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MS);
 }
 function lockVault() {
+  // Refuse to lock while a Drive OAuth popup/redirect has taken focus —
+  // checked HERE, not just in the visibilitychange listener, because the
+  // 2-minute idle auto-lock timer (below) can also call this directly and
+  // runs completely independently of visibility. A slow account-picker +
+  // consent flow can easily exceed 2 minutes wall-clock.
+  if(state.driveAuthPending>0) return;
   state.bioPending = false;
   stopCameraStream(); // kill live camera if open
   // Tear down any inline PDF viewer FIRST (R9 lesson: overlays before screen
@@ -7407,6 +7413,16 @@ async function generateDocShare(pin){
   btn.disabled=true;
   const uploaded=[];
   try{
+    // Acquire Drive authorization FIRST, before any other async work
+    // (Firebase SDK load, file decrypt/encrypt). Google's consent popup
+    // needs to open while the tap's user-activation is still fresh — delay
+    // it behind other awaits and some mobile browsers silently convert it
+    // into a full top-level redirect instead of a popup, which reloads the
+    // whole page and aborts everything mid-share.
+    setP('Connecting to Drive…');
+    await DriveShare.getToken(true);
+    if(myGen!==_shareGen) return; // superseded while authorizing
+
     setP('Connecting…');
     const user=await ensureCloudUser();
     if(myGen!==_shareGen) return; // superseded while connecting
