@@ -1469,7 +1469,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.2</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.3</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1908,7 +1908,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v7.2</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v7.3</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -2279,6 +2279,9 @@ let state = {
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
   unlockedViaBio: false, stepUpDone: false,
   preLockScreen: null, formDraft: null, bioGen: 0, bioPending: false,
+  driveAuthPending: 0, // >0 while a Drive OAuth popup/redirect has taken focus —
+                       // suppresses the visibilitychange auto-lock, same idea as
+                       // importInProgress for the native file picker.
   cloudUser: null, cloudSyncOn: false, syncStatus: 'idle',
   docsStepUpDone: false,
   docViewSource: 'docs',   // 'docs' | 'entry' — controls docview-back destination
@@ -3205,7 +3208,7 @@ function lockVault() {
 document.getElementById('bio-unlock-btn').addEventListener('click', tryBiometricUnlock);
 document.addEventListener('touchstart', resetAutoLock);
 document.addEventListener('click', resetAutoLock);
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.unlocked && !state.importInProgress) lockVault(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.unlocked && !state.importInProgress && !state.driveAuthPending) lockVault(); });
 
 // ═══════════════════════════════════════
 //  PIN SCREEN
@@ -7389,15 +7392,25 @@ async function saveLocalDocShares(list){
   Store.set('vault_doc_shares', await Crypto.encrypt(list, state.currentPIN));
 }
 
+// Monotonic generation counter. A share attempt interrupted by the false
+// auto-lock (now fixed) — or any other backgrounding — keeps running in the
+// background once resumed; without this guard, its late completion would
+// call presentShareLink() and hijack whatever the user has open by then
+// (a fresh second attempt, a closed sheet, etc). Every UI-touching point
+// after an await re-checks its own generation against the current one.
+let _shareGen = 0;
+
 async function generateDocShare(pin){
+  const myGen = ++_shareGen;
   const btn=document.getElementById('share-generate-btn');
-  const setP=t=>{ btn.textContent=t; };
+  const setP=t=>{ if(myGen===_shareGen) btn.textContent=t; };
   btn.disabled=true;
   const uploaded=[];
   try{
     setP('Connecting…');
     const user=await ensureCloudUser();
-    if(!user){ toast('Turn on Cloud Sync in Settings first'); return; }
+    if(myGen!==_shareGen) return; // superseded while connecting
+    if(!user){ if(myGen===_shareGen) toast('Turn on Cloud Sync in Settings first'); return; }
     const shareId=DriveShare.newShareId();
     const total=_shareTargetDocs.length;
     const files=[];
@@ -7423,6 +7436,9 @@ async function generateDocShare(pin){
     const ledger=await loadLocalDocShares();
     ledger.push({ shareId, fids:uploaded, exp:expiresAt, names:files.map(f=>f.name), created:Date.now() });
     await saveLocalDocShares(ledger);
+    // The share is now fully created and safe regardless of what follows —
+    // only the UI reveal below is conditional on still being the active attempt.
+    if(myGen!==_shareGen) return; // superseded — share exists, just not shown here
     const base=location.pathname.replace(/[^/]*$/,'');
     presentShareLink(`${location.origin}${base}share.html#${shareId}`);
     if(docsSelectMode) toggleDocsSelectMode(false);
@@ -7430,10 +7446,12 @@ async function generateDocShare(pin){
     console.error('Doc share failed', e);
     // Best-effort rollback — a half-published share must not linger on Drive.
     for(const fid of uploaded){ DriveShare.deleteFile(fid).catch(()=>{}); }
-    toast('Share failed — nothing was published');
+    if(myGen===_shareGen) toast('Share failed — nothing was published');
   } finally{
-    btn.disabled=false;
-    btn.textContent=_shareTargetDocs.length ? 'Encrypt & Upload' : 'Generate Link';
+    if(myGen===_shareGen){
+      btn.disabled=false;
+      btn.textContent=_shareTargetDocs.length ? 'Encrypt & Upload' : 'Generate Link';
+    }
   }
 }
 
@@ -8004,17 +8022,19 @@ const DriveBackup={
         callback: ()=>{}, // overridden per-call
       });
     }
+    if(interactive) state.driveAuthPending++;
     return new Promise((resolve,reject)=>{
       this.tokenClient.callback=(resp)=>{
+        if(interactive) state.driveAuthPending--;
         if(resp && resp.access_token){
           this.accessToken=resp.access_token;
           this.tokenExpiresAt=Date.now() + (resp.expires_in||3600)*1000;
           resolve(this.accessToken);
         } else reject(new Error('No access token returned'));
       };
-      this.tokenClient.error_callback=(err)=>{ reject(err||new Error('Auth failed')); };
+      this.tokenClient.error_callback=(err)=>{ if(interactive) state.driveAuthPending--; reject(err||new Error('Auth failed')); };
       try{ this.tokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' }); }
-      catch(err){ reject(err); }
+      catch(err){ if(interactive) state.driveAuthPending--; reject(err); }
     });
   },
 
@@ -8330,17 +8350,19 @@ const DriveShare={
         callback: ()=>{},
       });
     }
+    if(interactive) state.driveAuthPending++;
     return new Promise((resolve,reject)=>{
       this.tokenClient.callback=(resp)=>{
+        if(interactive) state.driveAuthPending--;
         if(resp && resp.access_token){
           this.accessToken=resp.access_token;
           this.tokenExpiresAt=Date.now() + (resp.expires_in||3600)*1000;
           resolve(this.accessToken);
         } else reject(new Error('No access token returned'));
       };
-      this.tokenClient.error_callback=(err)=>{ reject(err||new Error('Auth failed')); };
+      this.tokenClient.error_callback=(err)=>{ if(interactive) state.driveAuthPending--; reject(err||new Error('Auth failed')); };
       try{ this.tokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' }); }
-      catch(err){ reject(err); }
+      catch(err){ if(interactive) state.driveAuthPending--; reject(err); }
     });
   },
 

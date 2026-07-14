@@ -1,13 +1,11 @@
 {
-  "version": "7.2",
-  "released": "2026-07-13",
+  "version": "7.3",
+  "released": "2026-07-14",
   "whatsNew": [
-    "🔗 NEW: Secure Document Sharing (part 1) — share encrypted documents via a link + PIN. Select docs from the Documents list (☑️) or tap 'Create Secure Link' on any document",
-    "☁️ Shared files are encrypted with the share PIN on your phone before upload — Google Drive and the cloud only ever see ciphertext",
-    "⬇️ Per-share 'Allow download' toggle — turn it off to make a share view-only for the recipient",
-    "⏱️ Document share links expire in 1, 6, or 24 hours (24h max), and every upload shows its size before you send",
-    "📁 Shared files live in a visible 'Vault Shares' folder in your Google Drive, separate from backups",
-    "ℹ️ Note: the recipient page (share.html) ships in the next update — links generated now will work once it's live"
+    "🛠️ Fixed: Vault could auto-lock mid-way through the Google sign-in step when creating a Secure Doc Share, interrupting the process",
+    "🛠️ Fixed: if a share attempt was interrupted, a stale copy of it could finish in the background and hijack a later share attempt's screen",
+    "🛠️ Fixed: opening one shared document quickly after another in share.html could show the wrong download availability",
+    "🔗 Link previews for Secure Doc Share links (e.g. in WhatsApp) now show 'Vault — Secure Document Share' instead of looking like the main app link"
   ],
   "features": [
     {
