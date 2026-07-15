@@ -1,13 +1,12 @@
 {
-  "version": "7.9",
+  "version": "8.0",
   "released": "2026-07-15",
   "whatsNew": [
-    "🔗 Secure Share fix: the 'Include documents' option now always appears when sharing entries that have linked documents — previously it could silently go missing on swipe-share and multi-select shares until you'd opened the Docs tab",
-    "⏱️ Expiry picker fix: switching document sharing off no longer leaves a hidden 6-hour expiry selected with nothing highlighted",
-    "🏷️ Custom fields are now visible to share recipients — both in shared-entry links and in combined entry+document shares",
-    "👆 Sharing now asks for your PIN when the vault was unlocked with biometrics — same protection as viewing documents",
-    "❌ Closing the share sheet mid-upload now cancels the share and removes anything already uploaded — and Manage Shares gained a Copy Link button so no link is ever lost",
-    "🧹 Recipient page: expired links now stop working the moment they expire (even in an already-open tab), plus a memory leak fix when viewing multiple files"
+    "📎 Shared documents now appear grouped under the entry they belong to on the recipient page — no more guessing which file goes with which entry. Documents linked to several shared entries show once, labelled with every entry they belong to",
+    "📝 Notes now display with proper formatting (headings, bold, bullets) on recipient cards instead of raw markdown symbols",
+    "🏷️ Shared links no longer carry internal vault data (ids, favourites, timestamps) — recipients get only what they can see, and entry-share links got shorter too",
+    "☁️ Sharing a document without Cloud Sync on now tells you immediately, instead of after the Google Drive permission popup",
+    "🔒 A document share interrupted by auto-lock now reopens right where you left it after unlocking, and half-typed share PINs are wiped on lock"
   ],
   "features": [
     {

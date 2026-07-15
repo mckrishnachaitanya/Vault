@@ -97,7 +97,18 @@ body{
 .entry-field:last-child{margin-bottom:0;}
 .entry-field-label{font-size:11px;color:var(--muted);margin-bottom:3px;}
 .entry-field-value{font-size:14px;font-weight:600;word-break:break-word;font-family:var(--mono,monospace);}
-.entry-field-value.prose{font-weight:400;white-space:pre-wrap;line-height:1.5;font-family:var(--font);}
+.entry-field-value.prose{font-weight:400;white-space:normal;line-height:1.5;font-family:var(--font);}
+.entry-field-value.prose h1{font-size:15px;font-weight:800;margin:6px 0 3px;}
+.entry-field-value.prose p{margin:0 0 4px;}
+.entry-field-value.prose ul{margin:0 0 4px;padding-left:18px;}
+.entry-field-value.prose li{margin:2px 0;}
+
+/* v3 grouped layout: an entry card with its linked documents nested under it */
+.entry-group{display:flex;flex-direction:column;gap:8px;}
+.entry-docs{display:flex;flex-direction:column;gap:8px;padding-left:14px;border-left:2px solid var(--border);margin-left:6px;}
+.entry-docs .file-row{padding:11px 14px;border-radius:14px;}
+.entry-docs-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:2px;}
+.ungrouped-label{font-size:12px;color:var(--muted);font-weight:700;margin:6px 0 2px;}
 
 .viewer-overlay{
   position:fixed;inset:0;background:var(--bg);z-index:20;display:none;
@@ -417,12 +428,30 @@ function idCardModel(entry) {
     .filter(Boolean);
   return { eyebrow, name, fields: [...fields.filter(Boolean), ...custom] };
 }
+// Ported from index.html's noteMarkdownToHTML — escapes every line via
+// escHtml BEFORE any markdown transform, so this introduces no HTML
+// injection surface (same guarantee as the main app's note renderer).
+function noteMarkdownToHTML(md){
+  if(!md) return '';
+  return String(md)
+    .split('\n')
+    .map(line => {
+      if(line.startsWith('# '))  return `<h1>${escHtml(line.slice(2))}</h1>`;
+      if(line.startsWith('- '))  return `<ul><li>${escHtml(line.slice(2))}</li></ul>`;
+      let l = escHtml(line);
+      l = l.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      l = l.replace(/\*(.+?)\*/g,   '<i>$1</i>');
+      return l ? `<p>${l}</p>` : '<br>';
+    })
+    .join('')
+    .replace(/<\/ul><ul>/g, '');
+}
 function entryCardHtml(entry){
   const model = idCardModel(entry);
   const fieldsHtml = model.fields.map(f=>`
     <div class="entry-field">
       <div class="entry-field-label">${escHtml(f.label)}</div>
-      <div class="entry-field-value${f.prose?' prose':''}">${escHtml(f.value)}</div>
+      <div class="entry-field-value${f.prose?' prose':''}">${f.prose ? noteMarkdownToHTML(f.value) : escHtml(f.value)}</div>
     </div>
   `).join('');
   return `
@@ -451,7 +480,7 @@ function iconFor(mimeType){
 }
 function renderFileList(){
   const files = manifest.files || [];
-  const entries = manifest.entries || []; // present only on v2 (entry+docs) shares
+  const entries = manifest.entries || []; // present only on v2+ (entry+docs) shares
 
   let titleText;
   if(entries.length && files.length) titleText = 'Shared with you';
@@ -460,29 +489,59 @@ function renderFileList(){
   document.getElementById('files-title').textContent = titleText;
   document.getElementById('files-sub').textContent = files.length ? 'Tap a file to view it.' : '';
 
+  // One row builder for every context — data-idx is always the ABSOLUTE
+  // index into manifest.files, so the single click-delegation below works
+  // for nested and flat rows alike.
+  const fileRowHtml = (f, i, caption) => `
+    <div class="file-row" data-idx="${i}">
+      <div class="file-icon">${iconFor(f.mimeType)}</div>
+      <div class="file-info">
+        <div class="file-name">${escHtml(f.name||'Document')}</div>
+        <div class="file-meta">${formatBytes(f.size)}${f.dl===false ? ' · View only' : ''}${caption ? ' · '+escHtml(caption) : ''}</div>
+      </div>
+      <div class="file-arrow">›</div>
+    </div>`;
+
   const entryList = document.getElementById('entry-list');
+  const list = document.getElementById('file-list');
+
+  // v3 grouping: any file carrying fe (entry indices) nests under the FIRST
+  // entry it's linked to; if linked to several, it renders ONCE, captioned
+  // with ALL linked entry names. v1/v2 manifests have no fe on any file, so
+  // grouped stays empty and this renders exactly like before.
+  const grouped = files.map((f,i)=>({f,i})).filter(x=>Array.isArray(x.f.fe) && x.f.fe.length);
+  const ungrouped = files.map((f,i)=>({f,i})).filter(x=>!(Array.isArray(x.f.fe) && x.f.fe.length));
+  const entryName = ei => (entries[ei] && (idCardModel(entries[ei]).name || entries[ei].name)) || 'Entry';
+
   if(entries.length){
     entryList.style.display = '';
-    entryList.innerHTML = entries.map(entryCardHtml).join('');
+    entryList.innerHTML = entries.map((entry,ei)=>{
+      const mine = grouped.filter(x=>x.f.fe[0]===ei);
+      const docsHtml = mine.length ? `
+        <div class="entry-docs">
+          <div class="entry-docs-label">Attached document${mine.length>1?'s':''}</div>
+          ${mine.map(x=>{
+            const caption = x.f.fe.length>1 ? 'Linked to: '+x.f.fe.map(entryName).join(', ') : '';
+            return fileRowHtml(x.f, x.i, caption);
+          }).join('')}
+        </div>` : '';
+      return `<div class="entry-group">${entryCardHtml(entry)}${docsHtml}</div>`;
+    }).join('');
   } else {
     entryList.style.display = 'none';
     entryList.innerHTML = '';
   }
 
-  const list = document.getElementById('file-list');
-  if(!files.length){ list.style.display = 'none'; list.innerHTML = ''; return; }
-  list.style.display = '';
-  list.innerHTML = files.map((f,i)=>`
-    <div class="file-row" data-idx="${i}">
-      <div class="file-icon">${iconFor(f.mimeType)}</div>
-      <div class="file-info">
-        <div class="file-name">${escHtml(f.name||'Document')}</div>
-        <div class="file-meta">${formatBytes(f.size)}${f.dl===false ? ' · View only' : ''}</div>
-      </div>
-      <div class="file-arrow">›</div>
-    </div>
-  `).join('');
-  list.querySelectorAll('[data-idx]').forEach(row=>{
+  // Flat list at the bottom: all files on v1/v2 manifests, or (v3) any file
+  // without an entry association — pure doc shares land here unchanged.
+  if(!ungrouped.length){ list.style.display = 'none'; list.innerHTML = ''; }
+  else {
+    list.style.display = '';
+    const label = (entries.length && grouped.length) ? '<div class="ungrouped-label">Other documents</div>' : '';
+    list.innerHTML = label + ungrouped.map(x=>fileRowHtml(x.f, x.i, '')).join('');
+  }
+
+  document.querySelectorAll('#entry-list [data-idx], #file-list [data-idx]').forEach(row=>{
     row.addEventListener('click', ()=>openViewer(files[parseInt(row.dataset.idx,10)]));
   });
 }

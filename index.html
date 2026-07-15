@@ -705,7 +705,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .idcard-field .val{font-family:'JetBrains Mono',monospace;font-size:13.5px;font-weight:700;color:var(--ic-ink);letter-spacing:.3px;word-break:break-word;white-space:pre-wrap;}
 .idcard-field.emphasis .val{color:var(--ic-brass-deep);font-size:14.5px;}
 .idcard-field.wide{grid-column:1/-1;}
-.idcard-field.prose .val{font-family:var(--font);font-weight:500;letter-spacing:0;white-space:pre-wrap;}
+.idcard-field.prose .val{font-family:var(--font);font-weight:500;letter-spacing:0;white-space:normal;line-height:1.5;}
+/* Rendered note markdown inside recipient cards (noteMarkdownToHTML output) */
+.idcard-field.prose .val h1{font-size:15px;font-weight:800;margin:6px 0 3px;}
+.idcard-field.prose .val p{margin:0 0 4px;}
+.idcard-field.prose .val ul{margin:0 0 4px;padding-left:18px;}
+.idcard-field.prose .val li{margin:2px 0;}
 
 /* ── Carousel (multi-entry recipient view) ── */
 .share-carousel{position:relative;display:flex;align-items:center;justify-content:center;width:100%;}
@@ -1459,7 +1464,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.9</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.0</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1915,7 +1920,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v7.9</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v8.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -3226,6 +3231,9 @@ function lockVault() {
   if(shareSheetOpen) {
     document.getElementById('share-sheet-overlay').classList.remove('show');
   }
+  // Whether or not the sheet was open: wipe any half-typed share PIN so it
+  // can't reappear as pre-filled dots when the sheet is restored post-unlock.
+  _spPin = ''; spUpdateDots();
   // Capture which screen we were on, so we can restore it after re-auth
   const visibleScreen = SCREENS.find(s => !document.getElementById(s).classList.contains('hidden'));
   if(shareSheetOpen){
@@ -3480,6 +3488,21 @@ async function restoreAfterUnlock() {
       if(!ok){ showScreen('home-screen'); renderEntries(true); updateStats(); return; }
     }
     if(currentDetail){ showScreen('home-screen'); renderEntries(true); updateStats(); openDetail(currentDetail.id); }
+    showShareSheet();
+    return;
+  }
+
+  // Doc-mode share sheet interrupted by auto-lock: previously fell through
+  // to home and the prepared share was just lost. The sheet's own state
+  // (_shareTargetDocs) survives the lock, so restoring is only a matter of
+  // putting the Docs screen behind it and reopening. Same bio step-up rule
+  // as the doc share entry points.
+  if(target==='share-sheet' && _shareTargetDocs.length){
+    if(state.unlockedViaBio){
+      const ok = await requirePIN('Enter PIN to share');
+      if(!ok){ showScreen('home-screen'); renderEntries(true); updateStats(); return; }
+    }
+    openDocsTab();
     showShareSheet();
     return;
   }
@@ -7417,6 +7440,10 @@ async function openShareModal(entryOrEntries) {
 // Secure Doc Share — same sheet, doc-only mode. Requires Cloud Sync (for the
 // Firestore share record) and Drive drive.file consent (first share only).
 function openDocShareModal(docsArr){
+  // Fail HERE, not after the Drive consent popup — without Cloud Sync the
+  // pipeline can't finish (ensureCloudUser returns null), so don't let the
+  // user type a PIN and grant Drive access just to hit a dead end.
+  if(!state.cloudSyncOn){ toast('Turn on Cloud Sync in Settings first'); return; }
   _shareTargetDocs = Array.isArray(docsArr) ? docsArr : [docsArr];
   document.getElementById('share-generate-btn').disabled = false; // clear any cancelled-share leftover
   _shareTargetEntries = [];
@@ -7502,11 +7529,23 @@ document.getElementById('share-generate-btn').addEventListener('click', async ()
     await generateHybridShare(pin, {docsToUpload:_entryLinkedDocs, entriesToInclude:_shareTargetEntries});
     return;
   }
-  const payload = { entries: _shareTargetEntries, expiresAt: Date.now() + _shareSelectedTTL };
+  const payload = { entries: _shareTargetEntries.map(shareableEntry), expiresAt: Date.now() + _shareSelectedTTL };
   const encrypted = await Crypto.encrypt(payload, pin, {ephemeralSalt:true});
   const urlSafe = encrypted.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   presentShareLink(`${location.origin}${location.pathname}#share/${urlSafe}`);
 });
+
+// Strip vault-internal fields from an entry before it goes into ANY share
+// payload (hash link or hybrid manifest). Recipients never use these —
+// id/fav/created/updated are meaningless outside this vault, linkedDocIds
+// reference IndexedDB ids that don't travel — and dropping them both stops
+// leaking internals and shortens hash-link URLs. Blocklist (not allowlist)
+// on purpose: a future rendered field added to collectFormData must not be
+// silently dropped from shares.
+function shareableEntry(e){
+  const {id, fav, created, updated, linkedDocIds, ...pub} = e;
+  return pub;
+}
 
 // ── Secure Doc Share pipeline (sender side) ───────────────────────────────
 // Per doc: decrypt with vault PIN → re-encrypt with SHARE PIN (ephemeral
@@ -7591,16 +7630,25 @@ async function generateHybridShare(pin, {docsToUpload, entriesToInclude}){
       const fid=await DriveShare.uploadShareFile(`vault-share-${shareId}-${i+1}.bin`, encBlob);
       uploaded.push(fid);
       await DriveShare.makePublic(fid);
-      files.push({ fid, name:d.name, mimeType:d.mimeType||'application/octet-stream', size:d.size||0, dl:_shareAllowDownload });
+      // v3: fe = indices into the manifest's entries array of every entry
+      // this doc is linked to (a doc can be linked from several selected
+      // entries; collectLinkedDocs dedupes, so it appears once here).
+      // Omitted entirely for pure doc shares — recipient treats missing fe
+      // as ungrouped, which also keeps v1/v2 manifests rendering unchanged.
+      const forEntries = entriesToInclude
+        ? entriesToInclude.reduce((a,e,ei)=>{ if((e.linkedDocIds||[]).includes(d.id)) a.push(ei); return a; }, [])
+        : [];
+      files.push({ fid, name:d.name, mimeType:d.mimeType||'application/octet-stream', size:d.size||0, dl:_shareAllowDownload, ...(forEntries.length ? {fe:forEntries} : {}) });
     }
     setP('Finalizing\u2026');
     // Last cancellation checkpoint — past this line the Firestore record is
     // written and the share is real (from here, close no longer cancels).
     if(myGen!==_shareGen) throw new Error('share cancelled');
-    // v2 manifest \u2014 entries is new; empty for pure doc shares, and older
-    // v1 manifests (no entries field at all) stay backward-compatible in
-    // share.html since it just treats a missing/empty entries array as none.
-    const encManifest=await Crypto.encrypt({v:2, entries: entriesToInclude||[], files}, pin, {ephemeralSalt:true});
+    // v3 manifest — files may carry fe (entry-association indices, above)
+    // and entries are stripped to shareable fields. Backward/forward
+    // compatible both ways: share.html renders v1/v2 (no fe) as the old
+    // flat list, and treats fe as optional per file.
+    const encManifest=await Crypto.encrypt({v:3, entries: (entriesToInclude||[]).map(shareableEntry), files}, pin, {ephemeralSalt:true});
     const expiresAt=Date.now() + Math.min(_shareSelectedTTL, 86400000); // hard 24h cap
     await CloudSync.fsMod.setDoc(
       CloudSync.fsMod.doc(CloudSync.db, 'shares', shareId),
@@ -7934,7 +7982,7 @@ function buildIdCardHTML(entry) {
       </div>
       <div class="idcard-fields">
         ${m.fields.map(fl => `<div class="idcard-field${fl.emphasis?' emphasis':''}${fl.wide?' wide':''}${fl.prose?' prose':''}">
-          <label>${esc(fl.label)}</label><div class="val">${esc(fl.value)}</div>
+          <label>${esc(fl.label)}</label><div class="val">${fl.prose ? noteMarkdownToHTML(fl.value) : esc(fl.value)}</div>
         </div>`).join('')}
       </div>
     </div>`;
