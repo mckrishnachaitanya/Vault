@@ -410,7 +410,12 @@ function idCardModel(entry) {
         f('Notes', entry.notes, {wide:true, prose:true}),
       ];
   }
-  return { eyebrow, name, fields: fields.filter(Boolean) };
+  // Custom fields — present in the shared payload; render them after the
+  // fixed per-type fields (mirrors the same addition in index.html).
+  const custom = (entry.customFields||[])
+    .map(cf => f(cf.name || 'Custom', cf.value, {wide:true, emphasis:!!cf.sensitive}))
+    .filter(Boolean);
+  return { eyebrow, name, fields: [...fields.filter(Boolean), ...custom] };
 }
 function entryCardHtml(entry){
   const model = idCardModel(entry);
@@ -518,8 +523,24 @@ async function loadPdfJs(){
 // async checkpoint below re-checks this before touching the DOM.
 let _viewerToken = 0;
 
+// The object URL for the file currently in the viewer. Created fresh per
+// open and revoked on close/next open — without this, every viewed file's
+// plaintext blob stayed referenced for the life of the page.
+let _currentBlobUrl = null;
+function revokeCurrentBlobUrl(){
+  if(_currentBlobUrl){ URL.revokeObjectURL(_currentBlobUrl); _currentBlobUrl = null; }
+}
+
 async function openViewer(file){
+  // Expiry was only checked once at page load — a tab left open past exp
+  // could keep opening files. Re-check per tap; honest clients now stop at
+  // exp even before the sender's next-unlock cleanup deletes the Drive files.
+  if(shareRecord && shareRecord.exp && Date.now() > shareRecord.exp){
+    show('state-unavailable');
+    return;
+  }
   const myToken = ++_viewerToken;
+  revokeCurrentBlobUrl();
   const overlay = document.getElementById('viewer-overlay');
   const body = document.getElementById('viewer-body');
   const title = document.getElementById('viewer-title');
@@ -547,6 +568,7 @@ async function openViewer(file){
   const isPdf = file.mimeType==='application/pdf';
   const blob = new Blob([plainBuf], {type:file.mimeType||'application/octet-stream'});
   const blobUrl = URL.createObjectURL(blob);
+  _currentBlobUrl = blobUrl;
 
   body.innerHTML = '';
   if(file.dl !== false){
@@ -600,6 +622,7 @@ document.getElementById('viewer-back').addEventListener('click', ()=>{
   _viewerToken++; // invalidate any in-flight decrypt/render for the closed file
   document.getElementById('viewer-overlay').classList.remove('show');
   document.getElementById('viewer-body').innerHTML='';
+  revokeCurrentBlobUrl(); // AFTER the <img>/download refs are removed from the DOM
 });
 
 init();

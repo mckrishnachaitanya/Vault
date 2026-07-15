@@ -1,11 +1,13 @@
 {
-  "version": "7.8",
-  "released": "2026-07-14",
+  "version": "7.9",
+  "released": "2026-07-15",
   "whatsNew": [
-    "📜 Scrolling fix: the last document, entry field, or form field is no longer stuck hidden behind the bottom navigation bar — Docs list, entry detail, add/edit form, and document view all scroll fully now",
-    "🔒 Lock screen fixes: bottom sheets and dialogs (share summary, add-document, manage shares, link picker, confirm/PIN dialogs, crop screen, help) now always close when the vault locks — nothing can sit on top of the PIN screen anymore",
-    "📎 Linked documents fix: on a fresh app launch, opening an entry no longer briefly shows 'Document not found' for documents that are actually there",
-    "⚡ Smoother scrolling + faster app start (blur effects trimmed from list cards; PDF library now loads only when needed)"
+    "🔗 Secure Share fix: the 'Include documents' option now always appears when sharing entries that have linked documents — previously it could silently go missing on swipe-share and multi-select shares until you'd opened the Docs tab",
+    "⏱️ Expiry picker fix: switching document sharing off no longer leaves a hidden 6-hour expiry selected with nothing highlighted",
+    "🏷️ Custom fields are now visible to share recipients — both in shared-entry links and in combined entry+document shares",
+    "👆 Sharing now asks for your PIN when the vault was unlocked with biometrics — same protection as viewing documents",
+    "❌ Closing the share sheet mid-upload now cancels the share and removes anything already uploaded — and Manage Shares gained a Copy Link button so no link is ever lost",
+    "🧹 Recipient page: expired links now stop working the moment they expire (even in an already-open tab), plus a memory leak fix when viewing multiple files"
   ],
   "features": [
     {

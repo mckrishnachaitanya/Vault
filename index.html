@@ -1459,7 +1459,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.6</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v7.9</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1915,7 +1915,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v7.6</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v7.9</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -3473,6 +3473,12 @@ async function restoreAfterUnlock() {
   }
 
   if(target==='share-sheet' && _shareTargetEntries.length){
+    // stepUpDone resets on lock — without this, a bio re-unlock would restore
+    // the share sheet and bypass the step-up that opening it now requires.
+    if(state.unlockedViaBio){
+      const ok = await requirePIN('Enter PIN to share');
+      if(!ok){ showScreen('home-screen'); renderEntries(true); updateStats(); return; }
+    }
     if(currentDetail){ showScreen('home-screen'); renderEntries(true); updateStats(); openDetail(currentDetail.id); }
     showShareSheet();
     return;
@@ -7339,6 +7345,13 @@ function refreshShareSheetUI(){
     _shareSelectedTTL = 86400000;
     document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b.dataset.ttl==='86400000'));
   }
+  // Mirror case: 6h was selected in docs mode, then the toggle went OFF —
+  // the 6h button is now hidden but would stay "selected", leaving NO visible
+  // preset highlighted while the share silently gets a 6h expiry.
+  if(!hasDocs && _shareSelectedTTL === 21600000){
+    _shareSelectedTTL = 86400000;
+    document.querySelectorAll('.share-expiry-btn').forEach(b => b.classList.toggle('selected', b.dataset.ttl==='86400000'));
+  }
   document.getElementById('share-generate-btn').textContent =
     _shareTargetDocs.length ? 'Encrypt & Upload' : (hasDocs ? 'Include & Share' : 'Generate Link');
 }
@@ -7363,11 +7376,27 @@ function hideShareSheet() {
 }
 
 // Accepts either a single entry or an array of entries (bulk share).
-function openShareModal(entryOrEntries) {
-  _shareTargetEntries = Array.isArray(entryOrEntries) ? entryOrEntries : [entryOrEntries];
+async function openShareModal(entryOrEntries) {
+  const targets = Array.isArray(entryOrEntries) ? entryOrEntries : [entryOrEntries];
+  // Bio-session step-up: sharing reveals passwords/PINs to a third party and
+  // (via includeDocs) can decrypt+upload documents — the same data the Docs
+  // tab gates behind a PIN. Same rule as add/delete: bio unlock alone isn't
+  // enough. requirePIN() no-ops once verified this session (stepUpDone).
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to share');
+    if(!ok) return;
+  }
+  // The docs manifest is lazily loaded and reset on every lock — collectLinkedDocs
+  // reads state.docs, so it MUST be populated first or the "Include documents"
+  // row silently never appears on the swipe-share and multi-select paths
+  // (detail-screen path was safe only because openDetail() loads it).
+  if(targets.some(e=>(e.linkedDocIds||[]).length)) await loadDocsManifest();
+  _shareTargetEntries = targets;
   _shareTargetDocs = [];
   _entryLinkedDocs = collectLinkedDocs(_shareTargetEntries);
   _entryIncludeDocs = false;
+  const genBtn = document.getElementById('share-generate-btn');
+  genBtn.disabled = false; // a cancelled in-flight share may have left it disabled
   document.getElementById('share-includedocs-toggle').classList.remove('checked');
   _shareAllowDownload = true;
   document.getElementById('share-allow-dl').classList.add('checked');
@@ -7389,6 +7418,7 @@ function openShareModal(entryOrEntries) {
 // Firestore share record) and Drive drive.file consent (first share only).
 function openDocShareModal(docsArr){
   _shareTargetDocs = Array.isArray(docsArr) ? docsArr : [docsArr];
+  document.getElementById('share-generate-btn').disabled = false; // clear any cancelled-share leftover
   _shareTargetEntries = [];
   _entryLinkedDocs = [];
   _entryIncludeDocs = false;
@@ -7412,10 +7442,23 @@ document.getElementById('share-allow-dl').addEventListener('click', ()=>{
   document.getElementById('share-allow-dl').classList.toggle('checked', _shareAllowDownload);
 });
 
+// USER-initiated close cancels an in-flight hybrid share (the pipeline
+// checkpoints on _shareGen and rolls back anything uploaded). Auto-lock is
+// deliberately different: lockVault() hides the sheet directly without going
+// through these handlers, so a share interrupted by backgrounding still
+// completes in the background — that behaviour is unchanged.
+function cancelInFlightShare(){
+  if(_shareInFlight && _shareInFlight === _shareGen){
+    _shareGen++;
+    _shareInFlight = 0;
+    document.getElementById('share-generate-btn').disabled = false;
+    toast('Share cancelled — nothing was published');
+  }
+}
 document.getElementById('share-sheet-overlay').addEventListener('click', e => {
-  if(e.target === document.getElementById('share-sheet-overlay')) hideShareSheet();
+  if(e.target === document.getElementById('share-sheet-overlay')){ cancelInFlightShare(); hideShareSheet(); }
 });
-document.getElementById('share-sheet-close').addEventListener('click', hideShareSheet);
+document.getElementById('share-sheet-close').addEventListener('click', () => { cancelInFlightShare(); hideShareSheet(); });
 
 document.querySelectorAll('.num-btn[data-sp]').forEach(b => b.addEventListener('click', () => {
   if(_spPin.length < 4) { _spPin += b.dataset.sp; spUpdateDots(); }
@@ -7505,9 +7548,14 @@ async function saveLocalDocShares(list){
 // (a fresh second attempt, a closed sheet, etc). Every UI-touching point
 // after an await re-checks its own generation against the current one.
 let _shareGen = 0;
+// Generation number of the attempt currently between "started" and "done"
+// (0 = none). Lets the sheet's close button distinguish "user is abandoning
+// a live upload → cancel + roll back" from a plain close of an idle sheet.
+let _shareInFlight = 0;
 
 async function generateHybridShare(pin, {docsToUpload, entriesToInclude}){
   const myGen = ++_shareGen;
+  _shareInFlight = myGen;
   const btn=document.getElementById('share-generate-btn');
   const setP=t=>{ if(myGen===_shareGen) btn.textContent=t; };
   btn.disabled=true;
@@ -7531,6 +7579,9 @@ async function generateHybridShare(pin, {docsToUpload, entriesToInclude}){
     const total=docsToUpload.length;
     const files=[];
     for(let i=0;i<total;i++){
+      // Cancelled (sheet closed) or superseded — abort BEFORE publishing;
+      // the catch block below rolls back everything uploaded so far.
+      if(myGen!==_shareGen) throw new Error('share cancelled');
       const d=docsToUpload[i];
       setP(`Encrypting ${i+1}/${total}\u2026`);
       const ab=await DocsDB.loadFile(d.id, state.currentPIN);
@@ -7543,6 +7594,9 @@ async function generateHybridShare(pin, {docsToUpload, entriesToInclude}){
       files.push({ fid, name:d.name, mimeType:d.mimeType||'application/octet-stream', size:d.size||0, dl:_shareAllowDownload });
     }
     setP('Finalizing\u2026');
+    // Last cancellation checkpoint — past this line the Firestore record is
+    // written and the share is real (from here, close no longer cancels).
+    if(myGen!==_shareGen) throw new Error('share cancelled');
     // v2 manifest \u2014 entries is new; empty for pure doc shares, and older
     // v1 manifests (no entries field at all) stay backward-compatible in
     // share.html since it just treats a missing/empty entries array as none.
@@ -7570,6 +7624,7 @@ async function generateHybridShare(pin, {docsToUpload, entriesToInclude}){
     if(myGen===_shareGen) toast('Share failed \u2014 nothing was published');
   } finally{
     if(myGen===_shareGen){
+      _shareInFlight=0;
       btn.disabled=false;
       btn.textContent = (docsToUpload.length && !(entriesToInclude&&entriesToInclude.length)) ? 'Encrypt & Upload'
         : ((entriesToInclude && entriesToInclude.length) ? 'Include & Share' : 'Generate Link');
@@ -7645,7 +7700,10 @@ async function renderManageShares(){
         <div class="s-title" style="font-size:14px">${esc(s.names.join(', '))}</div>
         <div class="s-desc">${fmtShareExpiry(s.exp)}</div>
       </div>
-      <button class="doc-add-cancel" data-revoke="${s.shareId}" style="width:auto;padding:8px 14px;font-size:13px;margin:0;color:var(--red)">Revoke</button>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+        <button class="doc-add-cancel" data-copylink="${s.shareId}" style="width:auto;padding:8px 14px;font-size:13px;margin:0;color:var(--accent)">Copy Link</button>
+        <button class="doc-add-cancel" data-revoke="${s.shareId}" style="width:auto;padding:8px 14px;font-size:13px;margin:0;color:var(--red)">Revoke</button>
+      </div>
     </div>
   `).join('');
 }
@@ -7662,6 +7720,17 @@ document.getElementById('manage-shares-overlay').addEventListener('click', e=>{
   if(e.target === document.getElementById('manage-shares-overlay')) hideManageSharesSheet();
 });
 document.getElementById('manage-shares-list').addEventListener('click', async ev=>{
+  // Copy Link — the ledger keeps every shareId, so a link can always be
+  // recovered here (e.g. a share whose sheet was dismissed before the link
+  // was ever shown). Same URL construction as presentShareLink's caller.
+  const copyBtn = ev.target.closest('[data-copylink]');
+  if(copyBtn){
+    const base = location.pathname.replace(/[^/]*$/,'');
+    const link = `${location.origin}${base}share.html#${copyBtn.dataset.copylink}`;
+    try{ await navigator.clipboard.writeText(link); toast('Link copied ✓'); }
+    catch(e){ toast('Copy failed'); }
+    return;
+  }
   const btn = ev.target.closest('[data-revoke]');
   if(!btn) return;
   const shareId = btn.dataset.revoke;
@@ -7841,7 +7910,13 @@ function idCardModel(entry) {
         f('Notes', entry.notes, {wide:true, prose:true}),
       ];
   }
-  return { eyebrow, name, fields: fields.filter(Boolean) };
+  // Custom fields — previously in the shared payload but never rendered,
+  // so recipients silently missed them. Appended after the fixed per-type
+  // fields, wide rows, in the order the sender defined them.
+  const custom = (entry.customFields||[])
+    .map(cf => f(cf.name || 'Custom', cf.value, {wide:true, emphasis:!!cf.sensitive}))
+    .filter(Boolean);
+  return { eyebrow, name, fields: [...fields.filter(Boolean), ...custom] };
 }
 
 function buildIdCardHTML(entry) {
