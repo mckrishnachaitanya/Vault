@@ -1464,7 +1464,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.0</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.0.1</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1920,7 +1920,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v8.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v8.0.1</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -7789,7 +7789,11 @@ document.getElementById('manage-shares-list').addEventListener('click', async ev
     const ledger = await loadLocalDocShares();
     const entry = ledger.find(s=>s.shareId===shareId);
     await CloudSync.fsMod.deleteDoc(CloudSync.fsMod.doc(CloudSync.db, 'shares', shareId));
-    if(entry) for(const fid of entry.fids){ DriveShare.deleteFile(fid).catch(()=>{}); }
+    // AWAITED and sequential — the first delete acquires the Drive token
+    // (one prompt at most, on this tap's user gesture), the rest reuse the
+    // cache. Still best-effort per file: the Firestore delete above IS the
+    // revoke; a failed Drive delete just leaves harmless orphaned ciphertext.
+    if(entry) for(const fid of entry.fids){ await DriveShare.deleteFile(fid).catch(()=>{}); }
     await saveLocalDocShares(ledger.filter(s=>s.shareId!==shareId));
     toast('Share revoked');
     renderManageShares();
@@ -8686,14 +8690,29 @@ async function doDriveRestore(){
 const DRIVE_SHARE_SCOPE='https://www.googleapis.com/auth/drive.file';
 const DriveShare={
   tokenClient:null, accessToken:null, tokenExpiresAt:0,
+  _tokenPromise:null, // in-flight request — concurrent callers JOIN it
 
   newShareId(){
     const b=crypto.getRandomValues(new Uint8Array(16));
     return Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
   },
 
+  // SINGLE-FLIGHT: concurrent callers (e.g. several deleteFile calls during
+  // a revoke) must share ONE token request. Without this, each caller ran
+  // its own requestAccessToken AND overwrote the shared tokenClient.callback
+  // — clobbering earlier callers' promises and popping the Google account
+  // picker once per file. Joining an in-flight promise also makes the
+  // silent→interactive fallback in apiFetch collapse to at most one silent
+  // + one interactive attempt no matter how many callers pile in.
   async getToken(interactive){
     if(this.accessToken && Date.now() < this.tokenExpiresAt - 60000) return this.accessToken;
+    if(this._tokenPromise) return this._tokenPromise;
+    this._tokenPromise = this._requestToken(interactive)
+      .finally(()=>{ this._tokenPromise=null; });
+    return this._tokenPromise;
+  },
+
+  async _requestToken(interactive){
     await DriveBackup.loadGsi();
     if(!this.tokenClient){
       this.tokenClient=google.accounts.oauth2.initTokenClient({
@@ -8713,7 +8732,11 @@ const DriveShare={
         } else reject(new Error('No access token returned'));
       };
       this.tokenClient.error_callback=(err)=>{ if(interactive) state.driveAuthPending--; reject(err||new Error('Auth failed')); };
-      try{ this.tokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' }); }
+      // prompt:'' (not 'consent') — GIS shows the consent screen only when
+      // the grant doesn't already exist. 'consent' FORCED the full screen on
+      // every single request, which is why revoke/share kept "re-asking" for
+      // the Google account even after it had been granted before.
+      try{ this.tokenClient.requestAccessToken({ prompt: '' }); }
       catch(err){ if(interactive) state.driveAuthPending--; reject(err); }
     });
   },

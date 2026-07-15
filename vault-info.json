@@ -1,12 +1,9 @@
 {
-  "version": "8.0",
+  "version": "8.0.1",
   "released": "2026-07-15",
   "whatsNew": [
-    "📎 Shared documents now appear grouped under the entry they belong to on the recipient page — no more guessing which file goes with which entry. Documents linked to several shared entries show once, labelled with every entry they belong to",
-    "📝 Notes now display with proper formatting (headings, bold, bullets) on recipient cards instead of raw markdown symbols",
-    "🏷️ Shared links no longer carry internal vault data (ids, favourites, timestamps) — recipients get only what they can see, and entry-share links got shorter too",
-    "☁️ Sharing a document without Cloud Sync on now tells you immediately, instead of after the Google Drive permission popup",
-    "🔒 A document share interrupted by auto-lock now reopens right where you left it after unlocking, and half-typed share PINs are wiped on lock"
+    "🔧 Fixed: revoking a share with multiple files no longer asks you to connect your Google account several times — one revoke, at most one prompt",
+    "✨ Google Drive permission prompts across sharing now only appear when actually needed, instead of showing the full consent screen every time"
   ],
   "features": [
     {
