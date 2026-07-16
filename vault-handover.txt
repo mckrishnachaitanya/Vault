@@ -899,3 +899,552 @@ R18 (v7.1) — Sticky PDF viewer + app-wide top-padding reduction
   reverted, wrong layer of the design system.
 - NOT touched: image/other preview modes — sticky behavior is pdf-mode
   scoped only, per the request's framing (fields moving under "pdf").
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R19 SUMMARY — Secure Document Sharing, Stage 1: Sender Pipeline (v7.2)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONTEXT
+- Resumes the parked design from R7: entries have had Secure Share for a
+  while (self-contained encrypted link, no cloud needed); this session
+  finally ships sharing for DOCUMENTS themselves, which can't fit in a URL
+  the way small entry payloads can.
+
+ARCHITECTURE DECISION (design chat before any code)
+- Drive stores CIPHERTEXT ONLY, everywhere, no exceptions — this was the
+  key fork of the whole design. Two options were discussed: (A) upload the
+  decrypted file with the share PIN only protecting the link, or (B)
+  upload the file already re-encrypted with the share PIN, so the raw
+  Drive URL is useless without the PIN. B was chosen — it keeps Vault's
+  "Drive never sees plaintext" rule intact everywhere, at the cost of
+  share.html needing to do real decryption work instead of a plain
+  redirect to Drive's own viewer.
+- Multi-file record (not zip): each doc gets its own Drive file
+  (drive.file scope, "anyone with link" reader), and Firestore holds one
+  small record per share — an ENCRYPTED manifest (filenames, mimeTypes,
+  sizes, per-file downloadAllowed flags) plus the list of Drive file ids,
+  expiry, revoked flag, owner uid. Recipient fetches/decrypts files
+  per-tap, not all upfront.
+- Per-share "Allow download" toggle (not per-file in v1, though the
+  manifest already carries a per-file `dl` flag so per-file control is a
+  future-proofed, zero-migration addition later). View-only just hides the
+  download button + disables right-click/drag on the preview — explicitly
+  a deterrent, not a security guarantee (screenshots/devtools always win
+  against a determined recipient; decryption happens in their browser by
+  design).
+- Expiry hard-capped at 24h for any share touching Drive/Firestore
+  (regardless of what the UI preset shows) — entries-only shares keep
+  their existing up-to-7-day range since those never touch the cloud.
+
+NEW MODULE — DriveShare (parallel to DriveBackup, separate OAuth scope)
+- drive.file scope (NOT drive.appdata — that's backup-only and can't
+  produce shareable links). Own GIS token client, own in-memory token
+  cache. Files live in a VISIBLE "Vault Shares" Drive folder (find-or-
+  create, id cached in localStorage vault_share_folder_id, re-verified —
+  not just trusted — on each use since the user could delete it).
+- uploadShareFile(): same resumable-upload pattern as DriveBackup (PUT
+  after a POST session, not multipart — consistent with the >5MB lesson
+  from R16).
+- makePublic(): sets anyone/reader permission after upload.
+- newShareId(): random 16-byte hex, used as both the Firestore doc id and
+  part of the Drive filename (vault-share-<id>-<n>.bin).
+
+SENDER PIPELINE (generateDocShare → later generalized, see R19.4)
+- Entry points: ☑️ multi-select on the Documents screen (new select bar,
+  mirrors Home's), and a "🔗 Create Secure Link" button in the doc viewer
+  for a single document. Both step up to PIN entry first if unlocked via
+  biometrics (matches existing entry-share precedent).
+- Per doc: DocsDB.loadFile (vault-PIN decrypt) → Crypto.encryptRawShare
+  (NEW: re-encrypts with the 4-digit SHARE pin, ephemeral salt, self-
+  contained salt‖iv‖ct Blob — distinct from the existing encryptRaw which
+  uses the vault pin and the vault's stable salt) → upload → make public.
+- Manifest: {v:1, files:[{fid,name,mimeType,size,dl}]}, itself encrypted
+  with the share PIN (ephemeral salt) before being written into Firestore.
+- Local ledger (vault_doc_shares, encrypted with the VAULT pin, NOT the
+  share pin — this is Krishna's own record of what he's shared, needed for
+  cleanup/Manage Shares in R19.3) records shareId + Drive file ids + expiry
+  + names, appended on every successful share.
+- On any failure mid-pipeline: already-uploaded Drive files for THIS
+  attempt are rolled back (best-effort delete) — a half-published share
+  must never linger.
+
+SHARE SHEET UI CHANGES
+- Same #share-sheet-overlay reused for both entry and doc shares (doc mode
+  added a size-estimate line + Wi-Fi warning >8MB, the Allow-download
+  toggle, and swapped the 7-day expiry preset for a 6-hour one).
+- share-generate-btn label reflects mode ("Generate Link" for entries,
+  "Encrypt & Upload" for docs).
+
+FIRESTORE SCHEMA (shares/{shareId})
+  { m: <encrypted manifest string>, fids: [driveFileId,...],
+    exp: <ms epoch>, revoked: false, uid: <owner>, created: <ms epoch> }
+Rules (appended to existing users/{uid}/vault rule):
+  allow read: if resource.data.revoked==false && resource.data.exp >
+    request.time.toMillis()
+  allow create: if request.auth!=null && request.resource.data.uid==
+    request.auth.uid && exp <= now+86460000 (24h + 1min skew)
+  allow update, delete: if request.auth!=null && resource.data.uid==
+    request.auth.uid
+
+DEPLOYMENT PREREQUISITES (one-time, done this session)
+- OAuth consent screen: drive.file scope added (non-sensitive, no
+  verification needed) alongside the existing drive.appdata.
+- Firestore rules published with the shares/{shareId} block above.
+
+NOT YET BUILT THIS SESSION (came in R19.1-R19.4, same overall session)
+- The actual recipient page (share.html) — link generated at this stage
+  didn't resolve to anything yet.
+- Cleanup/revocation, Manage Shares UI.
+- Entry-share includeDocs toggle.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R19.1 — share.html recipient page + link-preview/download-race fixes (v7.3)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NEW STANDALONE FILE — share.html (root of GitHub Pages, OUTSIDE the PWA)
+- Zero shared code with index.html by design — its own tiny Crypto object
+  (PBKDF2 deriveKey + AES-GCM decrypt, mirroring the app's primitives
+  exactly) so this file has no build step and no dependency on the app
+  bundle at all.
+- Firestore doc read via plain REST (https://firestore.googleapis.com/v1/
+  projects/<id>/databases/(default)/documents/shares/{shareId}?key=…) —
+  no SDK needed for one anonymous doc read. Not-found / revoked / expired
+  ALL produce the exact same generic "This link is no longer available"
+  message — deliberately indistinguishable (Krishna's call) so a recipient
+  can't learn anything from which failure mode they hit.
+- Drive file bytes fetched via ?alt=media&key=… (anyone-with-link + API
+  key, no OAuth needed for reading a public file).
+- API key is a SEPARATE, RESTRICTED key (Share_Vault in Cloud Console) —
+  NOT the Firebase config key. HTTP-referrer-locked to the GitHub Pages
+  origin, API-restricted to Drive API + Firestore API only. Deliberately
+  different from the app's own Firebase key since this one is embedded in
+  a page anyone can view-source.
+- PIN entry → decrypt manifest → file list → PER-FILE fetch+decrypt on tap
+  (not all upfront) → inline preview: images directly, PDFs via the same
+  pdf.js version as the main app (canvas render, no iframe). View-only
+  files hide the download button, show a badge, disable right-click/drag —
+  same deterrent-not-guarantee framing as the sender-side toggle.
+
+sw.js CHANGE (required for share.html to work at all)
+- Added an early-return bypass in the fetch handler: any request ending in
+  /share.html skips the service worker's app-shell logic entirely. Without
+  this, a navigate-mode request to share.html would have been answered
+  with the CACHED index.html instead — share.html must always hit network
+  fresh, and must never be treated as part of the installed PWA.
+- CACHE_NAME bumped (vault-v1→v2) alongside this so the fix actually
+  reaches devices instead of serving stale JS.
+
+BUG FOUND BY KRISHNA #1 — link preview looks like the main app
+- Cosmetic only (link itself worked correctly). share.html had a <title>
+  but no Open Graph tags, so messaging-app preview cards showed generic
+  branding indistinguishable from the main app's own link.
+- Fix: og:title "🔐 Vault — Secure Document Share", og:description,
+  noindex/nofollow, distinct favicon. Main app's <title> is bare "Vault"
+  for contrast.
+
+BUG FOUND BY KRISHNA #2 — download button inconsistent between two files
+in the SAME share (real bug, not perception)
+- Root cause: openViewer() is async (Drive fetch → decrypt → render) and
+  reuses ONE dlBtn/body/title DOM set. Tapping file 2 before file 1's
+  decrypt finished let both promises race to mutate the same elements —
+  whichever finished LAST won, regardless of which file was on screen.
+- Fix: monotonic _viewerToken counter. Every async checkpoint (fetch,
+  decrypt, pdf.js load, each page render) re-checks its own token against
+  the current one before touching the DOM; a superseded call silently
+  no-ops instead of overwriting. Closing the viewer also bumps the token
+  to kill any in-flight work for the file just closed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R19.2 — Real root cause: idle auto-lock timer interrupting Drive OAuth (v7.4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG REPORTED (multi-doc share via ☑️ select → Share)
+- Tapping Encrypt & Upload triggered the Google account picker as
+  expected, but completing it dropped the app to the PIN-lock screen
+  (URL bar visibly changed to accounts.google.com and back — confirms a
+  real top-level flow, not just a background tab). After re-unlocking and
+  landing on Home, navigating back to Documents and starting a SECOND
+  share attempt, the FIRST attempt's link appeared mid-way through
+  entering the new share PIN — an old, abandoned request visibly hijacked
+  the new one's screen.
+
+FIRST FIX ATTEMPT (v7.3, INCOMPLETE — documented so it isn't re-tried)
+- Added state.driveAuthPending counter, incremented around the interactive
+  branch of DriveShare.getToken/DriveBackup.getToken, checked in the
+  visibilitychange listener (mirroring the existing importInProgress
+  pattern for the native file picker). Krishna re-tested: "no change".
+
+ACTUAL ROOT CAUSE (found by asking Krishna to check Settings→About showed
+v7.3 confirmed deployed, then whether the address bar genuinely navigated)
+- Vault ALSO has a 2-minute idle auto-lock timer (setTimeout(lockVault,
+  AUTO_LOCK_MS)) running completely independently of visibilitychange.
+  Account-picker + consent screens can easily take longer than 2 minutes
+  wall-clock with no touch/click on the original tab to reset it — so THIS
+  timer fired lockVault() directly, bypassing the visibilitychange guard
+  entirely since that guard was never consulted by the timeout path.
+
+REAL FIX
+- Moved the guard INTO lockVault() itself: `if(state.driveAuthPending>0)
+  return;` as the very first line. This protects against every trigger
+  path uniformly (idle timer, visibilitychange, anything added later) from
+  one place, rather than needing every caller to remember to check.
+- ALSO reordered generateDocShare (now generateHybridShare, see R19.4) to
+  call `await DriveShare.getToken(true)` as the FIRST async operation,
+  before ensureCloudUser()/Firebase SDK load/file decrypt — reduces the
+  chance a mobile browser sees a stale user-gesture context by the time
+  the popup is requested and silently converts it to a full top-level
+  redirect in the first place.
+- _shareGen monotonic generation counter added as a second safety net
+  (independent of the lock bug): every UI-reveal point in the share
+  pipeline re-checks it's still the current attempt before touching the
+  screen. The share itself still completes and saves correctly either
+  way — only the display of a superseded attempt is suppressed. (This is
+  the same pattern as share.html's _viewerToken from R19.1.)
+
+LESSON FOR FUTURE SESSIONS
+- Any code path that can call lockVault() needs to be checked against
+  BOTH the visibilitychange listener AND the idle timer — they are
+  independent triggers and a fix to one silently doesn't cover the other.
+  Prefer guarding inside lockVault() itself over guarding at each call
+  site, as done here.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R19.3 — Cleanup + Manage Shares (v7.5)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLEANUP (cleanupExpiredDocShares, runs once per unlock — same setTimeout
+batch as checkDriveOnUnlock etc.)
+- Deleting the Firestore record IS the revoke — the read rule requires the
+  record to exist and be unexpired, so removing it blocks recipient access
+  immediately, same effect as it never existing.
+- Drive file deletion happens AFTER the Firestore delete succeeds, and is
+  best-effort/silent on failure — an orphaned ciphertext file with no
+  surviving record pointing at it is harmless (nobody can rediscover its
+  file id without the record that's now gone). If the Firestore delete
+  itself fails (offline, etc.), the ledger entry is KEPT for retry next
+  unlock — Drive is never touched until the record is confirmed gone.
+- Ledger (vault_doc_shares, vault-PIN encrypted) is the source of truth for
+  what to clean up; entries with exp>now stay untouched.
+
+MANAGE SHARES (Settings → new "Secure Doc Share" section)
+- Row shows live count ("N active shares" / "No active shares" / "Requires
+  Cloud Sync"), refreshed on Settings nav tap and after any cleanup/revoke.
+- Bottom sheet lists every active share (names joined, "Expires in Xh/m"),
+  each with an instant Revoke button — confirmDelete() dialog first, then
+  same delete-Firestore-then-best-effort-delete-Drive-files sequence as
+  automatic cleanup, then removed from the ledger and re-rendered.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R19.4 — Entry Secure Share: "Include documents" toggle (v7.6)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHY THIS WAS NON-TRIVIAL (design chat before coding)
+- Entry shares and doc shares were, until now, two architecturally
+  different mechanisms: entries are fully self-contained (encrypted
+  straight into the URL fragment, zero cloud dependency, up to 7-day
+  expiry); docs require Drive+Firestore (24h cap). Attaching a document to
+  an entry share necessarily means routing that share through the doc
+  mechanism instead — there's no way to fit a document's bytes into a URL.
+- Two decisions locked in with Krishna before writing code: (1) recipient
+  gets ONE combined link/page (entry fields + documents together), not two
+  separate links; (2) if Cloud Sync is off, the toggle is shown but
+  disabled with "Enable Cloud Sync in Settings to include documents"
+  rather than silently doing nothing.
+
+SENDER SIDE
+- Entries carry linkedDocIds (existing feature, up to 10 per entry,
+  unrelated to sharing until now). collectLinkedDocs(entries) takes the
+  UNION across all selected entries (bulk share), resolved to live doc
+  objects (silently drops ids whose document was since deleted).
+- Share sheet: new "Include documents" row, shown ONLY when the selected
+  entry/entries actually have linked docs. Toggling it on reveals the same
+  allow-download toggle + size/Wi-Fi-warning line already built for pure
+  doc shares, and swaps the expiry presets to the 6h/24h set (7-day is
+  hidden) exactly like doc mode.
+- refreshShareSheetUI() replaced the old binary setShareSheetMode('entries'
+  |'docs') — it's now a single function computing everything (include-row
+  visibility/Cloud-Sync-gating, doc-opts visibility, expiry presets, button
+  label) from current state, called after any state change (modal open,
+  toggle click). This was a deliberate refactor, not just an addition —
+  the old binary mode couldn't represent "entry mode WITH docs visible".
+- generateDocShare was GENERALIZED into generateHybridShare(pin,
+  {docsToUpload, entriesToInclude}) rather than duplicated — pure doc
+  shares call it with entriesToInclude:null, entry+doc shares pass both.
+  All the hard-won fixes from R19.1-R19.3 (gesture-first Drive auth,
+  _shareGen guard, rollback-on-failure) apply to both cases automatically
+  since there's only one implementation now.
+- Manifest bumped to v2: adds an `entries` array (raw entry objects,
+  same shape as the old pure-entry-share payload) alongside `files`.
+  Backward compatible — a v1 manifest with no entries field at all is
+  treated as an empty array by the recipient page.
+- Plain entry shares (no docs, or toggle left off) are BYTE-IDENTICAL to
+  before this session — same self-contained #share/<payload> link, same
+  code path, untouched.
+
+RECIPIENT SIDE (share.html)
+- Ported idCardModel()/groupDigits() from index.html verbatim (pure
+  functions, zero DOM dependency, so this was a straight copy-paste, not a
+  reimplementation) to render entry fields — same eyebrow/name/field logic
+  as the main app's card/bank/identity/wifi/note/app types, sensitive
+  numbers grouped in monospace.
+- Simpler than the main app's recipient CAROUSEL (R7) on purpose: entries
+  render as a plain vertical stack of cards (.entry-card), not a swipeable
+  carousel — scoped as a reasonable v1 given this was an "if time permits"
+  addition; revisit only if Krishna wants carousel parity here too.
+- Combined page layout: entry cards first, then the existing file list
+  below, both behind the same single PIN entry. Title text adapts ("Shared
+  with you" / "N items shared with you" / doc-only wording) depending on
+  whether entries, files, or both are present in the manifest.
+- Manifest validation loosened from "must have ≥1 file" to "must have ≥1
+  file OR ≥1 entry" — a future entries-only-via-hybrid-path share (doesn't
+  happen today, since includeDocs requires ≥1 linked doc to even show the
+  toggle) won't be rejected as empty.
+
+NOT DONE / WORTH KNOWING
+- No live-device test this session of the combined entry+doc share end to
+  end (build was verified via node --check only) — worth a real pass:
+  entry with a linked photo → toggle on → generate → open link → confirm
+  both the card and the document render and decrypt correctly.
+- Per-file (vs per-share) allow-download for entry+doc shares uses the
+  SAME toggle as pure doc shares — no separate control was requested or
+  built for entry-attached documents specifically.
+- Entry-only shares' 7-day expiry ceiling is unchanged; only shares that
+  actually touch Drive (pure doc, or entry+docs) are capped at 24h.
+
+R20 SUMMARY — Secure Share full-scenario audit + hardening (v7.9)
+------------------------------------------------------------------
+Session trigger: Krishna felt "something wrong" with entry shares that have
+linked documents, especially mixed multi-select (some entries with docs,
+some without). Full code audit of both sides (index.html sender pipeline +
+share.html recipient page) found the root cause plus five more issues; all
+six fixed in one pass, device-verified.
+
+THE ROOT-CAUSE BUG (the one Krishna was feeling)
+- openShareModal() called collectLinkedDocs() which reads state.docs — but
+  the docs manifest is LAZILY loaded (loadDocsManifest) and reset on every
+  lock (_docsManifestLoaded=false). Detail-screen Share was safe only
+  because openDetail() loads the manifest; swipe-share and multi-select →
+  summary → Continue called openShareModal() directly, so on a fresh unlock
+  state.docs was empty and the "Include documents" row SILENTLY never
+  appeared (or showed a wrong count). Session-dependent → felt intermittent.
+- FIX: openShareModal is now async; awaits loadDocsManifest() first when
+  any target entry has linkedDocIds. LESSON (generalizes): any NEW code
+  path that reads state.docs must guarantee the manifest is loaded — grep
+  for collectLinkedDocs/state.docs consumers when adding share entry points.
+
+THE OTHER FIVE FIXES
+1. Hidden-selected 6h expiry: selecting 6h in docs mode then toggling
+   include-docs OFF hid the 6h button while it stayed "selected" —
+   no visible preset, share silently got 6h. refreshShareSheetUI now
+   resets to 24h in that direction too (mirror of the 7d→24h reset).
+2. Custom fields: were in the encrypted payload but NEVER rendered by
+   either idCardModel copy — recipients silently missed them. Now appended
+   after the fixed per-type fields (wide rows, sender's order, sensitive →
+   emphasis) in BOTH index.html and share.html. RULE: idCardModel exists
+   in two files; any field-rendering change must be applied to both.
+3. Bio step-up on entry shares: docs share had requirePIN when
+   unlockedViaBio, entry shares did not — so "share entry + include docs"
+   could decrypt+upload the very documents the Docs tab gates behind PIN.
+   openShareModal now requires PIN step-up under bio unlock (no-op once
+   stepUpDone). ALSO added to restoreAfterUnlock's share-sheet branch,
+   because stepUpDone resets on lock — a bio re-unlock restoring the sheet
+   would otherwise bypass the new gate.
+4. Cancel-on-close + Copy Link: user-closing the sheet mid-hybrid-upload
+   previously let the share complete invisibly — published, in the ledger,
+   but the link never shown and Manage Shares had no way to retrieve it.
+   Now: new _shareInFlight marker; ✕/overlay-tap during an upload bumps
+   _shareGen ("Share cancelled" toast), and new gen checkpoints INSIDE the
+   upload loop + immediately before the Firestore write make the existing
+   catch/rollback delete anything uploaded. Auto-lock behaviour is
+   DELIBERATELY unchanged: lockVault() hides the sheet without these
+   handlers, so a backgrounded share still completes (R19.2 design).
+   Manage Shares rows also gained a Copy Link button (rebuilds the URL
+   from the ledger's shareId) — no link is ever unrecoverable now.
+5. Recipient page (share.html): (a) exp was checked once at init — an
+   already-open tab kept working past expiry; openViewer now re-checks exp
+   on every file tap and flips to state-unavailable. Honest-client fix
+   only — hard expiry still depends on sender's next-unlock Drive cleanup.
+   (b) Blob URLs were never revoked (plaintext blobs held for page life);
+   now tracked in _currentBlobUrl, revoked on viewer close and each open.
+
+ACCEPTED TRADEOFFS (audited, decided NOT bugs — do not "fix" casually)
+- 4-digit share PIN is offline-brute-forceable once someone holds the link
+  ciphertext (10k PBKDF2 tries). Inherent to design; attempt-limiting the
+  recipient page would be theater since the ciphertext is client-side.
+- "View only" (dl:false) is cosmetic — plaintext is in recipient's
+  browser; contextmenu blocking ≠ protection. Fine as a politeness signal.
+- Expiry is soft until sender's next unlock deletes Drive files (see 5a).
+  Unfixable without server-side compute — ruled out on Spark plan.
+- cleanupExpiredDocShares silently skips if Firebase auth hasn't restored
+  yet at unlock time; self-heals next unlock. Left as-is.
+
+DEFERRED (triaged this session, agreed for a future pass)
+Quick batch: (a) Cloud Sync pre-check in docs-select-share so pure doc
+  shares fail BEFORE the Drive consent popup, not after; (b) clear _spPin
+  in lockVault (stale share-PIN dots after sheet restore); (c) payload
+  hygiene — strip id/fav/linkedDocIds/timestamps from shared entry
+  payloads (recipients never use them; also shortens hash-link URLs).
+Needs design first: entry↔doc association for recipients — mixed
+  multi-entry shares render a flat card stack + flat file list with no
+  grouping. Proposed: manifest v3 adds forEntry (entry name) per file
+  record, backward compatible; share.html groups/captions the file list.
+  Design the v3 shape + UI treatment BEFORE coding.
+Low priority: doc-mode share sheet not restored after auto-lock (needs
+  docsSelectedIds preservation too); recipient cards show notes as raw
+  markdown (fix requires porting noteMarkdownToHTML — careful, current
+  escaping is exactly why there's no XSS surface there).
+
+DEPLOY NOTE
+- This was a FOUR-file deploy (share.html changed too): index.html, sw.js
+  (cache bumped vault-v6 → vault-v7), vault-info.json, share.html.
+- In-HTML version strings (Help badge + Settings→About) had drifted (still
+  said v7.6 while vault-info.json was 7.8) — both now say v7.9. Keep these
+  two strings in the version-bump checklist alongside vault-info.json.
+
+R21 SUMMARY — Manifest v3 grouping + R20 deferred batch (v8.0)
+---------------------------------------------------------------
+All items deferred from R20 done in one pass, per design Q&A with Krishna:
+docs nested under each entry card on the recipient page; a doc linked to
+multiple shared entries shows ONCE, captioned with all entry names; both
+low-priority items included.
+
+MANIFEST v3 (the recipient-visible feature)
+- Each file record MAY carry fe: array of indices into the manifest's
+  entries array — every entry the doc is linked to. Computed in the upload
+  loop from the ORIGINAL entry objects (which still have linkedDocIds);
+  ORDER MATTERS because shareableEntry (below) strips linkedDocIds from
+  the manifest copy afterwards. Pure doc shares omit fe entirely.
+- share.html: entries render as .entry-group blocks — card + nested
+  .entry-docs rows (indented, left-border rail, "Attached document(s)"
+  label). Multi-linked doc nests under its FIRST entry (fe[0]) with a
+  "Linked to: A, B" caption listing all names. Files without fe fall to
+  the flat bottom list ("Other documents" label only when grouped docs
+  also exist) — which is exactly where ALL files on v1/v2 manifests land,
+  so still-active old shares render identically to before. One fileRowHtml
+  builder for both contexts; data-idx is always the ABSOLUTE index into
+  manifest.files so a single click delegation serves nested + flat rows.
+
+PAYLOAD HYGIENE
+- New shareableEntry(e): strips id, fav, created, updated, linkedDocIds at
+  BOTH encrypt points (hash-link payload + hybrid manifest). Deliberately
+  a BLOCKLIST, not an allowlist — a future field added to collectFormData
+  must not be silently dropped from shares. If a new INTERNAL field is
+  ever added to entries, add it to this blocklist.
+
+QUICK FIXES
+- Cloud Sync pre-check lives INSIDE openDocShareModal (not at callers) so
+  every doc-share entry point fails with a toast BEFORE PIN entry / Drive
+  consent popup. (Known nit, accepted: bio users hit the callers'
+  requirePIN before this toast — rare combination, not worth restructuring.)
+- lockVault wipes _spPin + spUpdateDots() unconditionally — no stale share
+  PIN dots on sheet restore.
+- restoreAfterUnlock gained the doc-mode branch: _shareTargetDocs survives
+  lock, so restore = openDocsTab() + showShareSheet(), gated by the same
+  bio requirePIN as entry-mode restore.
+
+MARKDOWN NOTES ON RECIPIENT CARDS
+- noteMarkdownToHTML ported into share.html (uses escHtml; the function
+  escapes EVERY line before any transform — same escape-first structure as
+  the original, so no new XSS surface; keep that property if ever edited).
+- Prose fields in BOTH card builders (buildIdCardHTML in index.html,
+  entryCardHtml in share.html) now render markdown HTML instead of escaped
+  raw text; .prose CSS switched from pre-wrap to normal + h1/p/ul/li block
+  styles, added to BOTH stylesheets. RULE reaffirmed: card rendering
+  exists in two files — change both or neither.
+
+DEPLOY
+- Four-file deploy: index.html, share.html, sw.js (vault-v7 → vault-v8),
+  vault-info.json (8.0). Version strings in Help badge + Settings→About
+  bumped alongside.
+
+R22 SUMMARY — Revoke multi-prompt fix (v8.0.1)
+-----------------------------------------------
+Krishna reported revoking a share asked for the Google account multiple
+times in ONE revoke. Root cause was threefold, all in DriveShare:
+1. Revoke fired N un-awaited deleteFile() calls concurrently; with no
+   cached token, ALL N started their own token request before any could
+   populate the cache.
+2. They shared ONE tokenClient whose .callback each call OVERWROTE —
+   clobbering earlier callers' promises; GIS popped the picker repeatedly.
+3. prompt:'consent' FORCED the full consent screen on every interactive
+   request even when the scope was already granted.
+FIXES: single-flight token acquisition (_tokenPromise — concurrent callers
+JOIN the in-flight request; also collapses apiFetch's silent→interactive
+fallback to at most one of each); prompt:'' so GIS shows consent only when
+the grant doesn't exist; revoke's Drive deletes awaited SEQUENTIALLY (first
+delete acquires the token on the tap's gesture, rest hit cache; still
+best-effort per file — the Firestore delete IS the revoke). Side benefit:
+rollback loop and cleanupExpiredDocShares use the same path, so their
+popup-storm potential is gone too.
+PATTERN (generalizes): any GIS token client shared across concurrent
+callers MUST single-flight; per-call callback assignment on a shared
+client is a landmine.
+
+R23 SUMMARY — Unified Drive auth + recipient spacing (v8.0.2)
+-------------------------------------------------------------
+Krishna: app asks to authenticate at cloud-sync enable, at doc upload, AND
+at revoke. Three surfaces: (1) Firebase Auth sign-in (one-time, persists —
+fine); (2) DriveBackup GIS token, appdata scope; (3) DriveShare GIS token,
+drive.file scope. (2)+(3) were SEPARATE token clients = separate grants =
+separate prompts in the same session.
+FIX: new DriveAuth object — ONE token client requesting BOTH scopes
+(`${DRIVE_SCOPE} ${DRIVE_SHARE_SCOPE}`), holding the R22 single-flight.
+DriveBackup.getToken and DriveShare.getToken are one-line delegations, so
+every caller is unchanged. One prompt per session now covers backup,
+share upload, and revoke. DriveBackup.disconnect() calls DriveAuth.reset()
+— DELIBERATE: disconnecting Drive revokes the share scope too.
+- MIGRATION NOTE: existing installs see ONE more consent screen after this
+  update (approving the combined grant), silent thereafter. Verified on
+  device.
+- IRREDUCIBLE RESIDUE (not bugs): one prompt per cold start of the app,
+  and re-prompt after ~1h token expiry — inherent to client-only implicit
+  flow; GIS access tokens are memory-only and there's no server to hold
+  refresh tokens. Do not attempt to persist bearer tokens to storage.
+- share.html spacing bug (screenshot-reported): a group's doc rows sat
+  nearly flush against the NEXT entry's card and read as belonging to it.
+  Fix: in-group gap 6px (docs hug their own card), 26px margin between
+  .entry-group blocks.
+
+SECURITY REVIEW NOTE (same sessions, no code change)
+- Krishna asked whether embedded keys in the public repo are a risk.
+  Verdict: Firebase web config + OAuth client ID are public by design (no
+  client secret exists anywhere in this architecture — deliberate).
+  Security boundary = Firestore rules + key restrictions. ACTION ITEMS for
+  Krishna in Google Cloud Console (console-side only): restrict BOTH AIza
+  keys (HTTP referrer → GitHub Pages origin; API restrictions → only the
+  APIs each uses — share.html's key needs just Firestore + Drive), and
+  ensure only the Google provider is enabled in Firebase Auth. Worst
+  unrestricted-key case on Spark is quota exhaustion, not billing. GitHub
+  secret-scanning emails about AIza strings are expected noise once
+  restricted. Optional future layer: Firebase App Check (works on Spark,
+  needs code in index.html + share.html REST path) — its own session if
+  ever wanted.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CURRENT STATE — v8.0.2
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Secure Share complete, audited (R20), polished (R21), and its auth UX
+fixed (R22–R23): one Google prompt per session covers all Drive
+operations. Deploys since R21 were three-file (v8.0.1) and four-file
+(v8.0.2, sw cache now vault-v10). Remaining accepted tradeoffs documented
+in R20; console-side key restrictions are on Krishna (see security note).
+
+One-time deployment prerequisites already done and now permanent:
+- OAuth consent screen: drive.file + drive.appdata scopes declared.
+- Firestore rules: shares/{shareId} block (see R19 above) published
+  alongside the existing users/{uid}/vault rule.
+- Share_Vault API key (Cloud Console): HTTP-referrer restricted to the
+  GitHub Pages origin, API-restricted to Drive API + Firestore API,
+  pasted into share.html's API_KEY constant.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + share.html + this file.
+Secure Share backlog is now EMPTY — next session is open for whatever
+  Krishna brings (jsPDF inline bundling remains the standing candidate).
+If PDF scans still fail unreliably due to CDN loading (unrelated, older
+  issue): bundling jsPDF source inline remains the definitive fix.
+Bug → say "Bug: [describe]" for anything found in normal use — for Secure
+  Doc Share bugs specifically, a Debug Log screenshot plus which flow
+  (pure doc share / entry+doc share / recipient page) narrows it fastest
+  given how much async/race-condition surface this feature has.
