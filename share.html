@@ -103,8 +103,13 @@ body{
 .entry-field-value.prose ul{margin:0 0 4px;padding-left:18px;}
 .entry-field-value.prose li{margin:2px 0;}
 
-/* v3 grouped layout: an entry card with its linked documents nested under it */
-.entry-group{display:flex;flex-direction:column;gap:8px;}
+/* v3 grouped layout: an entry card with its linked documents nested under it.
+   The docs block sits TIGHT under its own card (6px) while consecutive
+   groups get a clearly larger break (26px via margin, on top of the list's
+   own gap) — without this, a group's doc rows sat almost flush against the
+   NEXT entry's card and read as belonging to it. */
+.entry-group{display:flex;flex-direction:column;gap:6px;}
+.entry-group:not(:last-child){margin-bottom:26px;}
 .entry-docs{display:flex;flex-direction:column;gap:8px;padding-left:14px;border-left:2px solid var(--border);margin-left:6px;}
 .entry-docs .file-row{padding:11px 14px;border-radius:14px;}
 .entry-docs-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:2px;}

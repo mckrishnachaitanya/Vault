@@ -1,9 +1,9 @@
 {
-  "version": "8.0.1",
-  "released": "2026-07-15",
+  "version": "8.0.2",
+  "released": "2026-07-16",
   "whatsNew": [
-    "🔧 Fixed: revoking a share with multiple files no longer asks you to connect your Google account several times — one revoke, at most one prompt",
-    "✨ Google Drive permission prompts across sharing now only appear when actually needed, instead of showing the full consent screen every time"
+    "🔑 One Google prompt now covers everything Drive-related — backup, document share uploads, and revoking links all reuse a single session grant instead of asking separately. Note: you'll see one final consent screen after this update (approving the combined permission), then it goes quiet",
+    "📐 Recipient page: clearer spacing between shared entries — attached documents now sit visibly with their own entry instead of crowding the next card"
   ],
   "features": [
     {
