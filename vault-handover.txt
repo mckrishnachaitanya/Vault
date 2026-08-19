@@ -1516,3 +1516,35 @@ Secure Share backlog is empty — jsPDF inline bundling remains the
 Bug → say "Bug: [describe]" for anything found in normal use — for Secure
   Doc Share bugs specifically, a Debug Log screenshot plus which flow
   (pure doc share / entry+doc share / recipient page) narrows it fastest.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R24.1 — Post-add navigation fix (v8.1.1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG REPORTED
+- After adding a document (camera scan or file picker), the app dropped
+  back to the full Documents list instead of opening the just-added
+  document — meaning the user had to re-find and re-tap it, e.g. to set
+  a category, and reported a PIN prompt appearing along the way that felt
+  unnecessary given they'd just been working with the vault unlocked.
+
+ROOT CAUSE / FIX
+- saveDocFromFile()'s success path called
+  `showScreen('docs-screen'); renderDocs();` — always landed on the list.
+  Changed to `openDocDetail(id)` so the just-saved document opens directly,
+  category picker and all, with no extra tap.
+- The add flow (camera / file picker) is only reachable from the "+"
+  button INSIDE the Documents tab, which itself already gates entry with
+  the biometric step-up PIN prompt (docsStepUpDone) before the add sheet
+  ever appears. openDocDetail() has no step-up check of its own. So by
+  going straight from save → detail (instead of save → list → re-tap →
+  detail), the round trip that was making the earlier step-up feel
+  disconnected/redundant is gone — no additional PIN prompt should occur
+  in this flow now. If a PIN prompt still shows up specifically here,
+  it's worth flagging as its own bug report with whether biometric unlock
+  is enabled (Settings → Security) and exactly which tap triggers it.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + share.html + this file.
+Bug → say "Bug: [describe]" for anything found in normal use.

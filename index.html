@@ -1476,7 +1476,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.1.0</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.1.1</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1954,7 +1954,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v8.1.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v8.1.1</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -3196,7 +3196,8 @@ async function saveDocFromFile(file) {
     });
     await saveDocsManifest();
     toast(existing ? 'Document replaced ✓' : 'Document added ✓');
-    state.currentNav = 'docs'; showScreen('docs-screen'); renderDocs();
+    state.currentNav = 'docs';
+    openDocDetail(id);
   } catch(err) {
     console.error('Doc save failed', err);
     toast('Failed to save document');

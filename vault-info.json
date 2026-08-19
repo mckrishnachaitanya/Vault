@@ -1,8 +1,9 @@
 {
-  "version": "8.1.0",
+  "version": "8.1.1",
   "released": "2026-08-19",
   "whatsNew": [
-    "🏷️ Custom document categories — when a document doesn't fit Identity, Medical, Property, etc., tap ＋ New in the category picker to create your own with a custom name, icon, and colour. Reused for future documents and shown as filter pills, just like the built-in categories"
+    "🏷️ Custom document categories — when a document doesn't fit Identity, Medical, Property, etc., tap ＋ New in the category picker to create your own with a custom name, icon, and colour. Reused for future documents and shown as filter pills, just like the built-in categories",
+    "🩹 Adding a document (camera scan or file import) now opens straight into that document's detail view instead of dropping you back on the full Documents list"
   ],
   "features": [
     {
