@@ -1,9 +1,8 @@
 {
-  "version": "8.0.2",
-  "released": "2026-07-16",
+  "version": "8.1.0",
+  "released": "2026-08-19",
   "whatsNew": [
-    "🔑 One Google prompt now covers everything Drive-related — backup, document share uploads, and revoking links all reuse a single session grant instead of asking separately. Note: you'll see one final consent screen after this update (approving the combined permission), then it goes quiet",
-    "📐 Recipient page: clearer spacing between shared entries — attached documents now sit visibly with their own entry instead of crowding the next card"
+    "🏷️ Custom document categories — when a document doesn't fit Identity, Medical, Property, etc., tap ＋ New in the category picker to create your own with a custom name, icon, and colour. Reused for future documents and shown as filter pills, just like the built-in categories"
   ],
   "features": [
     {
@@ -30,6 +29,11 @@
       "icon": "📄",
       "title": "Documents",
       "desc": "Store encrypted files — PDFs, images, and more. Scan multi-page documents straight into a single PDF. Files are encrypted in IndexedDB on your device. Export as a zip backup anytime."
+    },
+    {
+      "icon": "🏷️",
+      "title": "Custom Categories",
+      "desc": "Create your own document categories with a custom name, icon, and colour from the category picker in any document's viewer. They're saved for reuse and appear as filter pills on the Documents tab, alongside the built-in ones."
     },
     {
       "icon": "👆",

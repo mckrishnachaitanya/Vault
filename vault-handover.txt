@@ -1437,14 +1437,82 @@ One-time deployment prerequisites already done and now permanent:
   GitHub Pages origin, API-restricted to Drive API + Firestore API,
   pasted into share.html's API_KEY constant.
 
+R24 SUMMARY — Custom document categories (v8.1.0)
+---------------------------------------------------
+Krishna asked what happens when a document doesn't fit any existing
+category (was Other 📁-only). Added user-created custom categories.
+
+DESIGN DECISIONS (from Q&A before coding)
+- Creation: quick free-text name entered inline, but REMEMBERED and
+  reusable afterward — not a one-off label, not a heavyweight separate
+  "manage categories" screen.
+- Appearance: user picks BOTH an icon (from a 12-emoji preset row) and a
+  colour (from an 8-colour preset swatch row) at creation time — no free
+  hex input, keeps it fast and visually consistent with the built-in set.
+- Visibility: custom categories behave identically to built-ins — same
+  picker, same badge rendering, same filter pills on the Documents tab.
+
+DATA MODEL
+- state.customDocCats: [{id,label,icon,color,bg}], id = 'custom:'+random.
+  bg is precomputed via new hexToRgba(hex,0.15) helper to match the
+  built-ins' rgba(...,.15) look.
+- Persisted as 'vault_custom_doc_cats' in localStorage, ENCRYPTED with the
+  vault PIN (Crypto.encrypt/decrypt) — same pattern as vault_doc_shares.
+  Reasoning: a category label could itself be sensitive (e.g. "Divorce
+  Papers"), so it gets the same protection as everything else, not stored
+  in the clear like vault_theme.
+- Loaded via loadCustomDocCats(), folded into loadDocsManifest() (single
+  call site, gated the same way — no currentPIN, no load) so every place
+  that already loads docs also has categories ready. _customCatsLoaded
+  flag mirrors _docsManifestLoaded's cache-until-lock pattern; reset
+  alongside it in lockVault().
+
+INTEGRATION (deliberately minimal-surface — one merge point)
+- allDocCats() = [...DOC_CATEGORIES, ...state.customDocCats]. docCatMeta()
+  now checks DOC_CATEGORIES first, then customDocCats, so every EXISTING
+  consumer (doc card badges, docs list, link picker, filter pills) picked
+  up custom categories automatically with zero changes — they all already
+  call docCatMeta() or (for the pills) now call the new allDocCats().
+- renderDocsCatPills() — only line changed: DOC_CATEGORIES→allDocCats() in
+  the pill-building filter.
+
+NEW UI
+- Category picker (doc viewer) refactored into renderDocCatPicker(doc) —
+  was previously an inline block in openDocDetail(). Renders all built-in
+  + custom pills plus a dashed "＋ New" pill at the end. Selecting a pill
+  or creating a new category both re-call this function to redraw with
+  the new selection, and also refresh the Documents list/pills in place if
+  visible, so nothing requires reopening the doc.
+- New bottom sheet #custom-cat-sheet-overlay (same bottom-sheet-overlay
+  pattern as Doc Add): name text input, 12-icon swatch row, 8-colour dot
+  row (both single-select, re-rendered on tap), Create button. Creating
+  saves the category, assigns it to the CURRENT doc immediately, and
+  closes back into the (now updated) picker.
+
+NOT DONE / WORTH KNOWING
+- No delete/edit/reorder UI for custom categories — creation only, per
+  this session's scope. If a category is deleted from state manually it'd
+  just fall back to docCatMeta's DOC_CATEGORIES[0] default gracefully
+  (no crash), but there's no user-facing way to trigger that yet.
+- No dedupe check on category name — creating "Insurance" twice makes two
+  separate pills. Low-risk (cosmetic only) but worth a name-collision
+  check if it comes up in practice.
+- Categories are NOT part of any zip/Drive export payload review this
+  session — worth confirming custom category assignments survive the
+  existing docs zip export/import and Drive backup/restore round-trips
+  (docCatMeta only needs the id+label+icon+color to exist somewhere to
+  render, and the *category id* travels with each doc record either way,
+  so this SHOULD already work via the existing manifest field-preservation
+  fix from R17 — but not device-verified this session).
+- No live-device test this session (build verified via node --check only).
+
 NEXT SESSION
 ------------
 Upload: index.html + sw.js + vault-info.json + share.html + this file.
-Secure Share backlog is now EMPTY — next session is open for whatever
-  Krishna brings (jsPDF inline bundling remains the standing candidate).
-If PDF scans still fail unreliably due to CDN loading (unrelated, older
-  issue): bundling jsPDF source inline remains the definitive fix.
+Custom-category polish (delete/edit, name-collision check) → say so if
+  wanted after trying it in practice.
+Secure Share backlog is empty — jsPDF inline bundling remains the
+  standing candidate if PDF scans ever misbehave again due to CDN load.
 Bug → say "Bug: [describe]" for anything found in normal use — for Secure
   Doc Share bugs specifically, a Debug Log screenshot plus which flow
-  (pure doc share / entry+doc share / recipient page) narrows it fastest
-  given how much async/race-condition surface this feature has.
+  (pure doc share / entry+doc share / recipient page) narrows it fastest.

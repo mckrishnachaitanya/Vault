@@ -1076,6 +1076,18 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   cursor:pointer;transition:all .14s;
 }
 .doc-cat-pick-btn.selected{color:#fff;border-color:transparent;}
+.custom-cat-swatch-row{display:flex;flex-wrap:wrap;gap:10px;}
+.custom-cat-swatch{
+  width:42px;height:42px;border-radius:12px;border:1.5px solid var(--border);
+  background:var(--surface);font-size:19px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .14s;
+}
+.custom-cat-swatch.selected{border-color:var(--accent);background:rgba(91,95,245,.12);transform:scale(1.06);}
+.custom-cat-color-swatch{
+  width:34px;height:34px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,.15);transition:all .14s;
+}
+.custom-cat-color-swatch.selected{border-color:var(--text);transform:scale(1.12);}
 
 .docs-empty-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
 
@@ -1464,7 +1476,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.0.2</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.1.0</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1680,6 +1692,28 @@ select.field-input option{background:var(--bg2);color:var(--text);}
       </button>
     </div>
     <button class="doc-add-cancel" id="doc-add-cancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ══════════ NEW CUSTOM DOCUMENT CATEGORY SHEET ══════════ -->
+<div class="bottom-sheet-overlay hidden" id="custom-cat-sheet-overlay">
+  <div class="bottom-sheet" id="custom-cat-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-title">New Category</div>
+    <div class="field-group" style="margin-bottom:14px">
+      <div class="field-label">Name</div>
+      <input class="field-input" id="custom-cat-name-input" placeholder="e.g. Insurance" autocomplete="off"/>
+    </div>
+    <div class="field-group" style="margin-bottom:14px">
+      <div class="field-label">Icon</div>
+      <div class="custom-cat-swatch-row" id="custom-cat-icon-row"></div>
+    </div>
+    <div class="field-group" style="margin-bottom:18px">
+      <div class="field-label">Colour</div>
+      <div class="custom-cat-swatch-row" id="custom-cat-color-row"></div>
+    </div>
+    <button class="share-generate-btn" id="custom-cat-create-btn" style="margin-bottom:10px">Create Category</button>
+    <button class="doc-add-cancel" id="custom-cat-cancel-btn">Cancel</button>
   </div>
 </div>
 
@@ -1920,7 +1954,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v8.0.2</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v8.1.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -2309,6 +2343,7 @@ let state = {
   docViewEntryId: null,    // entry id when docViewSource === 'entry'
   selectMode: false,       // multi-select mode on home screen for bulk share
   selectedIds: new Set(),  // persists across filter/search changes intentionally
+  customDocCats: [],       // user-created document categories (label+icon+color)
 };
 
 const Store = {
@@ -3252,6 +3287,7 @@ function lockVault() {
   }
   state.unlocked=false; state.unlockedViaBio=false; state.stepUpDone=false; state.docsStepUpDone=false;
   _docsManifestLoaded=false; // docs re-decrypt on next Docs open, same as entries on unlock
+  _customCatsLoaded=false;
   // Keep currentPIN in memory for biometric re-unlock — cleared only on PIN change
   clearTimeout(autoLockTimer);
   const ov=document.getElementById('lock-overlay');
@@ -6378,6 +6414,7 @@ async function openDocsTab(){
 let _docsManifestLoaded=false;
 async function loadDocsManifest(){
   if(!state.currentPIN){ state.docs=[]; _docsManifestLoaded=false; return; }
+  if(!_customCatsLoaded) await loadCustomDocCats();
   if(_docsManifestLoaded && Array.isArray(state.docs)) return;
   try{
     state.docs = await DocsDB.loadManifest(state.currentPIN);
@@ -6414,7 +6451,108 @@ const DOC_CATEGORIES = [
   { id:'travel',    icon:'✈️', label:'Travel',        color:'#f59e0b', bg:'rgba(245,158,11,.15)'  },
   { id:'other',     icon:'📁', label:'Other',         color:'#5b5ff5', bg:'rgba(91,95,245,.15)'   },
 ];
-function docCatMeta(catId){ return DOC_CATEGORIES.find(c=>c.id===(catId||'none')) || DOC_CATEGORIES[0]; }
+function docCatMeta(catId){
+  if(!catId || catId==='none') return DOC_CATEGORIES[0];
+  return DOC_CATEGORIES.find(c=>c.id===catId)
+    || (state.customDocCats||[]).find(c=>c.id===catId)
+    || DOC_CATEGORIES[0];
+}
+function allDocCats(){ return [...DOC_CATEGORIES, ...(state.customDocCats||[])]; }
+
+// ── Custom document categories — user-created, persisted encrypted with the
+// vault PIN (same pattern as vault_doc_shares) since a category label could
+// itself be sensitive (e.g. "Divorce Papers"). Loaded alongside the docs
+// manifest so both are ready together wherever Docs data is needed.
+const CUSTOM_CAT_COLORS = ['#5b5ff5','#ec4899','#10b981','#f59e0b','#06b6d4','#8b5cf6','#ef4444','#84cc16'];
+const CUSTOM_CAT_ICONS = ['🏷️','📌','🎯','🔑','🎨','📦','🧾','💡','🗂️','⚡','🔖','🧩'];
+function hexToRgba(hex, alpha){
+  const h = hex.replace('#','');
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+let _customCatsLoaded=false;
+async function loadCustomDocCats(){
+  if(!state.currentPIN){ state.customDocCats=[]; _customCatsLoaded=false; return; }
+  if(_customCatsLoaded && Array.isArray(state.customDocCats)) return;
+  const enc=Store.get('vault_custom_doc_cats');
+  if(!enc){ state.customDocCats=[]; _customCatsLoaded=true; return; }
+  try{ state.customDocCats=await Crypto.decrypt(enc, state.currentPIN); _customCatsLoaded=true; }
+  catch(e){ console.error('Custom doc categories decrypt failed', e); state.customDocCats=[]; }
+}
+async function saveCustomDocCats(){
+  Store.set('vault_custom_doc_cats', await Crypto.encrypt(state.customDocCats||[], state.currentPIN));
+}
+
+// Renders the category picker (built-ins + custom + "＋ New") into
+// #docview-cat-picker for the given doc, wiring select + create handlers.
+// Reused both on doc-detail open and immediately after a new category is
+// created, so the newly-created pill shows up selected without a full
+// screen re-open.
+function renderDocCatPicker(doc){
+  const picker=document.getElementById('docview-cat-picker');
+  if(!picker) return;
+  const cats=allDocCats();
+  picker.innerHTML = cats.map(c=>`
+    <button class="doc-cat-pick-btn${(doc.category||'none')===c.id?' selected':''}"
+      data-catid="${c.id}"
+      style="${(doc.category||'none')===c.id?`background:${c.bg};color:${c.color};border-color:${c.color}`:''}">
+      ${c.icon} ${esc(c.label)}
+    </button>`).join('')
+    + `<button class="doc-cat-pick-btn" id="doc-cat-new-btn" style="border-style:dashed">＋ New</button>`;
+  picker.querySelectorAll('[data-catid]').forEach(btn=>btn.addEventListener('click',async()=>{
+    doc.category=btn.dataset.catid==='none'?undefined:btn.dataset.catid;
+    doc.updated=Date.now();
+    await saveDocsManifest();
+    renderDocCatPicker(doc);
+    if(!document.getElementById('docs-screen').classList.contains('hidden')) renderDocs();
+    else renderDocsCatPills();
+    toast('Category updated');
+  }));
+  const newBtn=picker.querySelector('#doc-cat-new-btn');
+  if(newBtn) newBtn.addEventListener('click', ()=>openCustomCatSheet(doc));
+}
+
+// ── Custom category creation sheet ──
+let _newCatIcon = CUSTOM_CAT_ICONS[0];
+let _newCatColor = CUSTOM_CAT_COLORS[0];
+function openCustomCatSheet(doc){
+  _newCatIcon = CUSTOM_CAT_ICONS[0];
+  _newCatColor = CUSTOM_CAT_COLORS[0];
+  document.getElementById('custom-cat-name-input').value='';
+  renderCustomCatPickers();
+  document.getElementById('custom-cat-sheet-overlay').classList.remove('hidden');
+  document.getElementById('custom-cat-create-btn').onclick = async () => {
+    const label = document.getElementById('custom-cat-name-input').value.trim();
+    if(!label){ toast('Enter a category name'); return; }
+    if(!state.customDocCats) state.customDocCats=[];
+    const newCat = {
+      id: 'custom:'+Date.now().toString(36)+Math.random().toString(36).slice(2),
+      icon: _newCatIcon, label, color: _newCatColor, bg: hexToRgba(_newCatColor, 0.15),
+    };
+    state.customDocCats.push(newCat);
+    await saveCustomDocCats();
+    hideCustomCatSheet();
+    doc.category = newCat.id;
+    doc.updated = Date.now();
+    await saveDocsManifest();
+    renderDocCatPicker(doc);
+    if(!document.getElementById('docs-screen').classList.contains('hidden')) renderDocs();
+    toast('Category created ✓');
+  };
+}
+function hideCustomCatSheet(){ animateSheetClose('custom-cat-sheet-overlay'); }
+function renderCustomCatPickers(){
+  const iconRow=document.getElementById('custom-cat-icon-row');
+  iconRow.innerHTML = CUSTOM_CAT_ICONS.map(i=>`<button class="custom-cat-swatch${i===_newCatIcon?' selected':''}" data-icon="${i}">${i}</button>`).join('');
+  iconRow.querySelectorAll('[data-icon]').forEach(b=>b.addEventListener('click',()=>{ _newCatIcon=b.dataset.icon; renderCustomCatPickers(); }));
+  const colorRow=document.getElementById('custom-cat-color-row');
+  colorRow.innerHTML = CUSTOM_CAT_COLORS.map(c=>`<button class="custom-cat-color-swatch${c===_newCatColor?' selected':''}" data-color="${c}" style="background:${c}"></button>`).join('');
+  colorRow.querySelectorAll('[data-color]').forEach(b=>b.addEventListener('click',()=>{ _newCatColor=b.dataset.color; renderCustomCatPickers(); }));
+}
+document.getElementById('custom-cat-cancel-btn').addEventListener('click', hideCustomCatSheet);
+document.getElementById('custom-cat-sheet-overlay').addEventListener('click', e=>{
+  if(e.target === document.getElementById('custom-cat-sheet-overlay')) hideCustomCatSheet();
+});
 
 let docsActiveFilter='all';
 let docsSearchQuery='';
@@ -6430,7 +6568,7 @@ function renderDocsCatPills(){
   // Only show pills if at least one doc has a real category (not just 'none')
   const hasRealCats = [...usedCats].some(c=>c!=='none');
   if(!hasRealCats){ row.innerHTML=''; return; }
-  const pills=[{id:'all',icon:'',label:'All'},...DOC_CATEGORIES.filter(c=>usedCats.has(c.id)&&c.id!=='none')];
+  const pills=[{id:'all',icon:'',label:'All'},...allDocCats().filter(c=>usedCats.has(c.id)&&c.id!=='none')];
   if(pills.length<=1){ row.innerHTML=''; return; }
   row.innerHTML=pills.map(c=>`
     <div class="pill${docsActiveFilter===c.id?' active':''}" data-doccat="${c.id}">${c.icon?c.icon+' ':''}${c.label}</div>
@@ -6607,29 +6745,8 @@ async function openDocDetail(id){
   document.getElementById('docview-rename-input').value='';
 
   // Category picker
-  const catMeta=docCatMeta(doc.category);
-  const picker=document.getElementById('docview-cat-picker');
-  picker.innerHTML=DOC_CATEGORIES.map(c=>`
-    <button class="doc-cat-pick-btn${(doc.category||'none')===c.id?' selected':''}"
-      data-catid="${c.id}"
-      style="${(doc.category||'none')===c.id?`background:${c.bg};color:${c.color};border-color:${c.color}`:''}">
-      ${c.icon} ${c.label}
-    </button>`).join('');
-  picker.querySelectorAll('[data-catid]').forEach(btn=>btn.addEventListener('click',async()=>{
-    doc.category=btn.dataset.catid==='none'?undefined:btn.dataset.catid;
-    doc.updated=Date.now();
-    await saveDocsManifest();
-    // Re-render picker selection
-    picker.querySelectorAll('[data-catid]').forEach(b=>{
-      const cm=docCatMeta(b.dataset.catid);
-      const sel=(doc.category||'none')===b.dataset.catid;
-      b.classList.toggle('selected',sel);
-      b.style.background=sel?cm.bg:'';
-      b.style.color=sel?cm.color:'';
-      b.style.borderColor=sel?cm.color:'';
-    });
-    toast('Category updated');
-  }));
+  await loadCustomDocCats();
+  renderDocCatPicker(doc);
 
   // Expiry date panel
   const expiryInput = document.getElementById('docview-expiry-input');
