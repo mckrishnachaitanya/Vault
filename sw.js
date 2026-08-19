@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vault-v12';
+const CACHE_NAME = 'vault-v13';
 const PRECACHE_URLS = [
   './',
   './index.html',

@@ -1548,3 +1548,62 @@ NEXT SESSION
 ------------
 Upload: index.html + sw.js + vault-info.json + share.html + this file.
 Bug → say "Bug: [describe]" for anything found in normal use.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+R24.2 — Background Drive token renewal could force a PIN re-lock (v8.1.2)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG REPORTED
+- Sometimes saving/editing an entry, or creating/modifying a document,
+  triggered what looked like a Google sign-in step, and afterward the app
+  demanded the PIN again — for an action that touched nothing sensitive
+  on the Google side from the user's point of view.
+
+ROOT CAUSE
+- Every entry save (saveEntries) and every doc-manifest save
+  (saveDocsManifest) calls DriveBackup.markDirty(), which — if Google
+  Drive Backup is connected in Settings — schedules a silent background
+  upload ~2.5s later. That upload needs a fresh Drive access token via
+  DriveAuth.getToken(false) (the "silent" / non-interactive path, prompt:'').
+- state.driveAuthPending (the flag that suppresses BOTH the idle auto-lock
+  timer and the visibilitychange auto-lock while a Drive auth flow has
+  taken focus) was only ever incremented for interactive:true calls — i.e.
+  ones from explicit user actions (Connect Drive, Back Up Now, Restore,
+  Secure Share). The AUTOMATIC background renewal used the same
+  requestAccessToken({prompt:''}) call but with zero auto-lock protection,
+  on the assumption that "silent" truly means invisible.
+- That assumption doesn't always hold: GIS's silent renewal needs an
+  active, cookie-accessible Google browser session to work invisibly.
+  Inside an installed PWA on mobile, that context isn't always available,
+  so the "silent" request can still bounce out to a real Google page. With
+  no guard active, either the idle timer or losing focus mid-bounce would
+  call lockVault() — turning an invisible background token refresh into a
+  surprise full re-lock.
+
+FIX
+- state.driveAuthPending is now incremented/decremented around EVERY
+  DriveAuth token request, not just interactive ones — silent renewals
+  triggered by ordinary entry/document saves are now covered by the same
+  auto-lock suppression as an explicit "Connect Drive" tap.
+- No behavior change for the interactive paths themselves; this only
+  closes the gap on the background path.
+
+WORTH KNOWING
+- This doesn't stop the occasional Google page from appearing — that's an
+  inherent GIS/PWA limitation with memory-only access tokens (no refresh
+  token in a pure client-side flow), not something fixable from here. It
+  just means the app no longer punishes the user with a PIN prompt for a
+  background operation they didn't initiate.
+- If Google's page appears often and is disruptive, the workaround is
+  Settings → Google Drive Backup → Disconnect (entries/docs still sync via
+  Firestore Cloud Sync if that's separately enabled; local data is
+  unaffected either way).
+- No live-device test this session (verified via node --check only) —
+  worth confirming on a real device that editing an entry no longer causes
+  a re-lock, ideally forcing it by waiting >1h since the last Drive
+  operation so the token has actually expired.
+
+NEXT SESSION
+------------
+Upload: index.html + sw.js + vault-info.json + share.html + this file.
+Bug → say "Bug: [describe]" for anything found in normal use.

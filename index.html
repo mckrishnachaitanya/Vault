@@ -1476,7 +1476,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HELP OVERLAY ══════════ -->
 <div id="help-overlay">
   <div class="help-topbar">
-    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.1.1</span></h2>
+    <h2>Help <span class="help-version-badge" id="help-version-badge">v8.1.2</span></h2>
     <button class="help-close" id="help-close">✕</button>
   </div>
   <div class="help-body" id="help-body">
@@ -1954,7 +1954,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title" id="about-version">Vault v8.1.1</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title" id="about-version">Vault v8.1.2</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
     <div class="settings-item" id="s-debug-log">
       <span class="s-icon">🐛</span>
@@ -2334,9 +2334,12 @@ let state = {
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
   unlockedViaBio: false, stepUpDone: false,
   preLockScreen: null, formDraft: null, bioGen: 0, bioPending: false,
-  driveAuthPending: 0, // >0 while a Drive OAuth popup/redirect has taken focus —
-                       // suppresses the visibilitychange auto-lock, same idea as
-                       // importInProgress for the native file picker.
+  driveAuthPending: 0, // >0 while ANY Drive token request (silent or interactive)
+                       // is in flight — covers background auto-backup renewals
+                       // too, since GIS's "silent" flow can still bounce to a
+                       // real Google page on some mobile browsers. Suppresses
+                       // the visibilitychange auto-lock and the idle timer,
+                       // same idea as importInProgress for the native file picker.
   cloudUser: null, cloudSyncOn: false, syncStatus: 'idle',
   docsStepUpDone: false,
   docViewSource: 'docs',   // 'docs' | 'entry' — controls docview-back destination
@@ -8474,20 +8477,29 @@ const DriveAuth={
         callback: ()=>{},
       });
     }
-    if(interactive) state.driveAuthPending++;
+    // Guard auto-lock for EVERY token request, not just interactive ones.
+    // GIS's "silent" prompt:'' renewal (used by background Drive backup
+    // whenever an entry/doc is saved) is assumed not to need user attention,
+    // but on some mobile browsers a PWA lacks the cookie/session context for
+    // a truly invisible renewal and it bounces out to a real Google page
+    // anyway. Without this guard that background trip would be indistinguishable
+    // from the user going idle — the 2-min auto-lock timer or the
+    // visibilitychange handler would fire mid-flight and force a PIN
+    // re-entry for something the user never asked to do.
+    state.driveAuthPending++;
     return new Promise((resolve,reject)=>{
       this.tokenClient.callback=(resp)=>{
-        if(interactive) state.driveAuthPending--;
+        state.driveAuthPending--;
         if(resp && resp.access_token){
           this.accessToken=resp.access_token;
           this.tokenExpiresAt=Date.now() + (resp.expires_in||3600)*1000;
           resolve(this.accessToken);
         } else reject(new Error('No access token returned'));
       };
-      this.tokenClient.error_callback=(err)=>{ if(interactive) state.driveAuthPending--; reject(err||new Error('Auth failed')); };
+      this.tokenClient.error_callback=(err)=>{ state.driveAuthPending--; reject(err||new Error('Auth failed')); };
       // prompt:'' — GIS shows consent only when the grant doesn't exist yet.
       try{ this.tokenClient.requestAccessToken({ prompt: '' }); }
-      catch(err){ if(interactive) state.driveAuthPending--; reject(err); }
+      catch(err){ state.driveAuthPending--; reject(err); }
     });
   },
 
